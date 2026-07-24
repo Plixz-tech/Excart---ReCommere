@@ -1,0 +1,37 @@
+import mongoose from "mongoose";
+
+const otpSchema = new mongoose.Schema(
+  {
+    phone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    otp: {
+      type: String,
+      required: true,
+    },
+
+    attempts: {
+      type: Number,
+      default: 0,
+    },
+
+    verified: {
+      type: Boolean,
+      default: false,
+    },
+
+    expiresAt: {
+      type: Date,
+      required: true,
+      expires: 0, // TTL Index
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+export default mongoose.model("Otp", otpSchema);
