@@ -17,4 +17,8 @@ export const verifyOtpSchema = z.object({
     .string()
     .length(6, "OTP must be 6 digits")
     .regex(/^\d+$/, "OTP must contain only numbers"),
+
+  deviceType: z.enum(["android", "ios", "web"]),
+
+  deviceId: z.string().optional(),
 });

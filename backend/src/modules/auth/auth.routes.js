@@ -3,8 +3,9 @@ import { Router } from "express";
 import validateRequest from "../../middlewares/validation/validateRequest.js";
 
 import {sendOtpSchema, verifyOtpSchema,} from "./auth.validator.js";
+import protect from "../../middlewares/auth/protect.js";
 
-import {sendOtp, verifyOtp, googleLogin,facebookLogin,refreshToken, logout,  getMyProfile,} from "./auth.controller.js";
+import {sendOtp, verifyOtp, googleLogin,facebookLogin,refreshToken, logout, getMe} from "./auth.controller.js";
 
 const router = Router();
 
@@ -18,8 +19,8 @@ router.post("/facebook", facebookLogin);
 
 router.post("/refresh-token", refreshToken);
 
-router.post("/logout", logout);
+router.post("/logout", protect, logout);
 
-router.get("/me", getMyProfile);
+router.get("/me", protect, getMe);
 
 export default router;

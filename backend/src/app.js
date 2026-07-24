@@ -3,32 +3,37 @@ import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
 import cookieParser from "cookie-parser";
-import routes from "./routes/index.js";
+
+import authRoutes from "./modules/auth/auth.routes.js";
+
 import notFound from "./middlewares/errors/notFound.js";
 import errorHandler from "./middlewares/errors/errorHandler.js";
 
-
 const app = express();
 
-// Security
 app.use(helmet());
 
-// Enable CORS
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
 
-// Compress responses
 app.use(compression());
 
-// Parse JSON
 app.use(express.json());
 
-// Parse URL Encoded Data
 app.use(express.urlencoded({ extended: true }));
 
-// Parse Cookies
 app.use(cookieParser());
 
-// Health Check
+app.use((req, res, next) => {
+  console.log("Content-Type:", req.headers["content-type"]);
+  console.log("Body:", req.body);
+  next();
+});
+
 app.get("/health", (req, res) => {
   res.status(200).json({
     success: true,
@@ -37,10 +42,8 @@ app.get("/health", (req, res) => {
   });
 });
 
-// API Routes
-app.use("/api", routes);
+app.use("/api/v1/auth", authRoutes);
 
-// Middlewares
 app.use(notFound);
 app.use(errorHandler);
 

@@ -28,11 +28,19 @@ export const sendOtp = asyncHandler(async (req, res) => {
  * @access  Public
  */
 export const verifyOtp = asyncHandler(async (req, res) => {
-  const { phone, otp } = req.body;
+  console.log("Controller body:", req.body);
+  const {
+    phone,
+    otp,
+    deviceType,
+    deviceId,
+  } = req.body;
 
   const result = await authService.verifyOtp({
     phone,
     otp,
+    deviceType,
+    deviceId,
   });
 
   return res.status(200).json(
@@ -119,14 +127,14 @@ export const logout = asyncHandler(async (req, res) => {
  * @route   GET /api/v1/auth/me
  * @access  Private
  */
-export const getMyProfile = asyncHandler(async (req, res) => {
-  const result = await authService.getMyProfile(req.user.id);
+export const getMe = asyncHandler(async (req, res) => {
+  const result = await authService.getMe(req.user._id);
 
   return res.status(200).json(
     new ApiResponse(
       200,
       result,
-      "Profile fetched successfully."
+      "User fetched successfully."
     )
   );
 });

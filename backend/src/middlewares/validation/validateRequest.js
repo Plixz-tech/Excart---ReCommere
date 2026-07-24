@@ -4,6 +4,10 @@ import ApiError from "../../utils/errors/ApiError.js";
 const validateRequest = (schema) => {
   return async (req, res, next) => {
     try {
+      console.log("Schema:", schema);
+      console.log("Body:", req.body);
+      console.log("Headers:", req.headers);
+      console.log("Content-Type:", req.get("content-type"));
       req.body = await schema.parseAsync(req.body);
       next();
     } catch (error) {
@@ -11,7 +15,7 @@ const validateRequest = (schema) => {
         return next(
           new ApiError(
             400,
-            error.errors[0]?.message || "Validation failed."
+            error.issues[0]?.message || "Validation failed."
           )
         );
       }
