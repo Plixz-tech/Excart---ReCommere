@@ -111,7 +111,9 @@ export const refreshToken = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const logout = asyncHandler(async (req, res) => {
-  await authService.logout(req.user);
+  const { refreshToken } = req.body;
+
+  await authService.logout(req.user._id, refreshToken);
 
   return res.status(200).json(
     new ApiResponse(

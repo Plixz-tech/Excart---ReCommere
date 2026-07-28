@@ -20,23 +20,29 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
-    email: {
-      type: String,
-      trim: true,
-      lowercase: true,
-      default: "",
-    },
+email: {
+  type: String,
+  trim: true,
+  lowercase: true,
+  unique: true,
+  sparse: true,
+  default: "",
+},
+password: {
+  type: String,
+  select: false,
+},
 
     profileImage: {
       type: String,
       default: "",
     },
 
-    loginProvider: {
-      type: String,
-      enum: ["phone", "google", "facebook"],
-      default: "phone",
-    },
+loginProvider: {
+  type: String,
+  enum: ["phone", "email", "google", "facebook"],
+  default: "phone",
+},
 
     googleId: {
       type: String,

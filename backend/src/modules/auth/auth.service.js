@@ -24,6 +24,8 @@ import ApiError from "../../utils/errors/ApiError.js";
 import { env } from "../../config/env/index.js";
 
 const OTP_EXPIRY_MINUTES = 5;
+const REFRESH_TOKEN_EXPIRY_MS =
+  30 * 24 * 60 * 60 * 1000; // 30 days
 
 export const sendOtp = async (phone) => {
   const user = await findUserByPhone(phone);
@@ -102,21 +104,23 @@ export const verifyOtp = async ({
     user = await updateLastLogin(user._id);
   }
 
-const tokenPayload = {
-  userId: user._id.toString(),
-  phone: user.phone,
-  role: user.role || "user",
-};
+  const tokenPayload = {
+    userId: user._id.toString(),
+    phone: user.phone,
+    role: user.role || "user",
+  };
 
-const accessToken = generateAccessToken(tokenPayload);
-const refreshToken = generateRefreshToken(tokenPayload);
+  const accessToken = generateAccessToken(tokenPayload);
+  const refreshToken = generateRefreshToken(tokenPayload);
 
   await createRefreshToken({
     user: user._id,
     token: refreshToken,
     deviceType,
     deviceId,
-    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    expiresAt: new Date(
+      Date.now() + REFRESH_TOKEN_EXPIRY_MS
+    ),
   });
 
   // OTP is single-use and must be removed after successful verification.
@@ -130,7 +134,7 @@ const refreshToken = generateRefreshToken(tokenPayload);
   };
 };
 
-  export const getMe = async (userId) => {
+export const getMe = async (userId) => {
   const user = await findUserById(userId);
 
   if (!user) {
@@ -138,4 +142,91 @@ const refreshToken = generateRefreshToken(tokenPayload);
   }
 
   return user;
+};
+
+export const refreshToken = async (refreshToken) => {
+  if (!refreshToken) {
+    throw new ApiError(401, "Refresh token is required.");
+  }
+
+  const decoded = verifyRefreshToken(refreshToken);
+
+  const storedToken = await findRefreshToken(refreshToken);
+
+  const user = await findUserById(decoded.userId);
+
+if (!user) {
+  throw new ApiError(401, "User not found.");
+}
+
+if (user.status !== "active") {
+  throw new ApiError(
+    403,
+    "Your account has been blocked."
+  );
+}
+
+  if (!storedToken) {
+    throw new ApiError(401, "Invalid refresh token.");
+  }
+
+  if (storedToken.expiresAt < new Date()) {
+    await deleteRefreshToken(refreshToken);
+    throw new ApiError(401, "Refresh token has expired.");
+  }
+
+const tokenPayload = {
+  userId: user._id.toString(),
+  phone: user.phone,
+  role: user.role,
+};
+
+  const accessToken = generateAccessToken(tokenPayload);
+  const newRefreshToken =
+    generateRefreshToken(tokenPayload);
+
+  await deleteRefreshToken(refreshToken);
+
+  await createRefreshToken({
+    user: storedToken.user,
+    token: newRefreshToken,
+    deviceType: storedToken.deviceType,
+    deviceId: storedToken.deviceId,
+    expiresAt: new Date(
+      Date.now() + REFRESH_TOKEN_EXPIRY_MS
+    ),
+  });
+
+  return {
+    accessToken,
+    refreshToken: newRefreshToken,
+  };
+};
+
+export const logout = async (
+  userId,
+  refreshToken
+) => {
+  if (!refreshToken) {
+    throw new ApiError(
+      400,
+      "Refresh token is required."
+    );
+  }
+
+  const storedToken =
+    await findRefreshToken(refreshToken);
+
+  if (
+    !storedToken ||
+    storedToken.user.toString() !==
+      userId.toString()
+  ) {
+    throw new ApiError(
+      401,
+      "Invalid refresh token."
+    );
+  }
+
+  await deleteRefreshToken(refreshToken);
 };

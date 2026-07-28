@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import validateRequest from "../../middlewares/validation/validateRequest.js";
 
-import {sendOtpSchema, verifyOtpSchema,} from "./auth.validator.js";
+import {sendOtpSchema, verifyOtpSchema, refreshTokenSchema, logoutSchema,} from "./auth.validator.js";
 import protect from "../../middlewares/auth/protect.js";
 
 import {sendOtp, verifyOtp, googleLogin,facebookLogin,refreshToken, logout, getMe} from "./auth.controller.js";
@@ -17,9 +17,9 @@ router.post("/google", googleLogin);
 
 router.post("/facebook", facebookLogin);
 
-router.post("/refresh-token", refreshToken);
+router.post( "/refresh-token", validateRequest(refreshTokenSchema), refreshToken);
 
-router.post("/logout", protect, logout);
+router.post( "/logout", protect, validateRequest(logoutSchema), logout);
 
 router.get("/me", protect, getMe);
 
