@@ -7,6 +7,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./modules/auth/auth.routes.js";
 import adminRoutes from "./modules/admin/admin.routes.js";
 import userRoutes from "./modules/user/user.routes.js"
+import agentRoutes from "./modules/agent/agent.routes.js";
 
 import notFound from "./middlewares/errors/notFound.js";
 import errorHandler from "./middlewares/errors/errorHandler.js";
@@ -47,6 +48,7 @@ app.get("/health", (req, res) => {
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/admin/users", userRoutes);
+app.use("/api/v1/admin/agents", agentRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

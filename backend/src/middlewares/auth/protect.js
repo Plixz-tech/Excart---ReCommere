@@ -33,7 +33,7 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 
   // Attach user to request
-  req.user = {
+req.user = {
   userId: user._id,
   role: user.role,
   phone: user.phone,
