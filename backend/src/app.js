@@ -11,6 +11,7 @@ import agentRoutes from "./modules/agent/agent.routes.js";
 
 import notFound from "./middlewares/errors/notFound.js";
 import errorHandler from "./middlewares/errors/errorHandler.js";
+import deviceRoutes from "./modules/device/device.routes.js";
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/admin/users", userRoutes);
 app.use("/api/v1/admin/agents", agentRoutes);
+app.use("/api/v1/devices", deviceRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
