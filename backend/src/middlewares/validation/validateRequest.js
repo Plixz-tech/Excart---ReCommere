@@ -4,15 +4,9 @@ import ApiError from "../../utils/errors/ApiError.js";
 const validateRequest = (schema) => {
   return async (req, res, next) => {
     try {
-      const validatedData = await schema.parseAsync({
-        body: req.body,
-        params: req.params,
-        query: req.query,
-      });
+      const validatedData = await schema.parseAsync(req.body);
 
-      req.body = validatedData.body;
-      req.params = validatedData.params ?? req.params;
-      req.query = validatedData.query ?? req.query;
+      req.body = validatedData;
 
       next();
     } catch (error) {

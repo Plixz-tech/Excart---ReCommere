@@ -27,7 +27,9 @@ if (existingDevice) {
 };
 
 export const getDevices = async (queryParams) => {
-  const filter = {};
+  const filter = {
+  status: { $ne: "deleted" },
+};
 
   const { page, limit, skip } = getPagination(queryParams);
 
@@ -99,7 +101,10 @@ export const getDeviceById = async (deviceId) => {
     throw new ApiError(400, "Invalid device ID.");
   }
 
-  const device = await Device.findById(deviceId)
+ const device = await Device.findOne({
+  _id: deviceId,
+  status: { $ne: "deleted" },
+})
     .populate("customer", "fullName phone email")
     .populate("pickupAgent", "fullName phone email")
     .populate("inspectionAgent", "fullName phone email")
@@ -122,7 +127,10 @@ export const updateDevice = async (
     throw new ApiError(400, "Invalid device ID.");
   }
 
-  const device = await Device.findById(deviceId);
+  const device = await Device.findOne({
+  _id: deviceId,
+  status: { $ne: "deleted" },
+});
 
   if (!device) {
     throw new ApiError(404, "Device not found.");
@@ -186,11 +194,14 @@ export const updateDeviceStatus = async (
     throw new ApiError(400, "Invalid device ID.");
   }
 
-  const device = await Device.findById(deviceId);
+  const device = await Device.findOne({
+  _id: deviceId,
+  status: { $ne: "deleted" },
+});
 
-  if (!device) {
-    throw new ApiError(404, "Device not found.");
-  }
+ if (device.status === "deleted") {
+  throw new ApiError(400, "Device already deleted.");
+}
 
   device.status = status;
   device.updatedBy = adminId;

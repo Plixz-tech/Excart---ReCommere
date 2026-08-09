@@ -10,6 +10,7 @@ const requiredEnv = [
   "MONGO_URI",
   "JWT_SECRET",
   "REFRESH_TOKEN_SECRET",
+  "GOOGLE_MAPS_API_KEY",
 ];
 
 for (const key of requiredEnv) {
@@ -30,4 +31,6 @@ export const env = {
 
   REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET,
   REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN,
+
+  GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
 };

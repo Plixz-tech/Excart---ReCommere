@@ -113,7 +113,7 @@ export const refreshToken = asyncHandler(async (req, res) => {
 export const logout = asyncHandler(async (req, res) => {
   const { refreshToken } = req.body;
 
-  await authService.logout(req.user._id, refreshToken);
+ await authService.logout(req.user.userId, refreshToken);
 
   return res.status(200).json(
     new ApiResponse(
@@ -130,7 +130,7 @@ export const logout = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const getMe = asyncHandler(async (req, res) => {
-  const result = await authService.getMe(req.user._id);
+  const result = await authService.getMe(req.user.userId);
 
   return res.status(200).json(
     new ApiResponse(

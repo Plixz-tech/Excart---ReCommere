@@ -12,6 +12,8 @@ import agentRoutes from "./modules/agent/agent.routes.js";
 import notFound from "./middlewares/errors/notFound.js";
 import errorHandler from "./middlewares/errors/errorHandler.js";
 import deviceRoutes from "./modules/device/device.routes.js";
+import addressRoutes from "./modules/address/address.routes.js";
+import serviceAreaRoutes from "./modules/serviceArea/serviceArea.routes.js"
 
 const app = express();
 
@@ -51,6 +53,8 @@ app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/admin/users", userRoutes);
 app.use("/api/v1/admin/agents", agentRoutes);
 app.use("/api/v1/devices", deviceRoutes);
+app.use("/api/v1/addresses", addressRoutes);
+app.use("/api/v1/service-areas",serviceAreaRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

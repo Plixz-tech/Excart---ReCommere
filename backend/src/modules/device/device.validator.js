@@ -23,7 +23,7 @@ export const createDeviceSchema = z.object({
         imei1: z
             .string()
             .trim()
-            .length(15, "IMEI1 must be 15 digits."),
+            .regex(/^\d{15}$/, "IMEI1 must contain exactly 15 digits."),
 
         imei2: z
             .string()
@@ -46,7 +46,10 @@ export const createDeviceSchema = z.object({
             .min(0)
             .optional(),
 
-        customer: z.string().optional(),
+        customer: z
+  .string()
+  .regex(/^[0-9a-fA-F]{24}$/, "Invalid customer ID.")
+  .optional(),
 
         pickupAgent: z.string().optional(),
 
@@ -70,7 +73,7 @@ export const updateDeviceSchema = z.object({
         imei1: z
             .string()
             .trim()
-            .length(15, "IMEI1 must be 15 digits.")
+            .regex(/^\d{15}$/, "IMEI1 must contain exactly 15 digits.")
             .optional(),
         imei2: z
             .string()
@@ -79,10 +82,13 @@ export const updateDeviceSchema = z.object({
             .optional(),
         serialNumber: z.string().trim().optional(),
 
-        purchasePrice: z.number().min(0).optional(),
+        purchasePrice: z.coerce.number().min(0).optional(),
         expectedSellingPrice: z.number().min(0).optional(),
 
-        customer: z.string().optional(),
+        customer: z
+  .string()
+  .regex(/^[0-9a-fA-F]{24}$/, "Invalid customer ID.")
+  .optional(),
         pickupAgent: z.string().optional(),
         inspectionAgent: z.string().optional(),
     }),
