@@ -22,7 +22,7 @@ const refreshTokenSchema = new mongoose.Schema(
 
     deviceId: {
       type: String,
-      default: null,
+      required: true,
     },
 
     userAgent: {

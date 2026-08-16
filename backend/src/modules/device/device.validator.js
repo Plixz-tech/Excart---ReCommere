@@ -47,9 +47,9 @@ export const createDeviceSchema = z.object({
             .optional(),
 
         customer: z
-  .string()
-  .regex(/^[0-9a-fA-F]{24}$/, "Invalid customer ID.")
-  .optional(),
+            .string()
+            .regex(/^[0-9a-fA-F]{24}$/, "Invalid customer ID.")
+            .optional(),
 
         pickupAgent: z.string().optional(),
 
@@ -86,9 +86,9 @@ export const updateDeviceSchema = z.object({
         expectedSellingPrice: z.number().min(0).optional(),
 
         customer: z
-  .string()
-  .regex(/^[0-9a-fA-F]{24}$/, "Invalid customer ID.")
-  .optional(),
+            .string()
+            .regex(/^[0-9a-fA-F]{24}$/, "Invalid customer ID.")
+            .optional(),
         pickupAgent: z.string().optional(),
         inspectionAgent: z.string().optional(),
     }),
@@ -103,6 +103,8 @@ export const updateDeviceStatusSchema = z.object({
         status: z.enum([
             "pending_pickup",
             "picked_up",
+            "in_transit",
+            "received_in_shop",
             "inspection_pending",
             "inspection_completed",
             "approved",

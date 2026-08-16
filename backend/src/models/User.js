@@ -94,7 +94,7 @@ const userSchema = new mongoose.Schema(
         default: "",
       },
 
-      aadhaarVerified: {
+      aadhaarNumberVerified: {
         type: Boolean,
         default: false,
       },
@@ -104,7 +104,7 @@ const userSchema = new mongoose.Schema(
         default: "",
       },
 
-      panVerified: {
+      panNumberVerified: {
         type: Boolean,
         default: false,
       },
@@ -161,188 +161,188 @@ const userSchema = new mongoose.Schema(
         },
       },
 
- verificationDocuments: {
-  aadhaar: {
-    url: {
-      type: String,
-      default: "",
-    },
-    publicId: {
-      type: String,
-      default: "",
-    },
-    uploadedAt: {
-      type: Date,
-      default: null,
-    },
-    verified: {
-      type: Boolean,
-      default: false,
-    },
-    rejected: {
-      type: Boolean,
-      default: false,
-    },
-    rejectionReason: {
-      type: String,
-      default: "",
-    },
-    verifiedAt: {
-      type: Date,
-      default: null,
-    },
-    verifiedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-  },
+      verificationDocuments: {
+        aadhaar: {
+          url: {
+            type: String,
+            default: "",
+          },
+          publicId: {
+            type: String,
+            default: "",
+          },
+          uploadedAt: {
+            type: Date,
+            default: null,
+          },
+          verified: {
+            type: Boolean,
+            default: false,
+          },
+          rejected: {
+            type: Boolean,
+            default: false,
+          },
+          rejectionReason: {
+            type: String,
+            default: "",
+          },
+          verifiedAt: {
+            type: Date,
+            default: null,
+          },
+          verifiedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+        },
 
-  panCard: {
-    url: {
-      type: String,
-      default: "",
-    },
-    publicId: {
-      type: String,
-      default: "",
-    },
-    uploadedAt: {
-      type: Date,
-      default: null,
-    },
-    verified: {
-      type: Boolean,
-      default: false,
-    },
-    rejected: {
-      type: Boolean,
-      default: false,
-    },
-    rejectionReason: {
-      type: String,
-      default: "",
-    },
-    verifiedAt: {
-      type: Date,
-      default: null,
-    },
-    verifiedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-  },
+        panCard: {
+          url: {
+            type: String,
+            default: "",
+          },
+          publicId: {
+            type: String,
+            default: "",
+          },
+          uploadedAt: {
+            type: Date,
+            default: null,
+          },
+          verified: {
+            type: Boolean,
+            default: false,
+          },
+          rejected: {
+            type: Boolean,
+            default: false,
+          },
+          rejectionReason: {
+            type: String,
+            default: "",
+          },
+          verifiedAt: {
+            type: Date,
+            default: null,
+          },
+          verifiedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+        },
 
-  policeClearance: {
-    url: {
-      type: String,
-      default: "",
-    },
-    publicId: {
-      type: String,
-      default: "",
-    },
-    uploadedAt: {
-      type: Date,
-      default: null,
-    },
-    verified: {
-      type: Boolean,
-      default: false,
-    },
-    rejected: {
-      type: Boolean,
-      default: false,
-    },
-    rejectionReason: {
-      type: String,
-      default: "",
-    },
-    verifiedAt: {
-      type: Date,
-      default: null,
-    },
-    verifiedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-  },
+        policeClearance: {
+          url: {
+            type: String,
+            default: "",
+          },
+          publicId: {
+            type: String,
+            default: "",
+          },
+          uploadedAt: {
+            type: Date,
+            default: null,
+          },
+          verified: {
+            type: Boolean,
+            default: false,
+          },
+          rejected: {
+            type: Boolean,
+            default: false,
+          },
+          rejectionReason: {
+            type: String,
+            default: "",
+          },
+          verifiedAt: {
+            type: Date,
+            default: null,
+          },
+          verifiedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+        },
 
-  drivingLicense: {
-    url: {
-      type: String,
-      default: "",
-    },
-    publicId: {
-      type: String,
-      default: "",
-    },
-    uploadedAt: {
-      type: Date,
-      default: null,
-    },
-    verified: {
-      type: Boolean,
-      default: false,
-    },
-    rejected: {
-      type: Boolean,
-      default: false,
-    },
-    rejectionReason: {
-      type: String,
-      default: "",
-    },
-    verifiedAt: {
-      type: Date,
-      default: null,
-    },
-    verifiedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-  },
+        drivingLicense: {
+          url: {
+            type: String,
+            default: "",
+          },
+          publicId: {
+            type: String,
+            default: "",
+          },
+          uploadedAt: {
+            type: Date,
+            default: null,
+          },
+          verified: {
+            type: Boolean,
+            default: false,
+          },
+          rejected: {
+            type: Boolean,
+            default: false,
+          },
+          rejectionReason: {
+            type: String,
+            default: "",
+          },
+          verifiedAt: {
+            type: Date,
+            default: null,
+          },
+          verifiedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+        },
 
-  photo: {
-    url: {
-      type: String,
-      default: "",
+        photo: {
+          url: {
+            type: String,
+            default: "",
+          },
+          publicId: {
+            type: String,
+            default: "",
+          },
+          uploadedAt: {
+            type: Date,
+            default: null,
+          },
+          verified: {
+            type: Boolean,
+            default: false,
+          },
+          rejected: {
+            type: Boolean,
+            default: false,
+          },
+          rejectionReason: {
+            type: String,
+            default: "",
+          },
+          verifiedAt: {
+            type: Date,
+            default: null,
+          },
+          verifiedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+        },
+      },
     },
-    publicId: {
-      type: String,
-      default: "",
-    },
-    uploadedAt: {
-      type: Date,
-      default: null,
-    },
-    verified: {
-      type: Boolean,
-      default: false,
-    },
-    rejected: {
-      type: Boolean,
-      default: false,
-    },
-    rejectionReason: {
-      type: String,
-      default: "",
-    },
-    verifiedAt: {
-      type: Date,
-      default: null,
-    },
-    verifiedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-  },
-},
-}, 
 
     lastLogin: {
       type: Date,
@@ -373,3 +373,4 @@ const userSchema = new mongoose.Schema(
 
 
 export default mongoose.model("User", userSchema);
+

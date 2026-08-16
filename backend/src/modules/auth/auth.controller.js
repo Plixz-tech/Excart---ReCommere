@@ -1,7 +1,7 @@
 import asyncHandler from "../../utils/api/asyncHandler.js";
 import ApiResponse from "../../utils/response/ApiResponse.js";
-
 import * as authService from "./auth.service.js";
+
 
 /**
  * @desc    Send OTP
@@ -137,6 +137,34 @@ export const getMe = asyncHandler(async (req, res) => {
       200,
       result,
       "User fetched successfully."
+    )
+  );
+});
+
+export const sendAgentOtp = asyncHandler(async (req, res) => {
+  const result = await authService.sendAgentOtp(
+    req.body.phone
+  );
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      result,
+      result.message
+    )
+  );
+});
+
+export const verifyAgentOtp = asyncHandler(async (req, res) => {
+  const result = await authService.verifyAgentOtp(
+    req.body
+  );
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      result,
+      result.message
     )
   );
 });

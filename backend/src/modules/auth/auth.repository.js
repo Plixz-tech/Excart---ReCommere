@@ -89,3 +89,11 @@ export const deleteUserRefreshTokens = async (userId) => {
     user: userId,
   });
 };
+
+export const findAgentByPhone = async (phone) => {
+  return User.findOne({
+    phone,
+    role: "agent",
+    status: { $ne: "deleted" },
+  });
+};

@@ -2,10 +2,27 @@ import { Router } from "express";
 
 import validateRequest from "../../middlewares/validation/validateRequest.js";
 
-import {sendOtpSchema, verifyOtpSchema, refreshTokenSchema, logoutSchema,} from "./auth.validator.js";
+import {
+  sendOtpSchema,
+  verifyOtpSchema,
+  refreshTokenSchema,
+  logoutSchema,
+  sendAgentOtpSchema,
+  verifyAgentOtpSchema,
+} from "./auth.validator.js";
 import protect from "../../middlewares/auth/protect.js";
 
-import {sendOtp, verifyOtp, googleLogin,facebookLogin,refreshToken, logout, getMe} from "./auth.controller.js";
+import {
+  sendOtp,
+  verifyOtp,
+  googleLogin,
+  facebookLogin,
+  refreshToken,
+  logout,
+  getMe,
+  sendAgentOtp,
+  verifyAgentOtp,
+} from "./auth.controller.js";
 
 const router = Router();
 
@@ -22,5 +39,16 @@ router.post( "/refresh-token", validateRequest(refreshTokenSchema), refreshToken
 router.post( "/logout", protect, validateRequest(logoutSchema), logout);
 
 router.get("/me", protect, getMe);
+router.post(
+  "/agent/send-otp",
+  validateRequest(sendAgentOtpSchema),
+  sendAgentOtp
+);
+
+router.post(
+  "/agent/verify-otp",
+  validateRequest(verifyAgentOtpSchema),
+  verifyAgentOtp
+);
 
 export default router;

@@ -194,10 +194,14 @@ export const updateDeviceStatus = async (
     throw new ApiError(400, "Invalid device ID.");
   }
 
-  const device = await Device.findOne({
+const device = await Device.findOne({
   _id: deviceId,
   status: { $ne: "deleted" },
 });
+
+if (!device) {
+  throw new ApiError(404, "Device not found.");
+}
 
  if (device.status === "deleted") {
   throw new ApiError(400, "Device already deleted.");

@@ -6,14 +6,21 @@ import cookieParser from "cookie-parser";
 
 import authRoutes from "./modules/auth/auth.routes.js";
 import adminRoutes from "./modules/admin/admin.routes.js";
-import userRoutes from "./modules/user/user.routes.js"
+import userRoutes from "./modules/user/user.routes.js";
 import agentRoutes from "./modules/agent/agent.routes.js";
+
+import deviceRoutes from "./modules/device/device.routes.js";
+import addressRoutes from "./modules/address/address.routes.js";
+import serviceAreaRoutes from "./modules/serviceArea/serviceArea.routes.js";
+
+import orderRoutes from "./modules/order/order.routes.js";
+import adminOrderRoutes from "./modules/order/adminOrder.routes.js";
+import agentOrderRoutes from "./modules/order/agentOrder.routes.js";
+import inspectionRoutes from "./modules/inspection/inspection.routes.js";
 
 import notFound from "./middlewares/errors/notFound.js";
 import errorHandler from "./middlewares/errors/errorHandler.js";
-import deviceRoutes from "./modules/device/device.routes.js";
-import addressRoutes from "./modules/address/address.routes.js";
-import serviceAreaRoutes from "./modules/serviceArea/serviceArea.routes.js"
+
 
 const app = express();
 
@@ -29,9 +36,7 @@ app.use(
 app.use(compression());
 
 app.use(express.json());
-
 app.use(express.urlencoded({ extended: true }));
-
 app.use(cookieParser());
 
 app.use((req, res, next) => {
@@ -52,9 +57,22 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/admin/users", userRoutes);
 app.use("/api/v1/admin/agents", agentRoutes);
+
 app.use("/api/v1/devices", deviceRoutes);
 app.use("/api/v1/addresses", addressRoutes);
-app.use("/api/v1/service-areas",serviceAreaRoutes);
+app.use("/api/v1/service-areas", serviceAreaRoutes);
+
+// USER ORDERS
+app.use("/api/v1/orders", orderRoutes);
+
+// ADMIN ORDERS
+app.use("/api/v1/admin/orders", adminOrderRoutes);
+
+// AGENT ORDERS
+app.use("/api/v1/agent/orders", agentOrderRoutes);
+
+// INSPECTION
+app.use("/api/inspections",inspectionRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

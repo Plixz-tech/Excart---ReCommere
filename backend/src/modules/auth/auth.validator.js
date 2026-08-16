@@ -20,7 +20,7 @@ export const verifyOtpSchema = z.object({
 
   deviceType: z.enum(["android", "ios", "web"]),
 
-  deviceId: z.string().optional(),
+  deviceId: z.string().min(1, "Device ID is required"),
 });
 
 export const refreshTokenSchema = z.object({
@@ -33,4 +33,38 @@ export const logoutSchema = z.object({
   refreshToken: z
     .string()
     .min(1, "Refresh token is required."),
+});
+
+export const sendAgentOtpSchema = z.object({
+  phone: z
+    .string()
+    .trim()
+    .min(8, "Phone number is required.")
+    .max(15, "Invalid phone number."),
+});
+
+export const verifyAgentOtpSchema = z.object({
+  phone: z
+    .string()
+    .trim()
+    .min(8, "Phone number is required.")
+    .max(15, "Invalid phone number."),
+
+  otp: z
+    .string()
+    .trim()
+    .length(6, "OTP must be 6 digits.")
+    .regex(/^\d+$/, "OTP must contain only numbers."),
+
+  deviceType: z.enum(
+    ["android", "ios", "web"],
+    {
+      message: "Invalid device type.",
+    }
+  ),
+
+  deviceId: z
+    .string()
+    .trim()
+    .min(1, "Device ID is required."),
 });

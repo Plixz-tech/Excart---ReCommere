@@ -10,6 +10,7 @@ import {
   createRefreshToken,
   findRefreshToken,
   deleteRefreshToken,
+  findAgentByPhone,
 } from "./auth.repository.js";
 
 import { generateOtp } from "../../utils/generateOtp.js";
@@ -229,4 +230,144 @@ export const logout = async (
   }
 
   await deleteRefreshToken(refreshToken);
+};
+
+export const sendAgentOtp = async (phone) => {
+  const agent = await findAgentByPhone(phone);
+
+  if (!agent) {
+    throw new ApiError(
+      404,
+      "Agent account not found."
+    );
+  }
+
+  if (agent.status !== "active") {
+    throw new ApiError(
+      403,
+      "Agent account is not active."
+    );
+  }
+
+  await deleteOtpByPhone(phone);
+
+  const otp = generateOtp();
+
+  const expiresAt = new Date(
+    Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000
+  );
+
+  await createOtp({
+    phone,
+    otp,
+    expiresAt,
+  });
+
+  // TODO: Integrate SMS provider here.
+
+  return {
+    message: "Agent OTP sent successfully.",
+    ...(env.NODE_ENV === "development" && { otp }),
+  };
+};
+
+export const verifyAgentOtp = async ({
+  phone,
+  otp,
+  deviceType,
+  deviceId,
+}) => {
+  const otpRecord = await findOtpByPhone(phone);
+
+  if (!otpRecord) {
+    throw new ApiError(400, "Invalid OTP.");
+  }
+
+  if (otpRecord.expiresAt < new Date()) {
+    await deleteOtpByPhone(phone);
+
+    throw new ApiError(
+      400,
+      "OTP has expired."
+    );
+  }
+
+  if (otpRecord.otp !== otp) {
+    const updatedOtp =
+      await incrementOtpAttempts(phone);
+
+    if (updatedOtp.attempts >= 5) {
+      await deleteOtpByPhone(phone);
+
+      throw new ApiError(
+        429,
+        "Maximum OTP attempts exceeded. Please request a new OTP."
+      );
+    }
+
+    throw new ApiError(400, "Invalid OTP.");
+  }
+
+  const agent = await findAgentByPhone(phone);
+
+  if (!agent) {
+    await deleteOtpByPhone(phone);
+
+    throw new ApiError(
+      404,
+      "Agent account not found."
+    );
+  }
+
+  if (agent.role !== "agent") {
+    await deleteOtpByPhone(phone);
+
+    throw new ApiError(
+      403,
+      "This account is not an agent account."
+    );
+  }
+
+  if (agent.status !== "active") {
+    await deleteOtpByPhone(phone);
+
+    throw new ApiError(
+      403,
+      "Agent account is not active."
+    );
+  }
+
+  const updatedAgent =
+    await updateLastLogin(agent._id);
+
+  const tokenPayload = {
+    userId: updatedAgent._id.toString(),
+    phone: updatedAgent.phone,
+    role: "agent",
+  };
+
+  const accessToken =
+    generateAccessToken(tokenPayload);
+
+  const refreshToken =
+    generateRefreshToken(tokenPayload);
+
+  await createRefreshToken({
+    user: updatedAgent._id,
+    token: refreshToken,
+    deviceType,
+    deviceId,
+    expiresAt: new Date(
+      Date.now() + REFRESH_TOKEN_EXPIRY_MS
+    ),
+  });
+
+  await deleteOtpByPhone(phone);
+
+  return {
+    message: "Agent login successful.",
+    user: updatedAgent,
+    accessToken,
+    refreshToken,
+  };
 };

@@ -114,7 +114,6 @@ export const uploadDocuments = async (req, res, next) => {
 
 export const verifyAadhaar = async (req, res, next) => {
   try {
-    console.log("req.user =", req.user);
     const result = await agentService.verifyAadhaar(
       req.params.id,
       req.body.aadhaarNumber,
