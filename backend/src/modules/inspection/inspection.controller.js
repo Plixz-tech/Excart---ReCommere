@@ -35,6 +35,23 @@ export const getInspections = asyncHandler(async (req, res) => {
     );
 });
 
+export const getPendingInspections = asyncHandler(async (req, res) => {
+  const pendingInspections =
+    await inspectionService.getPendingInspections(
+      req.query
+    );
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        pendingInspections,
+        "Pending inspections fetched successfully."
+      )
+    );
+});
+
 export const getInspectionById = asyncHandler(async (req, res) => {
   const inspection =
     await inspectionService.getInspectionById(

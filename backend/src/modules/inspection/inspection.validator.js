@@ -4,6 +4,7 @@ const objectId = z
   .string()
   .regex(/^[0-9a-fA-F]{24}$/, "Invalid ObjectId.");
 
+// Start Inspection
 export const createInspectionSchema = z.object({
   device: objectId,
 
@@ -22,10 +23,7 @@ export const createInspectionSchema = z.object({
     "Poor",
   ]),
 
-  batteryHealth: z.coerce
-    .number()
-    .min(0)
-    .max(100),
+  batteryHealth: z.coerce.number().min(0).max(100),
 
   functionalTests: z.object({
     camera: z.boolean(),
@@ -65,13 +63,12 @@ export const createInspectionSchema = z.object({
     "D",
   ]),
 
-  estimatedPrice: z.coerce
-    .number()
-    .min(0),
+  estimatedPrice: z.coerce.number().min(0),
 
   remarks: z.string().trim().optional(),
 });
 
+// Update inspection / Save Draft
 export const updateInspectionSchema = z.object({
   screenCondition: z
     .enum([
@@ -92,7 +89,8 @@ export const updateInspectionSchema = z.object({
     ])
     .optional(),
 
-  batteryHealth: z.coerce
+  batteryHealth: z
+    .coerce
     .number()
     .min(0)
     .max(100)
@@ -146,20 +144,19 @@ export const updateInspectionSchema = z.object({
     ])
     .optional(),
 
-  estimatedPrice: z.coerce
+  estimatedPrice: z
+    .coerce
     .number()
     .min(0)
     .optional(),
 
-  remarks: z
-    .string()
-    .trim()
-    .optional(),
+  remarks: z.string().trim().optional(),
 });
 
+
+// Approve / Reject
 export const updateInspectionStatusSchema = z.object({
   status: z.enum([
-    "completed",
     "approved",
     "rejected",
   ]),

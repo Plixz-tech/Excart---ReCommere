@@ -84,23 +84,25 @@ class AdminOrderController {
     }
   }
 
-async assignOrder(req, res, next) {
-  try {
-    const order = await orderService.assignOrder(
-      req.params.id,
-      req.body.agentId,
-      req.user.userId
-    );
+  async assignOrder(req, res, next) {
+    try {
+      const order =
+        await orderService.assignOrder(
+          req.params.id,
+          req.body.agentId,
+          req.user.userId
+        );
 
-    return res.status(200).json({
-      success: true,
-      message: "Order assigned successfully.",
-      data: order,
-    });
-  } catch (error) {
-    next(error);
+      return res.status(200).json({
+        success: true,
+        message: "Order assigned successfully.",
+        data: order,
+      });
+    } catch (error) {
+      next(error);
+    }
   }
-}
+
   async deleteOrder(req, res, next) {
     try {
       await orderService.deleteOrder(
@@ -117,43 +119,79 @@ async assignOrder(req, res, next) {
   }
 
   async processPayment(req, res, next) {
-  try {
-    const result =
-      await orderService.processPayment(
-        req.params.id,
-        req.body,
-        req.user.userId
-      );
+    try {
+      const result =
+        await orderService.processPayment(
+          req.params.id,
+          req.body,
+          req.user.userId
+        );
 
-    return res.status(200).json({
-      success: true,
-      message: "Payment completed successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
+      return res.status(200).json({
+        success: true,
+        message:
+          "Payment completed successfully.",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+    async getPurchaseInvoice(req, res, next) {
+    try {
+      const result =
+        await orderService.getPurchaseInvoice(
+          req.params.id
+        );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Purchase invoice fetched successfully.",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getPaymentSlip(req, res, next) {
+    try {
+      const result =
+        await orderService.getPaymentSlip(
+          req.params.id
+        );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Payment slip fetched successfully.",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async receiveOrder(req, res, next) {
+    try {
+      const result =
+        await orderService.receiveOrder(
+          req.params.id,
+          req.user.userId
+        );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Device received successfully.",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 }
-
-async receiveOrder(req, res, next) {
-  try {
-    const result =
-      await orderService.receiveOrder(
-        req.params.id,
-        req.user.userId
-      );
-
-    return res.status(200).json({
-      success: true,
-      message: "Device received successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-}
-
-
 
 export default new AdminOrderController();

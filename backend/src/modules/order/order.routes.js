@@ -8,6 +8,7 @@ import {
 
 import validateRequest from "../../middlewares/validation/validateRequest.js";
 import protect from "../../middlewares/auth/protect.js";
+import upload from "../../middlewares/upload.js";
 
 const router = express.Router();
 
@@ -18,6 +19,13 @@ router.post(
   "/",
   validateRequest(createOrderSchema),
   orderController.createOrder
+);
+
+// Upload device invoice
+router.post(
+  "/:id/device-invoice",
+  upload.single("invoice"),
+  orderController.uploadDeviceInvoice
 );
 
 // Get my orders

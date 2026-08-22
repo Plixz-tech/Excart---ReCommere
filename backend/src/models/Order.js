@@ -2,9 +2,9 @@ import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema(
   {
-  
+
     // ORDER BASIC INFORMATION
-  
+
 
     orderNumber: {
       type: String,
@@ -26,9 +26,9 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
 
-  
+
     // ORDER STATUS
-  
+
 
     status: {
       type: String,
@@ -49,9 +49,9 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
 
-  
+
     // PAYMENT
-  
+
 
     payment: {
       status: {
@@ -105,9 +105,9 @@ const orderSchema = new mongoose.Schema(
       },
     },
 
-  
+
     // DEVICE
-  
+
 
     device: {
       type: mongoose.Schema.Types.ObjectId,
@@ -115,9 +115,9 @@ const orderSchema = new mongoose.Schema(
       default: null,
     },
 
-  
+
     // PICKUP DETAILS
-  
+
 
     pickup: {
       status: {
@@ -192,9 +192,9 @@ const orderSchema = new mongoose.Schema(
       },
     },
 
-  
+
     // INSPECTION
-  
+
 
     inspection: {
       status: {
@@ -263,9 +263,8 @@ const orderSchema = new mongoose.Schema(
       },
     },
 
-  
+
     // DOCUMENTS
-  
 
     documents: [
       {
@@ -274,11 +273,13 @@ const orderSchema = new mongoose.Schema(
           enum: [
             "aadhaar",
             "pan",
-            "invoice",
+            "device_invoice",
+            "purchase_invoice",
+            "payment_slip",
             "ownership",
             "purchase_proof",
             "other",
-          ],
+          ]
         },
 
         url: {
@@ -287,6 +288,11 @@ const orderSchema = new mongoose.Schema(
         },
 
         publicId: {
+          type: String,
+          default: "",
+        },
+
+        fileName: {
           type: String,
           default: "",
         },
@@ -303,10 +309,8 @@ const orderSchema = new mongoose.Schema(
         },
       },
     ],
-
-  
     // INVENTORY / SALES
-  
+
 
     inventory: {
       status: {
@@ -344,9 +348,9 @@ const orderSchema = new mongoose.Schema(
       },
     },
 
-  
+
     // TIMELINE
-  
+
 
     timeline: [
       {
@@ -373,9 +377,9 @@ const orderSchema = new mongoose.Schema(
       },
     ],
 
-  
+
     // NOTES
-  
+
 
     notes: {
       type: String,
@@ -387,9 +391,9 @@ const orderSchema = new mongoose.Schema(
       default: "",
     },
 
-  
+
     // AUDIT
-  
+
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

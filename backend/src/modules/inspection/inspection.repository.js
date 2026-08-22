@@ -7,8 +7,9 @@ import { getPagination } from "../../utils/pagination/paginate.js";
 
 
 
+// ============================================================
 // CREATE INSPECTION
-
+// ============================================================
 
 export const createInspection = async (
   inspectionData,
@@ -38,8 +39,11 @@ export const createInspection = async (
     );
   }
 
-  // 3. Device must have reached the shop
-  if (order.status !== "inspection_pending") {
+  // 3. Order must be waiting for inspection
+  if (
+    order.status !==
+    "inspection_pending"
+  ) {
     throw new ApiError(
       400,
       `Inspection cannot be started because the order status is "${order.status}".`
@@ -76,9 +80,10 @@ export const createInspection = async (
     await Inspection.create({
       ...inspectionData,
 
-      // Logged-in admin
+      // Logged-in admin performing inspection
       inspectionAgent: userId,
 
+      // Inspection starts immediately
       status: "in_progress",
 
       createdBy: userId,
@@ -86,20 +91,28 @@ export const createInspection = async (
     });
 
   // 7. Update device
-  device.inspectionAgent = userId;
-  device.status = "inspection_pending";
-  device.updatedBy = userId;
+device.inspectionAgent = userId;
+
+device.status =
+  "inspection_pending";
+
+device.updatedBy = userId;
 
   await device.save();
 
   // 8. Update order
-  order.status = "inspection_in_progress";
+  order.status =
+    "inspection_in_progress";
+
   order.updatedBy = userId;
 
   order.timeline.push({
-    status: "inspection_in_progress",
+    status:
+      "inspection_in_progress",
+
     message:
       "Inspection started by admin.",
+
     performedBy: userId,
   });
 
@@ -113,13 +126,22 @@ export const createInspection = async (
     .populate(
       "inspectionAgent",
       "fullName phone email"
+    )
+    .populate(
+      "createdBy",
+      "fullName email"
+    )
+    .populate(
+      "updatedBy",
+      "fullName email"
     );
 };
 
 
 
+// ============================================================
 // GET ALL INSPECTIONS
-
+// ============================================================
 
 export const getInspections = async (
   queryParams
@@ -146,7 +168,8 @@ export const getInspections = async (
 
   // Filter by grade
   if (overallGrade) {
-    filter.overallGrade = overallGrade;
+    filter.overallGrade =
+      overallGrade;
   }
 
   // Allowed sorting fields
@@ -159,13 +182,17 @@ export const getInspections = async (
   ];
 
   const sortField =
-    allowedSortFields.includes(sortBy)
+    allowedSortFields.includes(
+      sortBy
+    )
       ? sortBy
       : "createdAt";
 
   const sort = {
     [sortField]:
-      order === "asc" ? 1 : -1,
+      order === "asc"
+        ? 1
+        : -1,
   };
 
   const inspections =
@@ -197,11 +224,15 @@ export const getInspections = async (
 
     pagination: {
       currentPage: page,
+
       totalPages:
         Math.ceil(
-          totalInspections / limit
+          totalInspections /
+            limit
         ),
+
       totalInspections,
+
       limit,
     },
   };
@@ -209,8 +240,9 @@ export const getInspections = async (
 
 
 
+// ============================================================
 // GET INSPECTION BY ID
-
+// ============================================================
 
 export const getInspectionById = async (
   inspectionId
@@ -257,8 +289,9 @@ export const getInspectionById = async (
 
 
 
+// ============================================================
 // UPDATE INSPECTION DETAILS
-
+// ============================================================
 
 export const updateInspection = async (
   inspectionId,
@@ -290,33 +323,173 @@ export const updateInspection = async (
     );
   }
 
-  // 3. Only allow editing while inspection
-  // is in progress
+  // 3. Only allow editing
+  // while inspection is in progress
   if (
     inspection.status !==
     "in_progress"
   ) {
     throw new ApiError(
       400,
-      `Inspection cannot be updated because its current status is "${inspection.status}".`
+      `Inspection cannot be edited because its current status is "${inspection.status}".`
     );
   }
 
-  // 4. Update only supplied fields
-  Object.keys(
-    inspectionData
-  ).forEach((key) => {
-    inspection[key] =
-      inspectionData[key];
-  });
 
-  // 5. Audit
+  // ==========================================================
+  // SIMPLE FIELDS
+  // ==========================================================
+
+  if (
+    inspectionData.screenCondition !==
+    undefined
+  ) {
+    inspection.screenCondition =
+      inspectionData.screenCondition;
+  }
+
+  if (
+    inspectionData.bodyCondition !==
+    undefined
+  ) {
+    inspection.bodyCondition =
+      inspectionData.bodyCondition;
+  }
+
+  if (
+    inspectionData.batteryHealth !==
+    undefined
+  ) {
+    inspection.batteryHealth =
+      inspectionData.batteryHealth;
+  }
+
+  if (
+    inspectionData.overallGrade !==
+    undefined
+  ) {
+    inspection.overallGrade =
+      inspectionData.overallGrade;
+  }
+
+  if (
+    inspectionData.estimatedPrice !==
+    undefined
+  ) {
+    inspection.estimatedPrice =
+      inspectionData.estimatedPrice;
+  }
+
+  if (
+    inspectionData.remarks !==
+    undefined
+  ) {
+    inspection.remarks =
+      inspectionData.remarks;
+  }
+
+
+  // ==========================================================
+  // FUNCTIONAL TESTS
+  // ==========================================================
+
+  // IMPORTANT:
+  // Merge instead of replacing the entire object.
+  //
+  // Example:
+  //
+  // {
+  //   "functionalTests": {
+  //      "camera": false
+  //   }
+  // }
+  //
+  // will only change camera.
+  //
+  // Other values remain unchanged.
+
+  if (
+    inspectionData.functionalTests
+  ) {
+    inspection.functionalTests = {
+      ...(inspection.functionalTests?.toObject?.() ||
+        inspection.functionalTests ||
+        {}),
+
+      ...inspectionData.functionalTests,
+    };
+  }
+
+
+  // ==========================================================
+  // ACCESSORIES
+  // ==========================================================
+
+  if (
+    inspectionData.accessories
+  ) {
+    inspection.accessories = {
+      ...(inspection.accessories?.toObject?.() ||
+        inspection.accessories ||
+        {}),
+
+      ...inspectionData.accessories,
+    };
+  }
+
+
+  // ==========================================================
+  // REPAIR HISTORY
+  // ==========================================================
+
+  if (
+    inspectionData.repairHistory
+  ) {
+    inspection.repairHistory = {
+      ...(inspection.repairHistory?.toObject?.() ||
+        inspection.repairHistory ||
+        {}),
+
+      ...inspectionData.repairHistory,
+    };
+  }
+
+
+  // ==========================================================
+  // IMEI VERIFICATION
+  // ==========================================================
+
+  if (
+    inspectionData.imeiVerification
+  ) {
+    inspection.imeiVerification = {
+      ...(inspection.imeiVerification?.toObject?.() ||
+        inspection.imeiVerification ||
+        {}),
+
+      ...inspectionData.imeiVerification,
+    };
+  }
+
+
+  // ==========================================================
+  // AUDIT
+  // ==========================================================
+
   inspection.updatedBy = userId;
 
-  // 6. Save
+
+  // ==========================================================
+  // SAVE
+  // ==========================================================
+
   await inspection.save();
 
-  // 7. Return updated inspection
+
+  // ==========================================================
+  // RETURN UPDATED INSPECTION
+  // ==========================================================
+
   return Inspection.findById(
     inspectionId
   )
@@ -326,6 +499,10 @@ export const updateInspection = async (
       "fullName phone email"
     )
     .populate(
+      "createdBy",
+      "fullName email"
+    )
+    .populate(
       "updatedBy",
       "fullName email"
     );
@@ -333,8 +510,9 @@ export const updateInspection = async (
 
 
 
+// ============================================================
 // UPDATE INSPECTION STATUS
-
+// ============================================================
 
 export const updateInspectionStatus = async (
   inspectionId,
@@ -367,9 +545,10 @@ export const updateInspectionStatus = async (
   }
 
   // 3. Find related order
-  const order = await Order.findOne({
-    device: inspection.device,
-  });
+  const order =
+    await Order.findOne({
+      device: inspection.device,
+    });
 
   if (!order) {
     throw new ApiError(
@@ -379,28 +558,26 @@ export const updateInspectionStatus = async (
   }
 
 
-  // STATUS TRANSITION VALIDATION
+  // ==========================================================
+  // STATUS VALIDATION
+  // ==========================================================
 
+  // Inspection must currently
+  // be in progress.
 
-  const currentStatus =
-    inspection.status;
-
-  // in_progress → completed
   if (
-    currentStatus ===
-      "in_progress" &&
-    status !== "completed"
+    inspection.status !==
+    "in_progress"
   ) {
     throw new ApiError(
       400,
-      "Inspection in progress can only be marked as completed."
+      `Inspection cannot be updated because its current status is "${inspection.status}".`
     );
   }
 
-  // completed → approved/rejected
+
+  // Only approve or reject
   if (
-    currentStatus ===
-      "completed" &&
     ![
       "approved",
       "rejected",
@@ -408,42 +585,30 @@ export const updateInspectionStatus = async (
   ) {
     throw new ApiError(
       400,
-      "Completed inspection can only be approved or rejected."
-    );
-  }
-
-  // Cannot modify final states
-  if (
-    [
-      "approved",
-      "rejected",
-    ].includes(currentStatus)
-  ) {
-    throw new ApiError(
-      400,
-      `Inspection is already "${currentStatus}" and cannot be changed.`
+      "Inspection can only be approved or rejected."
     );
   }
 
 
+  // ==========================================================
   // UPDATE INSPECTION
-
+  // ==========================================================
 
   inspection.status = status;
-  inspection.updatedBy = userId;
 
-  if (
-    status === "completed"
-  ) {
-    inspection.completedAt =
-      new Date();
-  }
+  inspection.updatedBy =
+    userId;
+
+  // Inspection is finished
+  inspection.completedAt =
+    new Date();
 
   await inspection.save();
 
 
+  // ==========================================================
   // UPDATE DEVICE
-
+  // ==========================================================
 
   const device =
     await Device.findById(
@@ -451,24 +616,20 @@ export const updateInspectionStatus = async (
     );
 
   if (device) {
-    device.updatedBy = userId;
+    device.updatedBy =
+      userId;
 
     if (
-      status === "completed"
-    ) {
-      device.status =
-        "inspection_completed";
-    }
-
-    if (
-      status === "approved"
+      status ===
+      "approved"
     ) {
       device.status =
         "approved";
     }
 
     if (
-      status === "rejected"
+      status ===
+      "rejected"
     ) {
       device.status =
         "rejected";
@@ -478,68 +639,68 @@ export const updateInspectionStatus = async (
   }
 
 
+  // ==========================================================
   // UPDATE ORDER
+  // ==========================================================
+
+  order.updatedBy =
+    userId;
 
 
-  order.updatedBy = userId;
+  // ----------------------------------------------------------
+  // APPROVED
+  // ----------------------------------------------------------
 
-  // Inspection completed
   if (
-    status === "completed"
-  ) {
-    order.status =
-      "inspection_completed";
-
-    order.timeline.push({
-      status:
-        "inspection_completed",
-
-      message:
-        "Device inspection completed by admin.",
-
-      performedBy: userId,
-    });
-  }
-
-  // Inspection approved
-  if (
-    status === "approved"
+    status ===
+    "approved"
   ) {
     order.status =
       "ready_stock";
 
     order.timeline.push({
-      status: "approved",
+      status:
+        "approved",
 
       message:
         "Device inspection approved by admin.",
 
-      performedBy: userId,
+      performedBy:
+        userId,
     });
   }
 
-  // Inspection rejected
+
+  // ----------------------------------------------------------
+  // REJECTED
+  // ----------------------------------------------------------
+
   if (
-    status === "rejected"
+    status ===
+    "rejected"
   ) {
     order.status =
       "rejected";
 
     order.timeline.push({
-      status: "rejected",
+      status:
+        "rejected",
 
       message:
         "Device rejected after inspection.",
 
-      performedBy: userId,
+      performedBy:
+        userId,
     });
   }
+
 
   await order.save();
 
 
+  // ==========================================================
   // RETURN UPDATED INSPECTION
-
+  // ==========================================================
 
   return Inspection.findById(
     inspection._id
@@ -548,13 +709,22 @@ export const updateInspectionStatus = async (
     .populate(
       "inspectionAgent",
       "fullName phone email"
+    )
+    .populate(
+      "createdBy",
+      "fullName email"
+    )
+    .populate(
+      "updatedBy",
+      "fullName email"
     );
 };
 
 
 
+// ============================================================
 // DELETE INSPECTION
-
+// ============================================================
 
 export const deleteInspection = async (
   inspectionId

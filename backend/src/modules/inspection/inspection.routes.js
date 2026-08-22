@@ -4,6 +4,7 @@ import * as inspectionController from "./inspection.controller.js";
 
 import protect from "../../middlewares/auth/protect.js";
 import authorize from "../../middlewares/auth/authorize.js";
+
 import validateRequest from "../../middlewares/validation/validateRequest.js";
 
 import {
@@ -14,20 +15,37 @@ import {
 
 const router = express.Router();
 
-
-// Protect all inspection routes
 router.use(protect);
 
 
-// Get all inspections
+// GET ALL PENDING INSPECTIONS
+router.get(
+  "/pending",
+  authorize("admin"),
+  inspectionController.getPendingInspections
+);
+
+
+// GET ALL INSPECTIONS
 router.get(
   "/",
   authorize("admin"),
   inspectionController.getInspections
 );
 
+router.get(
+  "/pending",
+  authorize("admin"),
+  inspectionController.getPendingInspections
+);
 
-// Get one inspection
+router.get(
+  "/:id",
+  authorize("admin"),
+  inspectionController.getInspectionById
+);
+
+// GET ONE INSPECTION
 router.get(
   "/:id",
   authorize("admin"),
@@ -35,7 +53,7 @@ router.get(
 );
 
 
-// Create inspection
+// START INSPECTION
 router.post(
   "/",
   authorize("admin"),
@@ -44,7 +62,7 @@ router.post(
 );
 
 
-// Update inspection details
+// UPDATE INSPECTION / SAVE DRAFT
 router.patch(
   "/:id",
   authorize("admin"),
@@ -53,14 +71,12 @@ router.patch(
 );
 
 
-// Update inspection status
+// APPROVE / REJECT
 router.patch(
   "/:id/status",
   authorize("admin"),
   validateRequest(updateInspectionStatusSchema),
   inspectionController.updateInspectionStatus
 );
-
-
 
 export default router;

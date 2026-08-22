@@ -16,6 +16,7 @@
   "author": "Kabeer Ahamed",
   "license": "ISC",
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
     "axios": "^1.19.0",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.10.0",
@@ -37,6 +38,7 @@
     "multer": "^2.2.0",
     "node-cron": "^4.2.1",
     "nodemailer": "^9.0.3",
+    "pdf-lib": "^1.17.1",
     "pdfkit": "^0.19.1",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",

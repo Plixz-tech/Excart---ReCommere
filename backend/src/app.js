@@ -20,6 +20,7 @@ import inspectionRoutes from "./modules/inspection/inspection.routes.js";
 
 import notFound from "./middlewares/errors/notFound.js";
 import errorHandler from "./middlewares/errors/errorHandler.js";
+import inventoryRoutes from "./modules/inventory/inventory.routes.js";
 
 
 const app = express();
@@ -72,7 +73,11 @@ app.use("/api/v1/admin/orders", adminOrderRoutes);
 app.use("/api/v1/agent/orders", agentOrderRoutes);
 
 // INSPECTION
-app.use("/api/inspections",inspectionRoutes);
+app.use("/api/v1/admin/inspections", inspectionRoutes);
+
+// INVENTORY
+
+app.use("/api/v1/admin/inventory",  inventoryRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
