@@ -1,12 +1,10 @@
 import orderService from "./order.service.js";
 
 class AdminOrderController {
+
   async getOrders(req, res, next) {
     try {
-      const result =
-        await orderService.getOrders(
-          req.query
-        );
+      const result = await orderService.getOrders(req.query);
 
       return res.status(200).json({
         success: true,
@@ -26,10 +24,9 @@ class AdminOrderController {
 
   async getOrderById(req, res, next) {
     try {
-      const order =
-        await orderService.getOrderById(
-          req.params.id
-        );
+      const order = await orderService.getOrderById(
+        req.params.id
+      );
 
       return res.status(200).json({
         success: true,
@@ -43,14 +40,11 @@ class AdminOrderController {
 
   async updateOrder(req, res, next) {
     try {
-      const userId = req.user.userId;
-
-      const order =
-        await orderService.updateOrder(
-          req.params.id,
-          req.body,
-          userId
-        );
+      const order = await orderService.updateOrder(
+        req.params.id,
+        req.body,
+        req.user.userId
+      );
 
       return res.status(200).json({
         success: true,
@@ -64,19 +58,15 @@ class AdminOrderController {
 
   async updateOrderStatus(req, res, next) {
     try {
-      const userId = req.user.userId;
-
-      const order =
-        await orderService.updateOrderStatus(
-          req.params.id,
-          req.body.status,
-          userId
-        );
+      const order = await orderService.updateOrderStatus(
+        req.params.id,
+        req.body.status,
+        req.user.userId
+      );
 
       return res.status(200).json({
         success: true,
-        message:
-          "Order status updated successfully.",
+        message: "Order status updated successfully.",
         data: order,
       });
     } catch (error) {
@@ -86,12 +76,11 @@ class AdminOrderController {
 
   async assignOrder(req, res, next) {
     try {
-      const order =
-        await orderService.assignOrder(
-          req.params.id,
-          req.body.agentId,
-          req.user.userId
-        );
+      const order = await orderService.assignOrder(
+        req.params.id,
+        req.body.agentId,
+        req.user.userId
+      );
 
       return res.status(200).json({
         success: true,
@@ -103,53 +92,34 @@ class AdminOrderController {
     }
   }
 
-  async deleteOrder(req, res, next) {
+  async receiveOrder(req, res, next) {
     try {
-      await orderService.deleteOrder(
-        req.params.id
+      const order = await orderService.receiveOrder(
+        req.params.id,
+        req.user.userId
       );
 
       return res.status(200).json({
         success: true,
-        message: "Order deleted successfully.",
+        message: "Device received successfully.",
+        data: order,
       });
     } catch (error) {
       next(error);
     }
   }
 
-  async processPayment(req, res, next) {
+  async getPurchaseInvoice(req, res, next) {
     try {
-      const result =
-        await orderService.processPayment(
-          req.params.id,
-          req.body,
-          req.user.userId
-        );
-
-      return res.status(200).json({
-        success: true,
-        message:
-          "Payment completed successfully.",
-        data: result,
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-    async getPurchaseInvoice(req, res, next) {
-    try {
-      const result =
+      const invoice =
         await orderService.getPurchaseInvoice(
           req.params.id
         );
 
       return res.status(200).json({
         success: true,
-        message:
-          "Purchase invoice fetched successfully.",
-        data: result,
+        message: "Purchase invoice fetched successfully.",
+        data: invoice,
       });
     } catch (error) {
       next(error);
@@ -158,35 +128,28 @@ class AdminOrderController {
 
   async getPaymentSlip(req, res, next) {
     try {
-      const result =
+      const slip =
         await orderService.getPaymentSlip(
           req.params.id
         );
 
       return res.status(200).json({
         success: true,
-        message:
-          "Payment slip fetched successfully.",
-        data: result,
+        message: "Payment slip fetched successfully.",
+        data: slip,
       });
     } catch (error) {
       next(error);
     }
   }
 
-  async receiveOrder(req, res, next) {
+  async deleteOrder(req, res, next) {
     try {
-      const result =
-        await orderService.receiveOrder(
-          req.params.id,
-          req.user.userId
-        );
+      await orderService.deleteOrder(req.params.id);
 
       return res.status(200).json({
         success: true,
-        message:
-          "Device received successfully.",
-        data: result,
+        message: "Order deleted successfully.",
       });
     } catch (error) {
       next(error);

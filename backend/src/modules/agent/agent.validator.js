@@ -1,33 +1,27 @@
 import { z } from "zod";
-
 export const createAgentSchema = z.object({
   fullName: z
     .string()
     .trim()
     .min(3, "Full name must be at least 3 characters.")
     .max(100),
-
   email: z
     .string()
     .trim()
     .email("Invalid email address."),
-
   phone: z
     .string()
     .trim()
     .min(8, "Phone number must be at least 8 characters.")
     .max(15, "Phone number must be at most 15 characters."),
-
   countryCode: z
     .string()
     .trim()
     .default("+91"),
-
   password: z
     .string()
     .min(8, "Password must be at least 8 characters."),
 });
-
 export const updateAgentSchema = z.object({
   fullName: z
     .string()
@@ -35,50 +29,42 @@ export const updateAgentSchema = z.object({
     .min(3, "Full name must be at least 3 characters.")
     .max(100)
     .optional(),
-
   email: z
     .string()
     .trim()
     .email("Invalid email address.")
     .optional(),
-
   phone: z
     .string()
     .trim()
     .min(8)
     .max(15)
     .optional(),
-
   countryCode: z
     .string()
     .trim()
     .optional(),
-
   profileImage: z
     .string()
     .optional(),
-
   agentProfile: z
     .object({
       experience: z
         .number()
         .min(0)
         .optional(),
-
       alternatePhone: z
         .string()
         .trim()
         .min(8)
         .max(15)
         .optional(),
-
       workingHours: z
         .object({
           start: z.string().optional(),
           end: z.string().optional(),
         })
         .optional(),
-
       address: z
         .object({
           line1: z.string().optional(),
@@ -87,15 +73,12 @@ export const updateAgentSchema = z.object({
           pinCode: z.string().optional(),
         })
         .optional(),
-
       operatingArea: z
         .string()
         .optional(),
-
       onboardingDate: z
         .string()
         .optional(),
-
       coverage: z
         .object({
           primaryArea: z.string().optional(),
@@ -115,7 +98,6 @@ export const updateAgentStatusSchema = z.object({
     }
   ),
 });
-
 export const verifyAadhaarSchema = z.object({
   aadhaarNumber: z
     .string()
@@ -125,12 +107,10 @@ export const verifyAadhaarSchema = z.object({
       "Aadhaar number must be exactly 12 digits."
     ),
 });
-
 export const verifyPanSchema = z.object({
   params: z.object({
     id: z.string().min(1, "Agent ID is required."),
   }),
-
   body: z.object({
     panNumber: z
       .string()

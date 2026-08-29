@@ -1,8 +1,6 @@
 import asyncHandler from "../../utils/api/asyncHandler.js";
 import ApiResponse from "../../utils/response/ApiResponse.js";
 import * as authService from "./auth.service.js";
-
-
 /**
  * @desc    Send OTP
  * @route   POST /api/v1/auth/send-otp
@@ -10,9 +8,7 @@ import * as authService from "./auth.service.js";
  */
 export const sendOtp = asyncHandler(async (req, res) => {
   const { phone } = req.body;
-
   const result = await authService.sendOtp(phone);
-
   return res.status(200).json(
     new ApiResponse(
       200,
@@ -21,7 +17,6 @@ export const sendOtp = asyncHandler(async (req, res) => {
     )
   );
 });
-
 /**
  * @desc    Verify OTP
  * @route   POST /api/v1/auth/verify-otp
@@ -35,14 +30,12 @@ export const verifyOtp = asyncHandler(async (req, res) => {
     deviceType,
     deviceId,
   } = req.body;
-
   const result = await authService.verifyOtp({
     phone,
     otp,
     deviceType,
     deviceId,
   });
-
   return res.status(200).json(
     new ApiResponse(
       200,
@@ -51,7 +44,6 @@ export const verifyOtp = asyncHandler(async (req, res) => {
     )
   );
 });
-
 /**
  * @desc    Login with Google
  * @route   POST /api/v1/auth/google
@@ -59,7 +51,6 @@ export const verifyOtp = asyncHandler(async (req, res) => {
  */
 export const googleLogin = asyncHandler(async (req, res) => {
   const result = await authService.googleLogin(req.body);
-
   return res.status(200).json(
     new ApiResponse(
       200,
@@ -68,7 +59,6 @@ export const googleLogin = asyncHandler(async (req, res) => {
     )
   );
 });
-
 /**
  * @desc    Login with Facebook
  * @route   POST /api/v1/auth/facebook
@@ -76,7 +66,6 @@ export const googleLogin = asyncHandler(async (req, res) => {
  */
 export const facebookLogin = asyncHandler(async (req, res) => {
   const result = await authService.facebookLogin(req.body);
-
   return res.status(200).json(
     new ApiResponse(
       200,
@@ -85,7 +74,6 @@ export const facebookLogin = asyncHandler(async (req, res) => {
     )
   );
 });
-
 /**
  * @desc    Refresh Access Token
  * @route   POST /api/v1/auth/refresh-token
@@ -93,9 +81,7 @@ export const facebookLogin = asyncHandler(async (req, res) => {
  */
 export const refreshToken = asyncHandler(async (req, res) => {
   const { refreshToken } = req.body;
-
   const result = await authService.refreshToken(refreshToken);
-
   return res.status(200).json(
     new ApiResponse(
       200,
@@ -104,7 +90,6 @@ export const refreshToken = asyncHandler(async (req, res) => {
     )
   );
 });
-
 /**
  * @desc    Logout
  * @route   POST /api/v1/auth/logout
@@ -112,9 +97,7 @@ export const refreshToken = asyncHandler(async (req, res) => {
  */
 export const logout = asyncHandler(async (req, res) => {
   const { refreshToken } = req.body;
-
  await authService.logout(req.user.userId, refreshToken);
-
   return res.status(200).json(
     new ApiResponse(
       200,
@@ -123,7 +106,6 @@ export const logout = asyncHandler(async (req, res) => {
     )
   );
 });
-
 /**
  * @desc    Get Logged-in User
  * @route   GET /api/v1/auth/me
@@ -131,7 +113,6 @@ export const logout = asyncHandler(async (req, res) => {
  */
 export const getMe = asyncHandler(async (req, res) => {
   const result = await authService.getMe(req.user.userId);
-
   return res.status(200).json(
     new ApiResponse(
       200,
@@ -141,11 +122,26 @@ export const getMe = asyncHandler(async (req, res) => {
   );
 });
 
+export const updateProfile = asyncHandler(async (req, res) => {
+  const result = await authService.updateProfile(
+    req.user.userId,
+    req.body,
+    req.file
+  );
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      result,
+      "Profile updated successfully."
+    )
+  );
+});
+
 export const sendAgentOtp = asyncHandler(async (req, res) => {
   const result = await authService.sendAgentOtp(
     req.body.phone
   );
-
   return res.status(200).json(
     new ApiResponse(
       200,
@@ -154,12 +150,10 @@ export const sendAgentOtp = asyncHandler(async (req, res) => {
     )
   );
 });
-
 export const verifyAgentOtp = asyncHandler(async (req, res) => {
   const result = await authService.verifyAgentOtp(
     req.body
   );
-
   return res.status(200).json(
     new ApiResponse(
       200,

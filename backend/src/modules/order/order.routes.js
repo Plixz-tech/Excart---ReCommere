@@ -4,6 +4,7 @@ import orderController from "./order.controller.js";
 
 import {
   createOrderSchema,
+  orderIdSchema,
 } from "./order.validator.js";
 
 import validateRequest from "../../middlewares/validation/validateRequest.js";
@@ -14,36 +15,44 @@ const router = express.Router();
 
 router.use(protect);
 
-// Create my order
+// CREATE ORDER
+
 router.post(
   "/",
   validateRequest(createOrderSchema),
   orderController.createOrder
 );
 
-// Upload device invoice
-router.post(
-  "/:id/device-invoice",
-  upload.single("invoice"),
-  orderController.uploadDeviceInvoice
-);
+// GET MY ORDERS
 
-// Get my orders
 router.get(
   "/",
   orderController.getMyOrders
 );
 
-// Get my order by ID
+// GET MY ORDER
+
 router.get(
   "/:id",
+  validateRequest(orderIdSchema),
   orderController.getMyOrderById
 );
 
-// Cancel my order
+// CANCEL ORDER
+
 router.patch(
   "/:id/cancel",
+  validateRequest(orderIdSchema),
   orderController.cancelOrder
+);
+
+// UPLOAD DEVICE INVOICE
+
+router.post(
+  "/:id/device-invoice",
+  validateRequest(orderIdSchema),
+  upload.single("invoice"),
+  orderController.uploadDeviceInvoice
 );
 
 export default router;

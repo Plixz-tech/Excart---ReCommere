@@ -2,9 +2,9 @@ import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema(
   {
-
+   
     // ORDER BASIC INFORMATION
-
+   
 
     orderNumber: {
       type: String,
@@ -26,22 +26,26 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
 
-
+   
     // ORDER STATUS
-
+   
 
     status: {
       type: String,
       enum: [
         "pending",
-        "assigned",
         "pickup_scheduled",
+        "assigned",
         "picked_up",
         "in_transit",
         "inspection_pending",
         "inspection_in_progress",
         "inspection_completed",
+        "approved",
+        "payment_pending",
+        "payment_completed",
         "ready_stock",
+        "completed",
         "cancelled",
         "rejected",
       ],
@@ -49,75 +53,142 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
 
-
-    // PAYMENT
-
-
-    payment: {
-      status: {
-        type: String,
-        enum: [
-          "pending",
-          "processing",
-          "completed",
-          "failed",
-          "cancelled",
-        ],
-        default: "pending",
-      },
-
-      estimatedAmount: {
-        type: Number,
-        default: 0,
-        min: 0,
-      },
-
-      finalAmount: {
-        type: Number,
-        default: 0,
-        min: 0,
-      },
-
-      paymentMethod: {
-        type: String,
-        enum: [
-          "bank_transfer",
-          "upi",
-          "cash",
-          "other",
-        ],
-        default: null,
-      },
-
-      transactionId: {
-        type: String,
-        default: "",
-      },
-
-      paidAt: {
-        type: Date,
-        default: null,
-      },
-
-      notes: {
-        type: String,
-        default: "",
-      },
-    },
-
-
+   
     // DEVICE
-
+   
 
     device: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Device",
-      default: null,
+      required: true,
+      index: true,
     },
 
+   
+    // PAYMENT
+   
 
-    // PICKUP DETAILS
+payment: {
+  status: {
+    type: String,
+    enum: [
+      "pending",
+      "processing",
+      "completed",
+      "failed",
+      "cancelled",
+    ],
+    default: "pending",
+  },
 
+  estimatedAmount: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+
+  finalAmount: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+
+  paymentMethod: {
+    type: String,
+    enum: [
+      "bank_transfer",
+      "upi",
+      "cash",
+      "other",
+    ],
+    default: null,
+  },
+
+  transactionId: {
+    type: String,
+    default: "",
+    trim: true,
+  },
+
+  paidAt: {
+    type: Date,
+    default: null,
+  },
+
+  notes: {
+    type: String,
+    default: "",
+    trim: true,
+  },
+
+ payout: {
+  provider: {
+    type: String,
+    enum: [
+      "cashfree",
+      "manual",
+    ],
+    default: null,
+  },
+
+  beneficiaryId: {
+    type: String,
+    default: "",
+    trim: true,
+  },
+
+  transferId: {
+    type: String,
+    default: "",
+    trim: true,
+  },
+
+  referenceId: {
+    type: String,
+    default: "",
+    trim: true,
+  },
+
+  status: {
+    type: String,
+    enum: [
+      "not_started",
+      "pending",
+      "processing",
+      "success",
+      "failed",
+      "cancelled",
+    ],
+    default: "not_started",
+  },
+
+  amount: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+
+  initiatedAt: {
+    type: Date,
+    default: null,
+  },
+
+  completedAt: {
+    type: Date,
+    default: null,
+  },
+
+  failureReason: {
+    type: String,
+    default: "",
+    trim: true,
+  },
+},
+},
+
+   
+    // PICKUP
+   
 
     pickup: {
       status: {
@@ -141,6 +212,7 @@ const orderSchema = new mongoose.Schema(
       scheduledTime: {
         type: String,
         default: "",
+        trim: true,
       },
 
       assignedAgent: {
@@ -153,21 +225,25 @@ const orderSchema = new mongoose.Schema(
         line1: {
           type: String,
           default: "",
+          trim: true,
         },
 
         city: {
           type: String,
           default: "",
+          trim: true,
         },
 
         state: {
           type: String,
           default: "",
+          trim: true,
         },
 
         pinCode: {
           type: String,
           default: "",
+          trim: true,
         },
 
         latitude: {
@@ -181,20 +257,247 @@ const orderSchema = new mongoose.Schema(
         },
       },
 
-      notes: {
+      mapsUrl: {
         type: String,
         default: "",
       },
 
+      notes: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+
+      // ===================================================
+      // PICKUP VERIFICATION
+      // ===================================================
+
+      verification: {
+        // -----------------------------------------------
+        // CUSTOMER PHOTO
+        // -----------------------------------------------
+
+        customerPhoto: {
+          url: {
+            type: String,
+            default: "",
+          },
+
+          publicId: {
+            type: String,
+            default: "",
+          },
+
+          fileName: {
+            type: String,
+            default: "",
+          },
+
+          uploadedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+
+          uploadedAt: {
+            type: Date,
+            default: null,
+          },
+        },
+
+        // -----------------------------------------------
+        // AADHAAR OFFLINE e-KYC
+        // -----------------------------------------------
+
+        aadhaar: {
+          // ---------------------------------------------
+          // Offline e-KYC XML upload metadata
+          // ---------------------------------------------
+
+          xml: {
+            url: {
+              type: String,
+              default: "",
+            },
+
+            publicId: {
+              type: String,
+              default: "",
+            },
+
+            fileName: {
+              type: String,
+              default: "",
+            },
+
+            uploadedBy: {
+              type: mongoose.Schema.Types.ObjectId,
+              ref: "User",
+              default: null,
+            },
+
+            uploadedAt: {
+              type: Date,
+              default: null,
+            },
+          },
+
+          // ---------------------------------------------
+          // Optional Aadhaar supporting document
+          // ---------------------------------------------
+
+          document: {
+            url: {
+              type: String,
+              default: "",
+            },
+
+            publicId: {
+              type: String,
+              default: "",
+            },
+
+            fileName: {
+              type: String,
+              default: "",
+            },
+
+            uploadedBy: {
+              type: mongoose.Schema.Types.ObjectId,
+              ref: "User",
+              default: null,
+            },
+
+            uploadedAt: {
+              type: Date,
+              default: null,
+            },
+          },
+
+          // ---------------------------------------------
+          // VERIFICATION RESULT
+          // ---------------------------------------------
+
+          verification: {
+            status: {
+              type: String,
+              enum: [
+                "not_uploaded",
+                "pending",
+                "verified",
+                "rejected",
+              ],
+              default: "not_uploaded",
+            },
+
+            verifiedAt: {
+              type: Date,
+              default: null,
+            },
+
+            verifiedBy: {
+              type: mongoose.Schema.Types.ObjectId,
+              ref: "User",
+              default: null,
+            },
+
+            referenceId: {
+              type: String,
+              default: "",
+              trim: true,
+            },
+
+            /*
+             * Store only the last four digits if genuinely
+             * required by the business.
+             *
+             * Never store the complete Aadhaar number here.
+             */
+            aadhaarLast4: {
+              type: String,
+              default: "",
+              trim: true,
+            },
+
+            /*
+             * Store only the minimum identity information
+             * actually required by the application.
+             */
+            name: {
+              type: String,
+              default: "",
+              trim: true,
+            },
+
+            dateOfBirth: {
+              type: String,
+              default: "",
+              trim: true,
+            },
+
+            gender: {
+              type: String,
+              default: "",
+              trim: true,
+            },
+
+            address: {
+              type: String,
+              default: "",
+              trim: true,
+            },
+
+            notes: {
+              type: String,
+              default: "",
+              trim: true,
+            },
+          },
+        },
+
+        // -----------------------------------------------
+        // OVERALL PICKUP VERIFICATION
+        // -----------------------------------------------
+
+        status: {
+          type: String,
+          enum: [
+            "pending",
+            "verified",
+            "rejected",
+          ],
+          default: "pending",
+        },
+
+        verifiedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          default: null,
+        },
+
+        verifiedAt: {
+          type: Date,
+          default: null,
+        },
+      },
+
+      // Actual pickup completion time
       pickedUpAt: {
         type: Date,
         default: null,
       },
     },
 
+   
+    // INSPECTION SUMMARY
+   
 
-    // INSPECTION
-
+    /*
+     * This is only a summary/reference on the Order.
+     *
+     * The complete inspection belongs to the Inspection
+     * collection.
+     */
 
     inspection: {
       status: {
@@ -212,21 +515,25 @@ const orderSchema = new mongoose.Schema(
       condition: {
         type: String,
         default: "",
+        trim: true,
       },
 
       grade: {
         type: String,
         default: "",
+        trim: true,
       },
 
       physicalCondition: {
         type: String,
         default: "",
+        trim: true,
       },
 
       screenCondition: {
         type: String,
         default: "",
+        trim: true,
       },
 
       batteryHealth: {
@@ -244,6 +551,7 @@ const orderSchema = new mongoose.Schema(
       inspectionNotes: {
         type: String,
         default: "",
+        trim: true,
       },
 
       inspectedBy: {
@@ -261,10 +569,17 @@ const orderSchema = new mongoose.Schema(
         type: Date,
         default: null,
       },
+
+      rejectionReason: {
+        type: String,
+        default: "",
+        trim: true,
+      },
     },
 
-
+   
     // DOCUMENTS
+   
 
     documents: [
       {
@@ -272,6 +587,7 @@ const orderSchema = new mongoose.Schema(
           type: String,
           enum: [
             "aadhaar",
+            "aadhaar_offline_ekyc",
             "pan",
             "device_invoice",
             "purchase_invoice",
@@ -279,7 +595,7 @@ const orderSchema = new mongoose.Schema(
             "ownership",
             "purchase_proof",
             "other",
-          ]
+          ],
         },
 
         url: {
@@ -309,8 +625,10 @@ const orderSchema = new mongoose.Schema(
         },
       },
     ],
-    // INVENTORY / SALES
 
+   
+    // INVENTORY / SALES
+   
 
     inventory: {
       status: {
@@ -326,7 +644,7 @@ const orderSchema = new mongoose.Schema(
 
       inventoryId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Device",
+        ref: "Inventory",
         default: null,
       },
 
@@ -348,9 +666,9 @@ const orderSchema = new mongoose.Schema(
       },
     },
 
-
+   
     // TIMELINE
-
+   
 
     timeline: [
       {
@@ -362,6 +680,7 @@ const orderSchema = new mongoose.Schema(
         message: {
           type: String,
           default: "",
+          trim: true,
         },
 
         performedBy: {
@@ -377,23 +696,25 @@ const orderSchema = new mongoose.Schema(
       },
     ],
 
-
+   
     // NOTES
-
+   
 
     notes: {
       type: String,
       default: "",
+      trim: true,
     },
 
     cancellationReason: {
       type: String,
       default: "",
+      trim: true,
     },
 
-
+   
     // AUDIT
-
+   
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

@@ -3,13 +3,10 @@ import User from "../../models/User.js";
 import ApiError from "../../utils/errors/ApiError.js";
 import bcrypt from "bcrypt";
 import { getPagination } from "../../utils/pagination/paginate.js";
-
 import cloudinary from "../../lib/cloudinary.js";
 import streamifier from "streamifier";
-
 import * as aadhaarService from "../../services/aadhaar.service.js";
 import * as panService from "../../services/pan.service.js";
-
 /**
  * Upload file to Cloudinary
  */
@@ -24,7 +21,6 @@ const uploadToCloudinary = (file, folder) => {
         if (error) {
           return reject(error);
         }
-
         resolve({
           url: result.secure_url,
           publicId: result.public_id,
@@ -32,17 +28,14 @@ const uploadToCloudinary = (file, folder) => {
         });
       }
     );
-
     streamifier.createReadStream(file.buffer).pipe(uploadStream);
   });
 };
-
 /**
  * Delete file from Cloudinary
  */
 const deleteFromCloudinary = async (publicId) => {
   if (!publicId) return;
-
   try {
     await cloudinary.uploader.destroy(publicId);
   } catch (error) {
@@ -52,7 +45,6 @@ const deleteFromCloudinary = async (publicId) => {
     );
   }
 };
-
 /**
  * Get all agents
  */
@@ -61,16 +53,13 @@ export const getAgents = async (queryParams) => {
     role: "agent",
     status: { $ne: "deleted" },
   };
-
   const { page, limit, skip } = getPagination(queryParams);
-
   const {
     search,
     status,
     sortBy = "createdAt",
     order = "desc",
   } = queryParams;
-
   if (search) {
     filter.$or = [
       {
@@ -93,11 +82,9 @@ export const getAgents = async (queryParams) => {
       },
     ];
   }
-
   if (status) {
     filter.status = status;
   }
-
   const allowedSortFields = [
     "fullName",
     "email",
@@ -105,15 +92,12 @@ export const getAgents = async (queryParams) => {
     "status",
     "createdAt",
   ];
-
   const sortField = allowedSortFields.includes(sortBy)
     ? sortBy
     : "createdAt";
-
   const sort = {
     [sortField]: order === "asc" ? 1 : -1,
   };
-
   const agents = await User.find(filter)
     .select(
       "fullName phone email profileImage role status isPhoneVerified agentProfile.agentId createdAt"
@@ -121,9 +105,7 @@ export const getAgents = async (queryParams) => {
     .sort(sort)
     .skip(skip)
     .limit(limit);
-
   const totalAgents = await User.countDocuments(filter);
-
   return {
     agents,
     pagination: {
@@ -134,7 +116,6 @@ export const getAgents = async (queryParams) => {
     },
   };
 };
-
 /**
  * Get agent by ID
  */
@@ -142,20 +123,16 @@ export const getAgentById = async (agentId) => {
   if (!mongoose.Types.ObjectId.isValid(agentId)) {
     throw new ApiError(400, "Invalid agent ID.");
   }
-
   const agent = await User.findOne({
     _id: agentId,
     role: "agent",
     status: { $ne: "deleted" },
   }).select("-password -googleId -facebookId");
-
   if (!agent) {
     throw new ApiError(404, "Agent not found.");
   }
-
   return agent;
 };
-
 /**
  * Create agent
  */
@@ -167,39 +144,32 @@ export const createAgent = async (agentData, adminId) => {
     countryCode,
     password,
   } = agentData;
-
   const existingEmail = await User.findOne({
     email: email.toLowerCase(),
     status: { $ne: "deleted" },
   });
-
   if (existingEmail) {
     throw new ApiError(
       409,
       "Email already exists."
     );
   }
-
   const existingPhone = await User.findOne({
     phone,
     status: { $ne: "deleted" },
   });
-
   if (existingPhone) {
     throw new ApiError(
       409,
       "Phone number already exists."
     );
   }
-
   const lastAgent = await User.findOne({
     role: "agent",
   })
     .sort({ createdAt: -1 })
     .select("agentProfile.agentId");
-
   let nextNumber = 1;
-
   if (lastAgent?.agentProfile?.agentId) {
     nextNumber =
       parseInt(
@@ -210,40 +180,32 @@ export const createAgent = async (agentData, adminId) => {
         10
       ) + 1;
   }
-
   const agentId = `AGT${String(nextNumber).padStart(
     6,
     "0"
   )}`;
-
   const hashedPassword = await bcrypt.hash(
     password,
     10
   );
-
   const agent = await User.create({
     fullName,
     email,
     phone,
     countryCode,
     password: hashedPassword,
-
     role: "agent",
     status: "active",
     isPhoneVerified: true,
-
     createdBy: adminId,
-
     agentProfile: {
       agentId,
     },
   });
-
   return await User.findById(agent._id).select(
     "-password -googleId -facebookId"
   );
 };
-
 /**
  * Update agent
  */
@@ -255,20 +217,17 @@ export const updateAgent = async (
   if (!mongoose.Types.ObjectId.isValid(agentId)) {
     throw new ApiError(400, "Invalid agent ID.");
   }
-
   const agent = await User.findOne({
     _id: agentId,
     role: "agent",
     status: { $ne: "deleted" },
   });
-
   if (!agent) {
     throw new ApiError(
       404,
       "Agent not found."
     );
   }
-
   const {
     fullName,
     email,
@@ -277,14 +236,12 @@ export const updateAgent = async (
     profileImage,
     agentProfile,
   } = agentData;
-
   if (email) {
     const existingEmail = await User.findOne({
       email: email.toLowerCase(),
       _id: { $ne: agentId },
       status: { $ne: "deleted" },
     });
-
     if (existingEmail) {
       throw new ApiError(
         409,
@@ -292,14 +249,12 @@ export const updateAgent = async (
       );
     }
   }
-
   if (phone) {
     const existingPhone = await User.findOne({
       phone,
       _id: { $ne: agentId },
       status: { $ne: "deleted" },
     });
-
     if (existingPhone) {
       throw new ApiError(
         409,
@@ -307,27 +262,21 @@ export const updateAgent = async (
       );
     }
   }
-
   if (fullName !== undefined) {
     agent.fullName = fullName;
   }
-
   if (email !== undefined) {
     agent.email = email;
   }
-
   if (phone !== undefined) {
     agent.phone = phone;
   }
-
   if (countryCode !== undefined) {
     agent.countryCode = countryCode;
   }
-
   if (profileImage !== undefined) {
     agent.profileImage = profileImage;
   }
-
   if (agentProfile) {
     if (
       agentProfile.experience !== undefined
@@ -335,28 +284,24 @@ export const updateAgent = async (
       agent.agentProfile.experience =
         agentProfile.experience;
     }
-
     if (
       agentProfile.alternatePhone !== undefined
     ) {
       agent.agentProfile.alternatePhone =
         agentProfile.alternatePhone;
     }
-
     if (
       agentProfile.operatingArea !== undefined
     ) {
       agent.agentProfile.operatingArea =
         agentProfile.operatingArea;
     }
-
     if (
       agentProfile.onboardingDate !== undefined
     ) {
       agent.agentProfile.onboardingDate =
         agentProfile.onboardingDate;
     }
-
     if (agentProfile.workingHours) {
       if (
         agentProfile.workingHours.start !==
@@ -365,7 +310,6 @@ export const updateAgent = async (
         agent.agentProfile.workingHours.start =
           agentProfile.workingHours.start;
       }
-
       if (
         agentProfile.workingHours.end !==
         undefined
@@ -374,14 +318,12 @@ export const updateAgent = async (
           agentProfile.workingHours.end;
       }
     }
-
     if (agentProfile.address) {
       Object.assign(
         agent.agentProfile.address,
         agentProfile.address
       );
     }
-
     if (agentProfile.coverage) {
       Object.assign(
         agent.agentProfile.coverage,
@@ -389,16 +331,12 @@ export const updateAgent = async (
       );
     }
   }
-
   agent.updatedBy = adminId;
-
   await agent.save();
-
   return await User.findById(agentId).select(
     "-password -googleId -facebookId"
   );
 };
-
 /**
  * Update agent status
  */
@@ -409,29 +347,23 @@ export const updateAgentStatus = async (
   if (!mongoose.Types.ObjectId.isValid(agentId)) {
     throw new ApiError(400, "Invalid agent ID.");
   }
-
   const agent = await User.findOne({
     _id: agentId,
     role: "agent",
     status: { $ne: "deleted" },
   });
-
   if (!agent) {
     throw new ApiError(
       404,
       "Agent not found."
     );
   }
-
   agent.status = status;
-
   await agent.save();
-
   return await User.findById(agentId).select(
     "-password -googleId -facebookId"
   );
 };
-
 /**
  * Delete agent
  */
@@ -439,32 +371,25 @@ export const deleteAgent = async (agentId) => {
   if (!mongoose.Types.ObjectId.isValid(agentId)) {
     throw new ApiError(400, "Invalid agent ID.");
   }
-
   const agent = await User.findOne({
     _id: agentId,
     role: "agent",
     status: { $ne: "deleted" },
   });
-
   if (!agent) {
     throw new ApiError(
       404,
       "Agent not found."
     );
   }
-
   agent.status = "deleted";
   agent.deletedAt = new Date();
-
   // Free unique values
   agent.email = `${Date.now()}_${agent.email}`;
   agent.phone = `${Date.now()}_${agent.phone}`;
-
   await agent.save();
-
   return;
 };
-
 /**
  * Upload agent documents
  *
@@ -493,23 +418,19 @@ export const uploadDocuments = async (
       "Invalid agent ID."
     );
   }
-
   const agent = await User.findOne({
     _id: agentId,
     role: "agent",
     status: { $ne: "deleted" },
   });
-
   if (!agent) {
     throw new ApiError(
       404,
       "Agent not found."
     );
   }
-
   const documents =
     agent.agentProfile.verificationDocuments;
-
   const documentFields = [
     "aadhaar",
     "panCard",
@@ -517,14 +438,11 @@ export const uploadDocuments = async (
     "policeClearance",
     "photo",
   ];
-
   for (const field of documentFields) {
     if (!files?.[field]?.length) {
       continue;
     }
-
     const file = files[field][0];
-
     /*
      * Delete previous document
      */
@@ -533,7 +451,6 @@ export const uploadDocuments = async (
         documents[field].publicId
       );
     }
-
     /*
      * Upload new document
      */
@@ -542,7 +459,6 @@ export const uploadDocuments = async (
         file,
         `agents/${agent.agentProfile.agentId}/${field}`
       );
-
     /*
      * Reset document verification state
      */
@@ -554,13 +470,11 @@ export const uploadDocuments = async (
       verifiedAt: null,
       verifiedBy: null,
     };
-
     /*
      * -----------------------------------------
      * AADHAAR DOCUMENT VERIFICATION
      * -----------------------------------------
      */
-
     if (field === "aadhaar") {
       if (
         !agent.agentProfile.aadhaarNumber
@@ -568,13 +482,11 @@ export const uploadDocuments = async (
         await deleteFromCloudinary(
           uploadedDocument.publicId
         );
-
         throw new ApiError(
           400,
           "Please verify the Aadhaar number before uploading the Aadhaar document."
         );
       }
-
       if (
         !agent.agentProfile
           .aadhaarNumberVerified
@@ -582,13 +494,11 @@ export const uploadDocuments = async (
         await deleteFromCloudinary(
           uploadedDocument.publicId
         );
-
         throw new ApiError(
           400,
           "Aadhaar number must be verified before uploading the Aadhaar document."
         );
       }
-
       /*
        * External Aadhaar document verification
        */
@@ -601,42 +511,33 @@ export const uploadDocuments = async (
               agent.agentProfile.aadhaarNumber,
           }
         );
-
       if (
         !verificationResult?.verified
       ) {
         await deleteFromCloudinary(
           uploadedDocument.publicId
         );
-
         throw new ApiError(
           400,
           "Aadhaar document verification failed."
         );
       }
-
       documents.aadhaar.verified =
         true;
-
       documents.aadhaar.verifiedAt =
         new Date();
-
       documents.aadhaar.verifiedBy =
         adminId;
-
       documents.aadhaar.rejected =
         false;
-
       documents.aadhaar.rejectionReason =
         "";
     }
-
     /*
      * -----------------------------------------
      * PAN DOCUMENT VERIFICATION
      * -----------------------------------------
      */
-
     if (field === "panCard") {
       /*
        * External PAN verification
@@ -648,20 +549,17 @@ export const uploadDocuments = async (
               uploadedDocument.url,
           }
         );
-
       if (
         !verificationResult?.verified
       ) {
         await deleteFromCloudinary(
           uploadedDocument.publicId
         );
-
         throw new ApiError(
           400,
           "PAN document verification failed."
         );
       }
-
       /*
        * Save PAN number returned by
        * external verification service.
@@ -672,26 +570,19 @@ export const uploadDocuments = async (
         agent.agentProfile.panNumber =
           verificationResult.panNumber;
       }
-
       agent.agentProfile.panNumberVerified =
         true;
-
       documents.panCard.verified =
         true;
-
       documents.panCard.verifiedAt =
         new Date();
-
       documents.panCard.verifiedBy =
         adminId;
-
       documents.panCard.rejected =
         false;
-
       documents.panCard.rejectionReason =
         "";
     }
-
     /*
      *
      * Driving License
@@ -702,18 +593,14 @@ export const uploadDocuments = async (
      * No external verification for now.
      */
   }
-
   agent.updatedBy = adminId;
-
   await agent.save();
-
   return await User.findById(
     agentId
   ).select(
     "-password -googleId -facebookId"
   );
 };
-
 /**
  * Verify Aadhaar NUMBER
  *
@@ -739,20 +626,17 @@ export const verifyAadhaar = async (
       "Invalid agent ID."
     );
   }
-
   const agent = await User.findOne({
     _id: agentId,
     role: "agent",
     status: { $ne: "deleted" },
   });
-
   if (!agent) {
     throw new ApiError(
       404,
       "Agent not found."
     );
   }
-
   if (
     !/^\d{12}$/.test(aadhaarNumber)
   ) {
@@ -761,7 +645,6 @@ export const verifyAadhaar = async (
       "Aadhaar number must be exactly 12 digits."
     );
   }
-
   /*
    * External Aadhaar number verification
    *
@@ -772,7 +655,6 @@ export const verifyAadhaar = async (
     await aadhaarService.verifyAadhaarNumber(
       aadhaarNumber
     );
-
   if (
     !verificationResult?.verified
   ) {
@@ -781,13 +663,11 @@ export const verifyAadhaar = async (
       "Aadhaar number verification failed."
     );
   }
-
   /*
    * Save Aadhaar number
    */
   agent.agentProfile.aadhaarNumber =
     aadhaarNumber;
-
   /*
    * Mark NUMBER verification only.
    *
@@ -796,11 +676,8 @@ export const verifyAadhaar = async (
    */
   agent.agentProfile.aadhaarNumberVerified =
     true;
-
   agent.updatedBy = adminId;
-
   await agent.save();
-
   return await User.findById(
     agentId
   ).select(

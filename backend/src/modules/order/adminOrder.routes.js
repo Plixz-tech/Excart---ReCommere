@@ -20,68 +20,75 @@ router.use(
   authorize("admin")
 );
 
-// Get all orders
+// GET ALL ORDERS
+
 router.get(
   "/",
   adminOrderController.getOrders
 );
 
-// Get order by ID
+// GET ORDER BY ID
+
 router.get(
   "/:id",
   validateRequest(orderIdSchema),
   adminOrderController.getOrderById
 );
 
-// Update order
+// UPDATE ORDER
+
 router.patch(
   "/:id",
+  validateRequest(orderIdSchema),
   validateRequest(updateOrderSchema),
   adminOrderController.updateOrder
 );
 
-// Update status
+// UPDATE ORDER STATUS
+
 router.patch(
   "/:id/status",
+  validateRequest(orderIdSchema),
   validateRequest(orderStatusSchema),
   adminOrderController.updateOrderStatus
 );
 
-// Assign agent
+// ASSIGN ORDER
+
 router.patch(
   "/:id/assign",
+  validateRequest(orderIdSchema),
   validateRequest(assignOrderSchema),
   adminOrderController.assignOrder
 );
 
-// Process payment
-// This automatically generates:
-// 1. Purchase Invoice
-// 2. Payment Slip
-router.patch(
-  "/:id/payment",
-  adminOrderController.processPayment
-);
 
-// Get purchase invoice
+// GET PURCHASE INVOICE
+
 router.get(
   "/:id/purchase-invoice",
+  validateRequest(orderIdSchema),
   adminOrderController.getPurchaseInvoice
 );
 
-// Get payment slip
+// GET PAYMENT SLIP
+
 router.get(
   "/:id/payment-slip",
+  validateRequest(orderIdSchema),
   adminOrderController.getPaymentSlip
 );
 
-// Receive device
+// RECEIVE DEVICE
+
 router.patch(
   "/:id/receive",
+  validateRequest(orderIdSchema),
   adminOrderController.receiveOrder
 );
 
-// Delete order
+// DELETE ORDER
+
 router.delete(
   "/:id",
   validateRequest(orderIdSchema),

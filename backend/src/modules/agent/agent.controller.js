@@ -1,12 +1,10 @@
 import * as agentService from "./agent.service.js";
-
 export const createAgent = async (req, res, next) => {
   try {
     const result = await agentService.createAgent(
   req.body,
   req.user.userId
 );
-
     res.status(201).json({
       success: true,
       message: "Agent created successfully.",
@@ -16,11 +14,9 @@ export const createAgent = async (req, res, next) => {
     next(error);
   }
 };
-
 export const getAgents = async (req, res, next) => {
   try {
     const result = await agentService.getAgents(req.query);
-
     res.status(200).json({
       success: true,
       message: "Agents fetched successfully.",
@@ -30,11 +26,9 @@ export const getAgents = async (req, res, next) => {
     next(error);
   }
 };
-
 export const getAgentById = async (req, res, next) => {
   try {
     const result = await agentService.getAgentById(req.params.id);
-
     res.status(200).json({
       success: true,
       message: "Agent fetched successfully.",
@@ -44,7 +38,6 @@ export const getAgentById = async (req, res, next) => {
     next(error);
   }
 };
-
 export const updateAgent = async (req, res, next) => {
   try {
     const result = await agentService.updateAgent(
@@ -52,7 +45,6 @@ export const updateAgent = async (req, res, next) => {
       req.body,
       req.user.userId
     );
-
     res.status(200).json({
       success: true,
       message: "Agent updated successfully.",
@@ -62,14 +54,12 @@ export const updateAgent = async (req, res, next) => {
     next(error);
   }
 };
-
 export const updateAgentStatus = async (req, res, next) => {
   try {
     const result = await agentService.updateAgentStatus(
       req.params.id,
       req.body.status
     );
-
     res.status(200).json({
       success: true,
       message: "Agent status updated successfully.",
@@ -79,11 +69,9 @@ export const updateAgentStatus = async (req, res, next) => {
     next(error);
   }
 };
-
 export const deleteAgent = async (req, res, next) => {
   try {
     await agentService.deleteAgent(req.params.id);
-
     res.status(200).json({
       success: true,
       message: "Agent deleted successfully.",
@@ -92,7 +80,6 @@ export const deleteAgent = async (req, res, next) => {
     next(error);
   }
 };
-
 export const uploadDocuments = async (req, res, next) => {
   try {
     const result = await agentService.uploadDocuments(
@@ -100,7 +87,6 @@ export const uploadDocuments = async (req, res, next) => {
       req.files,
       req.user.userId
     );
-
     res.status(200).json({
       success: true,
       message: "Documents uploaded successfully.",
@@ -110,8 +96,6 @@ export const uploadDocuments = async (req, res, next) => {
     next(error);
   }
 };
-
-
 export const verifyAadhaar = async (req, res, next) => {
   try {
     const result = await agentService.verifyAadhaar(
@@ -119,7 +103,6 @@ export const verifyAadhaar = async (req, res, next) => {
       req.body.aadhaarNumber,
       req.user.userId
     );
-
     res.status(200).json({
       success: true,
       message: "Aadhaar verified successfully.",
@@ -129,7 +112,3 @@ export const verifyAadhaar = async (req, res, next) => {
     next(error);
   }
 };
-
-
-
-

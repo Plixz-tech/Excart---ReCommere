@@ -1,14 +1,14 @@
 import orderService from "./order.service.js";
 
 class OrderController {
+
   async createOrder(req, res, next) {
     try {
-      const userId = req.user.userId;
-
-      const order = await orderService.createOrder(
-        req.body,
-        userId
-      );
+      const order =
+        await orderService.createOrder(
+          req.body,
+          req.user.userId
+        );
 
       return res.status(201).json({
         success: true,
@@ -22,12 +22,11 @@ class OrderController {
 
   async getMyOrders(req, res, next) {
     try {
-      const userId = req.user.userId;
-
-      const result = await orderService.getMyOrders(
-        userId,
-        req.query
-      );
+      const result =
+        await orderService.getMyOrders(
+          req.user.userId,
+          req.query
+        );
 
       return res.status(200).json({
         success: true,
@@ -47,12 +46,10 @@ class OrderController {
 
   async getMyOrderById(req, res, next) {
     try {
-      const userId = req.user.userId;
-
       const order =
         await orderService.getMyOrderById(
           req.params.id,
-          userId
+          req.user.userId
         );
 
       return res.status(200).json({
@@ -67,12 +64,10 @@ class OrderController {
 
   async cancelOrder(req, res, next) {
     try {
-      const userId = req.user.userId;
-
       const order =
         await orderService.cancelOrder(
           req.params.id,
-          userId
+          req.user.userId
         );
 
       return res.status(200).json({
@@ -86,36 +81,33 @@ class OrderController {
   }
 
   async uploadDeviceInvoice(req, res, next) {
-  try {
-    const userId = req.user.userId;
+    try {
+      if (!req.file) {
+        const error = new Error(
+          "Device invoice file is required."
+        );
 
-    if (!req.file) {
-      const error = new Error(
-        "Device invoice file is required."
-      );
+        error.statusCode = 400;
 
-      error.statusCode = 400;
+        throw error;
+      }
 
-      throw error;
+      const order =
+        await orderService.uploadDeviceInvoice(
+          req.params.id,
+          req.file,
+          req.user.userId
+        );
+
+      return res.status(200).json({
+        success: true,
+        message: "Device invoice uploaded successfully.",
+        data: order,
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const order =
-      await orderService.uploadDeviceInvoice(
-        req.params.id,
-        req.file,
-        userId
-      );
-
-    return res.status(200).json({
-      success: true,
-      message:
-        "Device invoice uploaded successfully.",
-      data: order,
-    });
-  } catch (error) {
-    next(error);
   }
-}
 }
 
 export default new OrderController();

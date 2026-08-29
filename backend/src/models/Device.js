@@ -2,9 +2,9 @@ import mongoose from "mongoose";
 
 const deviceSchema = new mongoose.Schema(
   {
-
+   
     // DEVICE DETAILS
-
+   
 
     brand: {
       type: String,
@@ -42,15 +42,16 @@ const deviceSchema = new mongoose.Schema(
       trim: true,
     },
 
-
+   
     // DEVICE IDENTITY
-
+   
 
     imei1: {
       type: String,
       required: true,
       unique: true,
       trim: true,
+      index: true,
     },
 
     imei2: {
@@ -65,10 +66,9 @@ const deviceSchema = new mongoose.Schema(
       trim: true,
     },
 
-
-    // CUSTOMER PROVIDED DEVICE
-    // CONDITION DETAILS
-
+   
+    // CUSTOMER PROVIDED DEVICE CONDITION
+   
 
     customerEvaluation: {
       screenCondition: {
@@ -121,45 +121,118 @@ const deviceSchema = new mongoose.Schema(
       },
     },
 
+    // AGENT PHYSICAL DEVICE INSPECTION
 
-    // PRICING
+agentEvaluation: {
+  screenCondition: {
+    type: String,
+    default: "",
+  },
 
+  displayIssues: {
+    type: [String],
+    default: [],
+  },
 
-    purchasePrice: {
-      type: Number,
-      default: 0,
+  bodyCondition: {
+    type: String,
+    default: "",
+  },
+
+  batteryHealth: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: null,
+  },
+
+  repairHistory: {
+    type: String,
+    default: "",
+  },
+
+  accessories: {
+    type: [String],
+    default: [],
+  },
+
+  functionalIssues: {
+    type: [String],
+    default: [],
+  },
+
+  imeiVerification: {
+    verified: {
+      type: Boolean,
+      default: false,
     },
 
-    expectedSellingPrice: {
-      type: Number,
-      default: 0,
+    verifiedAt: {
+      type: Date,
+      default: null,
     },
+  },
 
+  verifiedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
 
-    // OWNERSHIP
+  verifiedAt: {
+    type: Date,
+    default: null,
+  },
+},
 
+   
+// PRICING
+
+valuationPrice: {
+  type: Number,
+  default: 0,
+  min: 0,
+},
+
+purchasePrice: {
+  type: Number,
+  default: 0,
+  min: 0,
+},
+
+expectedSellingPrice: {
+  type: Number,
+  default: 0,
+  min: 0,
+},
+   
+    // OWNERSHIP / AGENTS
+   
 
     customer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
+      index: true,
     },
 
     pickupAgent: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
+      index: true,
     },
 
     inspectionAgent: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
+      index: true,
     },
 
-
+   
     // PHOTOS
-
+   
 
     photos: [
       {
@@ -180,9 +253,9 @@ const deviceSchema = new mongoose.Schema(
       },
     ],
 
-
+   
     // DEVICE STATUS
-
+   
 
     status: {
       type: String,
@@ -192,6 +265,7 @@ const deviceSchema = new mongoose.Schema(
         "in_transit",
         "received_in_shop",
         "inspection_pending",
+        "inspection_in_progress",
         "inspection_completed",
         "approved",
         "rejected",
@@ -205,9 +279,9 @@ const deviceSchema = new mongoose.Schema(
       index: true,
     },
 
-
+   
     // AUDIT
-
+   
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

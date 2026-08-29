@@ -1,17 +1,13 @@
 import * as deviceRepository from "./device.repository.js";
-
 export const createDevice = async (deviceData, adminId) => {
   return await deviceRepository.createDevice(deviceData, adminId);
 };
-
 export const getDevices = async (queryParams) => {
   return await deviceRepository.getDevices(queryParams);
 };
-
 export const getDeviceById = async (deviceId) => {
   return await deviceRepository.getDeviceById(deviceId);
 };
-
 export const updateDevice = async (
   deviceId,
   deviceData,
@@ -23,7 +19,6 @@ export const updateDevice = async (
     adminId
   );
 };
-
 export const updateDeviceStatus = async (
   deviceId,
   status,
@@ -35,7 +30,6 @@ export const updateDeviceStatus = async (
     adminId
   );
 };
-
 export const deleteDevice = async (
   deviceId,
   adminId

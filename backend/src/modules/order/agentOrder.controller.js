@@ -1,9 +1,6 @@
 import orderService from "./order.service.js";
 
 class AgentOrderController {
- 
-  // GET ALL ORDERS ASSIGNED TO LOGGED-IN AGENT
- 
 
   async getMyOrders(req, res, next) {
     try {
@@ -15,8 +12,7 @@ class AgentOrderController {
 
       return res.status(200).json({
         success: true,
-        message:
-          "Assigned orders fetched successfully.",
+        message: "Assigned orders fetched successfully.",
         data: result.orders,
         pagination: {
           total: result.total,
@@ -30,13 +26,9 @@ class AgentOrderController {
     }
   }
 
- 
-  // GET ONE ORDER ASSIGNED TO LOGGED-IN AGENT
- 
-
   async getMyOrderById(req, res, next) {
     try {
-      const result =
+      const order =
         await orderService.getMyAssignedOrderById(
           req.params.id,
           req.user.userId
@@ -44,9 +36,45 @@ class AgentOrderController {
 
       return res.status(200).json({
         success: true,
-        message:
-          "Assigned order fetched successfully.",
-        data: result,
+        message: "Assigned order fetched successfully.",
+        data: order,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async selfAssignOrder(req, res, next) {
+    try {
+      const order =
+        await orderService.selfAssignOrder(
+          req.params.id,
+          req.user.userId
+        );
+
+      return res.status(200).json({
+        success: true,
+        message: "Order assigned to you successfully.",
+        data: order,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async verifyPickup(req, res, next) {
+    try {
+      const order =
+        await orderService.verifyPickup(
+          req.params.id,
+          req.user.userId,
+          req.body
+        );
+
+      return res.status(200).json({
+        success: true,
+        message: "Pickup verification completed successfully.",
+        data: order,
       });
     } catch (error) {
       next(error);
@@ -54,43 +82,40 @@ class AgentOrderController {
   }
 
   async pickupOrder(req, res, next) {
-  try {
-    const result =
-      await orderService.pickupOrder(
-        req.params.id,
-        req.user.userId
-      );
+    try {
+      const order =
+        await orderService.pickupOrder(
+          req.params.id,
+          req.user.userId
+        );
 
-    return res.status(200).json({
-      success: true,
-      message: "Order picked up successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
+      return res.status(200).json({
+        success: true,
+        message: "Order picked up successfully.",
+        data: order,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async startTransit(req, res, next) {
+    try {
+      const order =
+        await orderService.startTransit(
+          req.params.id,
+          req.user.userId
+        );
+
+      return res.status(200).json({
+        success: true,
+        message: "Order moved to transit successfully.",
+        data: order,
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 }
-
-async startTransit(req, res, next) {
-  try {
-    const result =
-      await orderService.startTransit(
-        req.params.id,
-        req.user.userId
-      );
-
-    return res.status(200).json({
-      success: true,
-      message:
-        "Order moved to transit successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-}
-
-
 
 export default new AgentOrderController();

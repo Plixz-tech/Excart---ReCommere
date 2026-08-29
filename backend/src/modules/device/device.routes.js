@@ -1,19 +1,14 @@
 import express from "express";
-
 import protect from "../../middlewares/auth/protect.js";
 import authorize from "../../middlewares/auth/authorize.js";
 import validateRequest from "../../middlewares/validation/validateRequest.js";
-
 import * as deviceController from "./device.controller.js";
-
 import {
   createDeviceSchema,
   updateDeviceSchema,
   updateDeviceStatusSchema,
 } from "./device.validator.js";
-
 const router = express.Router();
-
 router.post(
   "/",
   protect,
@@ -21,19 +16,16 @@ router.post(
   validateRequest(createDeviceSchema),
   deviceController.createDevice
 );
-
 router.get(
   "/",
   deviceController.getDevices
 );
-
 router.get(
   "/:id",
   protect,
   authorize("admin"),
   deviceController.getDeviceById
 );
-
 router.patch(
   "/:id",
   protect,
@@ -41,7 +33,6 @@ router.patch(
   validateRequest(updateDeviceSchema),
   deviceController.updateDevice
 );
-
 router.patch(
   "/:id/status",
   protect,
@@ -49,12 +40,10 @@ router.patch(
   validateRequest(updateDeviceStatusSchema),
   deviceController.updateDeviceStatus
 );
-
 router.delete(
   "/:id",
   protect,
   authorize("admin"),
   deviceController.deleteDevice
 );
-
 export default router;

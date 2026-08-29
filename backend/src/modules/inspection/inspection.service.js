@@ -10,7 +10,9 @@ export const createInspection = async (
   );
 };
 
-export const getInspections = async (queryParams) => {
+export const getInspections = async (
+  queryParams
+) => {
   return await inspectionRepository.getInspections(
     queryParams
   );
@@ -45,5 +47,13 @@ export const updateInspectionStatus = async (
     inspectionId,
     status,
     userId
+  );
+};
+
+export const deleteInspection = async (
+  inspectionId
+) => {
+  return await inspectionRepository.deleteInspection(
+    inspectionId
   );
 };

@@ -11,9 +11,7 @@ import {
    verifyPanSchema,
 } from "./agent.validator.js";
 import upload from "../../middlewares/upload.js";
-
 const router = Router();
-
 router.post(
   "/",
   protect,
@@ -21,21 +19,18 @@ router.post(
   validateRequest(createAgentSchema),
   agentController.createAgent
 );
-
 router.get(
   "/",
   protect,
   authorize("admin"),
   agentController.getAgents
 );
-
 router.get(
   "/:id",
   protect,
   authorize("admin"),
   agentController.getAgentById
 );
-
 router.put(
   "/:id",
   protect,
@@ -43,7 +38,6 @@ router.put(
   validateRequest(updateAgentSchema),
   agentController.updateAgent
 );
-
 router.patch(
   "/:id/status",
   protect,
@@ -51,7 +45,6 @@ router.patch(
   validateRequest(updateAgentStatusSchema),
   agentController.updateAgentStatus
 );
-
 router.post(
   "/:id/documents",
   protect,
@@ -65,7 +58,6 @@ router.post(
   ]),
   agentController.uploadDocuments
 );
-
 router.post(
   "/:id/verify-aadhaar",
   protect,
@@ -73,13 +65,10 @@ router.post(
   validateRequest(verifyAadhaarSchema),
   agentController.verifyAadhaar
 );
-
 router.delete(
   "/:id",
   protect,
   authorize("admin"),
   agentController.deleteAgent
 );
-
-
 export default router;

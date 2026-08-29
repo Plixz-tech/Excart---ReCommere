@@ -1,7 +1,5 @@
 import User from "../../models/User.js";
-
 /* ADMIN */
-
 export const findAdminByEmail = async (email) => {
   return User.findOne({
     email,
@@ -9,7 +7,6 @@ export const findAdminByEmail = async (email) => {
     status: "active",
   }).select("+password");
 };
-
 export const updateAdminLastLogin = async (adminId) => {
   return User.findByIdAndUpdate(
     adminId,
@@ -21,7 +18,6 @@ export const updateAdminLastLogin = async (adminId) => {
     }
   );
 };
-
 export const findAdminById = async (adminId) => {
   return User.findOne({
     _id: adminId,
@@ -29,7 +25,6 @@ export const findAdminById = async (adminId) => {
     status: "active",
   });
 };
-
 export const updateAdminProfile = async (adminId, data) => {
   return User.findByIdAndUpdate(
     adminId,
@@ -40,7 +35,6 @@ export const updateAdminProfile = async (adminId, data) => {
     }
   );
 };
-
 export const findAdminWithPasswordById = async (adminId) => {
   return User.findOne({
     _id: adminId,
@@ -48,7 +42,6 @@ export const findAdminWithPasswordById = async (adminId) => {
     status: "active",
   }).select("+password");
 };
-
 export const updateAdminPassword = async (
   adminId,
   hashedPassword
@@ -63,4 +56,3 @@ export const updateAdminPassword = async (
     }
   );
 };
-

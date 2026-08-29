@@ -1,13 +1,10 @@
 import { z } from "zod";
-
 const objectId = z
   .string()
   .regex(/^[0-9a-fA-F]{24}$/, "Invalid ObjectId.");
-
 // Start Inspection
 export const createInspectionSchema = z.object({
   device: objectId,
-
   screenCondition: z.enum([
     "Excellent",
     "Good",
@@ -15,16 +12,13 @@ export const createInspectionSchema = z.object({
     "Poor",
     "Broken",
   ]),
-
   bodyCondition: z.enum([
     "Excellent",
     "Good",
     "Average",
     "Poor",
   ]),
-
   batteryHealth: z.coerce.number().min(0).max(100),
-
   functionalTests: z.object({
     camera: z.boolean(),
     speaker: z.boolean(),
@@ -36,7 +30,6 @@ export const createInspectionSchema = z.object({
     faceId: z.boolean(),
     fingerprint: z.boolean(),
   }),
-
   accessories: z.object({
     charger: z.boolean(),
     cable: z.boolean(),
@@ -44,17 +37,14 @@ export const createInspectionSchema = z.object({
     bill: z.boolean(),
     simEjector: z.boolean(),
   }),
-
   repairHistory: z.object({
     repaired: z.boolean(),
     remarks: z.string().trim().optional(),
   }),
-
   imeiVerification: z.object({
     verified: z.boolean(),
     remarks: z.string().trim().optional(),
   }),
-
   overallGrade: z.enum([
     "A+",
     "A",
@@ -62,12 +52,9 @@ export const createInspectionSchema = z.object({
     "C",
     "D",
   ]),
-
   estimatedPrice: z.coerce.number().min(0),
-
   remarks: z.string().trim().optional(),
 });
-
 // Update inspection / Save Draft
 export const updateInspectionSchema = z.object({
   screenCondition: z
@@ -79,7 +66,6 @@ export const updateInspectionSchema = z.object({
       "Broken",
     ])
     .optional(),
-
   bodyCondition: z
     .enum([
       "Excellent",
@@ -88,14 +74,12 @@ export const updateInspectionSchema = z.object({
       "Poor",
     ])
     .optional(),
-
   batteryHealth: z
     .coerce
     .number()
     .min(0)
     .max(100)
     .optional(),
-
   functionalTests: z
     .object({
       camera: z.boolean().optional(),
@@ -109,7 +93,6 @@ export const updateInspectionSchema = z.object({
       fingerprint: z.boolean().optional(),
     })
     .optional(),
-
   accessories: z
     .object({
       charger: z.boolean().optional(),
@@ -119,21 +102,18 @@ export const updateInspectionSchema = z.object({
       simEjector: z.boolean().optional(),
     })
     .optional(),
-
   repairHistory: z
     .object({
       repaired: z.boolean().optional(),
       remarks: z.string().trim().optional(),
     })
     .optional(),
-
   imeiVerification: z
     .object({
       verified: z.boolean().optional(),
       remarks: z.string().trim().optional(),
     })
     .optional(),
-
   overallGrade: z
     .enum([
       "A+",
@@ -143,17 +123,13 @@ export const updateInspectionSchema = z.object({
       "D",
     ])
     .optional(),
-
   estimatedPrice: z
     .coerce
     .number()
     .min(0)
     .optional(),
-
   remarks: z.string().trim().optional(),
 });
-
-
 // Approve / Reject
 export const updateInspectionStatusSchema = z.object({
   status: z.enum([

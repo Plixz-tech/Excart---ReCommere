@@ -2,12 +2,23 @@ import mongoose from "mongoose";
 
 const inspectionSchema = new mongoose.Schema(
   {
-    // Device Reference
+  
+    // ORDER / DEVICE REFERENCE
+  
+
+    order: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+      required: true,
+      unique: true,
+      index: true,
+    },
+
     device: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Device",
       required: true,
-      unique: true, 
+      index: true,
     },
 
     // Agent who performed the inspection
@@ -15,23 +26,44 @@ const inspectionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
 
-    // Screen Condition
+  
+    // SCREEN CONDITION
+  
+
     screenCondition: {
       type: String,
-      enum: ["Excellent", "Good", "Average", "Poor", "Broken"],
+      enum: [
+        "Excellent",
+        "Good",
+        "Average",
+        "Poor",
+        "Broken",
+      ],
       default: "Good",
     },
 
-    // Body Condition
+  
+    // BODY CONDITION
+  
+
     bodyCondition: {
       type: String,
-      enum: ["Excellent", "Good", "Average", "Poor"],
+      enum: [
+        "Excellent",
+        "Good",
+        "Average",
+        "Poor",
+      ],
       default: "Good",
     },
 
-    // Battery Health
+  
+    // BATTERY HEALTH
+  
+
     batteryHealth: {
       type: Number,
       min: 0,
@@ -39,7 +71,10 @@ const inspectionSchema = new mongoose.Schema(
       default: 100,
     },
 
-    // Functional Tests
+  
+    // FUNCTIONAL TESTS
+  
+
     functionalTests: {
       camera: {
         type: Boolean,
@@ -87,7 +122,10 @@ const inspectionSchema = new mongoose.Schema(
       },
     },
 
-    // Accessories
+  
+    // ACCESSORIES
+  
+
     accessories: {
       charger: {
         type: Boolean,
@@ -115,7 +153,10 @@ const inspectionSchema = new mongoose.Schema(
       },
     },
 
-    // Repair History
+  
+    // REPAIR HISTORY
+  
+
     repairHistory: {
       repaired: {
         type: Boolean,
@@ -129,7 +170,10 @@ const inspectionSchema = new mongoose.Schema(
       },
     },
 
-    // IMEI Verification
+  
+    // IMEI VERIFICATION
+  
+
     imeiVerification: {
       verified: {
         type: Boolean,
@@ -141,37 +185,80 @@ const inspectionSchema = new mongoose.Schema(
         default: "",
         trim: true,
       },
+
+      verifiedAt: {
+        type: Date,
+        default: null,
+      },
+
+      verifiedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
     },
 
-    // Overall Grade
+  
+    // OVERALL GRADE
+  
+
     overallGrade: {
       type: String,
-      enum: ["A+", "A", "B", "C", "D"],
+      enum: [
+        "A+",
+        "A",
+        "B",
+        "C",
+        "D",
+      ],
       default: "B",
     },
 
-    // Estimated Resale Price
+  
+    // ESTIMATED RESALE PRICE
+  
+
     estimatedPrice: {
       type: Number,
+      min: 0,
       default: 0,
     },
 
-    // Inspector Remarks
+  
+    // INSPECTOR REMARKS
+  
+
     remarks: {
       type: String,
       default: "",
       trim: true,
     },
 
-    // Inspection Photos
+  
+    // INSPECTION PHOTOS
+  
+
     photos: [
       {
         url: {
           type: String,
+          default: "",
         },
 
         publicId: {
           type: String,
+          default: "",
+        },
+
+        fileName: {
+          type: String,
+          default: "",
+        },
+
+        uploadedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          default: null,
         },
 
         uploadedAt: {
@@ -181,7 +268,10 @@ const inspectionSchema = new mongoose.Schema(
       },
     ],
 
-    // Inspection Status
+  
+    // INSPECTION STATUS
+  
+
     status: {
       type: String,
       enum: [
@@ -192,12 +282,28 @@ const inspectionSchema = new mongoose.Schema(
         "rejected",
       ],
       default: "pending",
+      index: true,
     },
 
     completedAt: {
       type: Date,
       default: null,
     },
+
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+
+    rejectionReason: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+  
+    // AUDIT
+  
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -216,4 +322,7 @@ const inspectionSchema = new mongoose.Schema(
   }
 );
 
-export default mongoose.model("Inspection", inspectionSchema);
+export default mongoose.model(
+  "Inspection",
+  inspectionSchema
+);

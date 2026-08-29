@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-
 const userSchema = new mongoose.Schema(
   {
     phone: {
@@ -8,70 +7,57 @@ const userSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
     },
-
     countryCode: {
       type: String,
       default: "+91",
     },
-
     email: {
       type: String,
       trim: true,
       lowercase: true,
       unique: true,
       sparse: true,
-      default: "",
     },
-
     password: {
       type: String,
       select: false,
     },
-
     loginProvider: {
       type: String,
       enum: ["phone", "email", "google", "facebook"],
       default: "phone",
     },
-
     googleId: {
       type: String,
       default: "",
     },
-
     facebookId: {
       type: String,
       default: "",
     },
-
     isPhoneVerified: {
       type: Boolean,
       default: false,
     },
-
     fullName: {
       type: String,
       trim: true,
       default: "",
     },
-
     profileImage: {
       type: String,
       default: "",
     },
-
     role: {
       type: String,
       enum: ["user", "agent", "admin"],
       default: "user",
     },
-
     status: {
       type: String,
       enum: ["active", "inactive", "blocked", "deleted"],
       default: "active",
     },
-
     agentProfile: {
       agentId: {
         type: String,
@@ -83,32 +69,26 @@ const userSchema = new mongoose.Schema(
         type: Number,
         default: 0,
       },
-
       alternatePhone: {
         type: String,
         default: "",
       },
-
       aadhaarNumber: {
         type: String,
         default: "",
       },
-
       aadhaarNumberVerified: {
         type: Boolean,
         default: false,
       },
-
       panNumber: {
         type: String,
         default: "",
       },
-
       panNumberVerified: {
         type: Boolean,
         default: false,
       },
-
       workingHours: {
         start: {
           type: String,
@@ -119,7 +99,6 @@ const userSchema = new mongoose.Schema(
           default: "",
         },
       },
-
       address: {
         line1: {
           type: String,
@@ -138,29 +117,24 @@ const userSchema = new mongoose.Schema(
           default: "",
         },
       },
-
       operatingArea: {
         type: String,
         default: "",
       },
-
       onboardingDate: {
         type: Date,
         default: null,
       },
-
       coverage: {
         primaryArea: {
           type: String,
           default: "",
         },
-
         areasCovered: {
           type: [String],
           default: [],
         },
       },
-
       verificationDocuments: {
         aadhaar: {
           url: {
@@ -197,7 +171,6 @@ const userSchema = new mongoose.Schema(
             default: null,
           },
         },
-
         panCard: {
           url: {
             type: String,
@@ -233,7 +206,6 @@ const userSchema = new mongoose.Schema(
             default: null,
           },
         },
-
         policeClearance: {
           url: {
             type: String,
@@ -269,7 +241,6 @@ const userSchema = new mongoose.Schema(
             default: null,
           },
         },
-
         drivingLicense: {
           url: {
             type: String,
@@ -305,7 +276,6 @@ const userSchema = new mongoose.Schema(
             default: null,
           },
         },
-
         photo: {
           url: {
             type: String,
@@ -343,22 +313,18 @@ const userSchema = new mongoose.Schema(
         },
       },
     },
-
     lastLogin: {
       type: Date,
     },
-
     deletedAt: {
       type: Date,
       default: null,
     },
-
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Admin",
       default: null,
     },
-
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Admin",
@@ -369,8 +335,4 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
-
-
 export default mongoose.model("User", userSchema);
-

@@ -1,3 +1,4 @@
+import { uploadBufferToCloudinary } from "../../lib/uploadBuffer.js";
 import {
   findUserById,
   findUserByPhone,
@@ -7,30 +8,26 @@ import {
   deleteOtpByPhone,
   incrementOtpAttempts,
   updateLastLogin,
+  updateUser,
   createRefreshToken,
   findRefreshToken,
   deleteRefreshToken,
   findAgentByPhone,
+
 } from "./auth.repository.js";
-
 import { generateOtp } from "../../utils/generateOtp.js";
-
 import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
 } from "../../lib/jwt.js";
-
 import ApiError from "../../utils/errors/ApiError.js";
 import { env } from "../../config/env/index.js";
-
 const OTP_EXPIRY_MINUTES = 5;
 const REFRESH_TOKEN_EXPIRY_MS =
   30 * 24 * 60 * 60 * 1000; // 30 days
-
 export const sendOtp = async (phone) => {
   const user = await findUserByPhone(phone);
-
   // Prevent blocked users from requesting OTPs.
   if (user && user.status === "blocked") {
     throw new ApiError(
@@ -38,29 +35,23 @@ export const sendOtp = async (phone) => {
       "Your account has been blocked. Please contact support."
     );
   }
-
   // Replace any existing OTP with a new one.
   await deleteOtpByPhone(phone);
-
   const otp = generateOtp();
   const expiresAt = new Date(
     Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000
   );
-
   await createOtp({
     phone,
     otp,
     expiresAt,
   });
-
   // TODO: Integrate SMS provider here.
-
   return {
     message: "OTP sent successfully.",
     ...(env.NODE_ENV === "development" && { otp }),
   };
 };
-
 export const verifyOtp = async ({
   phone,
   otp,
@@ -68,34 +59,26 @@ export const verifyOtp = async ({
   deviceId,
 }) => {
   const otpRecord = await findOtpByPhone(phone);
-
   if (!otpRecord) {
     throw new ApiError(400, "Invalid OTP.");
   }
-
   if (otpRecord.expiresAt < new Date()) {
     await deleteOtpByPhone(phone);
     throw new ApiError(400, "OTP has expired.");
   }
-
   if (otpRecord.otp !== otp) {
     const updatedOtp = await incrementOtpAttempts(phone);
-
     // Invalidate OTP after repeated failed attempts.
     if (updatedOtp.attempts >= 5) {
       await deleteOtpByPhone(phone);
-
       throw new ApiError(
         429,
         "Maximum OTP attempts exceeded. Please request a new OTP."
       );
     }
-
     throw new ApiError(400, "Invalid OTP.");
   }
-
   let user = await findUserByPhone(phone);
-
   if (!user) {
     user = await createUser({
       phone,
@@ -104,16 +87,13 @@ export const verifyOtp = async ({
   } else {
     user = await updateLastLogin(user._id);
   }
-
   const tokenPayload = {
     userId: user._id.toString(),
     phone: user.phone,
     role: user.role || "user",
   };
-
   const accessToken = generateAccessToken(tokenPayload);
   const refreshToken = generateRefreshToken(tokenPayload);
-
   await createRefreshToken({
     user: user._id,
     token: refreshToken,
@@ -123,10 +103,8 @@ export const verifyOtp = async ({
       Date.now() + REFRESH_TOKEN_EXPIRY_MS
     ),
   });
-
   // OTP is single-use and must be removed after successful verification.
   await deleteOtpByPhone(phone);
-
   return {
     message: "Login successful.",
     user,
@@ -134,60 +112,79 @@ export const verifyOtp = async ({
     refreshToken,
   };
 };
-
 export const getMe = async (userId) => {
   const user = await findUserById(userId);
-
   if (!user) {
     throw new ApiError(404, "User not found.");
   }
-
   return user;
+};
+
+export const updateProfile = async (userId, data, file) => {
+  const updateData = {};
+
+  if (data.fullName !== undefined) {
+    updateData.fullName = data.fullName;
+  }
+
+  if (data.email !== undefined) {
+    updateData.email = data.email;
+  }
+
+  // Profile image is optional
+  if (file) {
+    const result = await uploadBufferToCloudinary(
+      file.buffer,
+      {
+        folder: "excart/profile-images",
+        resource_type: "image",
+      }
+    );
+
+    updateData.profileImage = result.secure_url;
+  }
+
+  const updatedUser = await updateUser(userId, updateData);
+
+  if (!updatedUser) {
+    throw new ApiError(404, "User not found.");
+  }
+
+  return updatedUser;
 };
 
 export const refreshToken = async (refreshToken) => {
   if (!refreshToken) {
     throw new ApiError(401, "Refresh token is required.");
   }
-
   const decoded = verifyRefreshToken(refreshToken);
-
   const storedToken = await findRefreshToken(refreshToken);
-
   const user = await findUserById(decoded.userId);
-
 if (!user) {
   throw new ApiError(401, "User not found.");
 }
-
 if (user.status !== "active") {
   throw new ApiError(
     403,
     "Your account has been blocked."
   );
 }
-
   if (!storedToken) {
     throw new ApiError(401, "Invalid refresh token.");
   }
-
   if (storedToken.expiresAt < new Date()) {
     await deleteRefreshToken(refreshToken);
     throw new ApiError(401, "Refresh token has expired.");
   }
-
 const tokenPayload = {
   userId: user._id.toString(),
   phone: user.phone,
   role: user.role,
 };
-
   const accessToken = generateAccessToken(tokenPayload);
   const newRefreshToken =
     generateRefreshToken(tokenPayload);
-
   await deleteRefreshToken(refreshToken);
-
   await createRefreshToken({
     user: storedToken.user,
     token: newRefreshToken,
@@ -197,13 +194,11 @@ const tokenPayload = {
       Date.now() + REFRESH_TOKEN_EXPIRY_MS
     ),
   });
-
   return {
     accessToken,
     refreshToken: newRefreshToken,
   };
 };
-
 export const logout = async (
   userId,
   refreshToken
@@ -214,10 +209,8 @@ export const logout = async (
       "Refresh token is required."
     );
   }
-
   const storedToken =
     await findRefreshToken(refreshToken);
-
   if (
     !storedToken ||
     storedToken.user.toString() !==
@@ -228,49 +221,38 @@ export const logout = async (
       "Invalid refresh token."
     );
   }
-
   await deleteRefreshToken(refreshToken);
 };
-
 export const sendAgentOtp = async (phone) => {
   const agent = await findAgentByPhone(phone);
-
   if (!agent) {
     throw new ApiError(
       404,
       "Agent account not found."
     );
   }
-
   if (agent.status !== "active") {
     throw new ApiError(
       403,
       "Agent account is not active."
     );
   }
-
   await deleteOtpByPhone(phone);
-
   const otp = generateOtp();
-
   const expiresAt = new Date(
     Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000
   );
-
   await createOtp({
     phone,
     otp,
     expiresAt,
   });
-
   // TODO: Integrate SMS provider here.
-
   return {
     message: "Agent OTP sent successfully.",
     ...(env.NODE_ENV === "development" && { otp }),
   };
 };
-
 export const verifyAgentOtp = async ({
   phone,
   otp,
@@ -278,80 +260,61 @@ export const verifyAgentOtp = async ({
   deviceId,
 }) => {
   const otpRecord = await findOtpByPhone(phone);
-
   if (!otpRecord) {
     throw new ApiError(400, "Invalid OTP.");
   }
-
   if (otpRecord.expiresAt < new Date()) {
     await deleteOtpByPhone(phone);
-
     throw new ApiError(
       400,
       "OTP has expired."
     );
   }
-
   if (otpRecord.otp !== otp) {
     const updatedOtp =
       await incrementOtpAttempts(phone);
-
     if (updatedOtp.attempts >= 5) {
       await deleteOtpByPhone(phone);
-
       throw new ApiError(
         429,
         "Maximum OTP attempts exceeded. Please request a new OTP."
       );
     }
-
     throw new ApiError(400, "Invalid OTP.");
   }
-
   const agent = await findAgentByPhone(phone);
-
   if (!agent) {
     await deleteOtpByPhone(phone);
-
     throw new ApiError(
       404,
       "Agent account not found."
     );
   }
-
   if (agent.role !== "agent") {
     await deleteOtpByPhone(phone);
-
     throw new ApiError(
       403,
       "This account is not an agent account."
     );
   }
-
   if (agent.status !== "active") {
     await deleteOtpByPhone(phone);
-
     throw new ApiError(
       403,
       "Agent account is not active."
     );
   }
-
   const updatedAgent =
     await updateLastLogin(agent._id);
-
   const tokenPayload = {
     userId: updatedAgent._id.toString(),
     phone: updatedAgent.phone,
     role: "agent",
   };
-
   const accessToken =
     generateAccessToken(tokenPayload);
-
   const refreshToken =
     generateRefreshToken(tokenPayload);
-
   await createRefreshToken({
     user: updatedAgent._id,
     token: refreshToken,
@@ -361,9 +324,7 @@ export const verifyAgentOtp = async ({
       Date.now() + REFRESH_TOKEN_EXPIRY_MS
     ),
   });
-
   await deleteOtpByPhone(phone);
-
   return {
     message: "Agent login successful.",
     user: updatedAgent,

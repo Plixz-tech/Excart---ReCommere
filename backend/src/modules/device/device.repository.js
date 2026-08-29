@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import Device from "../../models/Device.js";
 import ApiError from "../../utils/errors/ApiError.js";
 import { getPagination } from "../../utils/pagination/paginate.js";
-
 export const createDevice = async (deviceData, adminId) => {
   const existingDevice = await Device.findOne({
   $or: [
@@ -10,29 +9,23 @@ export const createDevice = async (deviceData, adminId) => {
     ...(deviceData.imei2 ? [{ imei2: deviceData.imei2 }] : []),
   ],
 });
-
 if (existingDevice) {
   throw new ApiError(
     409,
     "A device with one of the IMEI numbers already exists."
   );
 }
-
   const device = await Device.create({
     ...deviceData,
     createdBy: adminId,
   });
-
   return device;
 };
-
 export const getDevices = async (queryParams) => {
   const filter = {
   status: { $ne: "deleted" },
 };
-
   const { page, limit, skip } = getPagination(queryParams);
-
   const {
     search,
     status,
@@ -40,7 +33,6 @@ export const getDevices = async (queryParams) => {
     sortBy = "createdAt",
     order = "desc",
   } = queryParams;
-
   if (search) {
     filter.$or = [
       { brand: { $regex: search, $options: "i" } },
@@ -49,15 +41,12 @@ export const getDevices = async (queryParams) => {
       { serialNumber: { $regex: search, $options: "i" } },
     ];
   }
-
   if (status) {
     filter.status = status;
   }
-
   if (brand) {
     filter.brand = brand;
   }
-
   const allowedSortFields = [
     "brand",
     "model",
@@ -66,15 +55,12 @@ export const getDevices = async (queryParams) => {
     "status",
     "createdAt",
   ];
-
   const sortField = allowedSortFields.includes(sortBy)
     ? sortBy
     : "createdAt";
-
   const sort = {
     [sortField]: order === "asc" ? 1 : -1,
   };
-
   const devices = await Device.find(filter)
     .populate("customer", "fullName phone")
     .populate("pickupAgent", "fullName phone")
@@ -82,9 +68,7 @@ export const getDevices = async (queryParams) => {
     .sort(sort)
     .skip(skip)
     .limit(limit);
-
   const totalDevices = await Device.countDocuments(filter);
-
   return {
     devices,
     pagination: {
@@ -95,12 +79,10 @@ export const getDevices = async (queryParams) => {
     },
   };
 };
-
 export const getDeviceById = async (deviceId) => {
   if (!mongoose.Types.ObjectId.isValid(deviceId)) {
     throw new ApiError(400, "Invalid device ID.");
   }
-
  const device = await Device.findOne({
   _id: deviceId,
   status: { $ne: "deleted" },
@@ -110,14 +92,11 @@ export const getDeviceById = async (deviceId) => {
     .populate("inspectionAgent", "fullName phone email")
     .populate("createdBy", "fullName email")
     .populate("updatedBy", "fullName email");
-
   if (!device) {
     throw new ApiError(404, "Device not found.");
   }
-
   return device;
 };
-
 export const updateDevice = async (
   deviceId,
   deviceData,
@@ -126,16 +105,13 @@ export const updateDevice = async (
   if (!mongoose.Types.ObjectId.isValid(deviceId)) {
     throw new ApiError(400, "Invalid device ID.");
   }
-
   const device = await Device.findOne({
   _id: deviceId,
   status: { $ne: "deleted" },
 });
-
   if (!device) {
     throw new ApiError(404, "Device not found.");
   }
-
   // Prevent duplicate IMEI
 const existingDevice = await Device.findOne({
   _id: { $ne: deviceId },
@@ -144,14 +120,12 @@ const existingDevice = await Device.findOne({
     ...(deviceData.imei2 ? [{ imei2: deviceData.imei2 }] : []),
   ],
 });
-
 if (existingDevice) {
   throw new ApiError(
     409,
     "A device with one of the IMEI numbers already exists."
   );
 }
-
   const fields = [
     "brand",
     "model",
@@ -162,29 +136,25 @@ if (existingDevice) {
     "imei1",
     "imei2",
     "serialNumber",
+    "valuationPrice",
     "purchasePrice",
     "expectedSellingPrice",
     "customer",
     "pickupAgent",
     "inspectionAgent",
   ];
-
   fields.forEach((field) => {
     if (deviceData[field] !== undefined) {
       device[field] = deviceData[field];
     }
   });
-
   device.updatedBy = adminId;
-
   await device.save();
-
   return await Device.findById(deviceId)
     .populate("customer", "fullName phone")
     .populate("pickupAgent", "fullName phone")
     .populate("inspectionAgent", "fullName phone");
 };
-
 export const updateDeviceStatus = async (
   deviceId,
   status,
@@ -193,44 +163,32 @@ export const updateDeviceStatus = async (
   if (!mongoose.Types.ObjectId.isValid(deviceId)) {
     throw new ApiError(400, "Invalid device ID.");
   }
-
 const device = await Device.findOne({
   _id: deviceId,
   status: { $ne: "deleted" },
 });
-
 if (!device) {
   throw new ApiError(404, "Device not found.");
 }
-
  if (device.status === "deleted") {
   throw new ApiError(400, "Device already deleted.");
 }
-
   device.status = status;
   device.updatedBy = adminId;
-
   await device.save();
-
   return device;
 };
-
 export const deleteDevice = async (deviceId, adminId) => {
   if (!mongoose.Types.ObjectId.isValid(deviceId)) {
     throw new ApiError(400, "Invalid device ID.");
   }
-
   const device = await Device.findById(deviceId);
-
   if (!device) {
     throw new ApiError(404, "Device not found.");
   }
-
   device.status = "deleted";// or introduce a separate "deleted" status if preferred
   device.deletedAt = new Date();
   device.updatedBy = adminId;
-
   await device.save();
-
   return;
 };
