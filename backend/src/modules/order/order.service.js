@@ -1,6 +1,7 @@
 import orderRepository from "./order.repository.js";
 import Device from "../../models/Device.js";
 import User from "../../models/User.js";
+import {calculatePrice,} from "../pricingRule/pricingRule.service.js";
 
 import { generateGoogleMapsUrl } from "../../lib/googleMaps.js";
 import { uploadBufferToCloudinary } from "../../lib/uploadBuffer.js";

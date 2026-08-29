@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import Device from "../../models/Device.js";
+
 import ApiError from "../../utils/errors/ApiError.js";
 
 import * as pricingRuleRepository from "./pricingRule.repository.js";
@@ -484,13 +486,42 @@ const matchesRule = (
 
 
 export const calculatePrice = async ({
-  device,
+  deviceId,
   evaluation,
 }) => {
-  if (!device) {
+  if (!deviceId) {
     throw new ApiError(
       400,
-      "Device is required."
+      "Device ID is required."
+    );
+  }
+
+  if (
+    !mongoose.Types.ObjectId.isValid(
+      deviceId
+    )
+  ) {
+    throw new ApiError(
+      400,
+      "Invalid device ID."
+    );
+  }
+
+  // Get the real device from the database.
+  // Do not trust device pricing information
+  // coming from the frontend.
+  const device =
+    await Device.findOne({
+      _id: deviceId,
+      status: {
+        $ne: "deleted",
+      },
+    });
+
+  if (!device) {
+    throw new ApiError(
+      404,
+      "Device not found."
     );
   }
 
@@ -516,6 +547,7 @@ export const calculatePrice = async ({
   const appliedRules = [];
 
   for (const rule of rules) {
+
     // DEVICE MATCHING
 
     if (
@@ -605,6 +637,8 @@ export const calculatePrice = async ({
     });
   }
 
+  // Never allow negative price.
+
   finalPrice =
     Math.max(
       0,
@@ -612,6 +646,9 @@ export const calculatePrice = async ({
     );
 
   return {
+    deviceId:
+      device._id,
+
     basePrice:
       numericBasePrice,
 

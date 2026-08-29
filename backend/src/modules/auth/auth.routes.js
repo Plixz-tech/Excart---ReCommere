@@ -1,6 +1,7 @@
 import { Router } from "express";
 import validateRequest from "../../middlewares/validation/validateRequest.js";
 import upload from "../../middlewares/upload.js";
+import authorize from "../../middlewares/auth/authorize.js";
 import {
   sendOtpSchema,
   verifyOtpSchema,
@@ -48,5 +49,14 @@ router.post(
   "/agent/verify-otp",
   validateRequest(verifyAgentOtpSchema),
   verifyAgentOtp
+);
+
+
+router.post(
+  "/agent/logout",
+  protect,
+  authorize("agent"),
+  validateRequest(logoutSchema),
+  logout
 );
 export default router;

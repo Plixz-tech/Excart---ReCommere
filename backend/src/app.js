@@ -24,6 +24,7 @@ import pricingRuleRoutes from "./modules/pricingRule/pricingRule.routes.js";
 import notFound from "./middlewares/errors/notFound.js";
 import errorHandler from "./middlewares/errors/errorHandler.js";
 import payoutAccountRoutes from "./modules/payment/payoutAccount.routes.js";
+import deviceCatalogRoutes from "./modules/deviceCatalog/deviceCatalog.routes.js";
 
 const app = express();
 
@@ -61,6 +62,8 @@ app.use("/api/v1/admin/agents", agentRoutes);
 
 app.use("/api/v1/devices", deviceRoutes);
 
+app.use("/api/v1/device-catalog", deviceCatalogRoutes);
+
 app.use("/api/v1/addresses", addressRoutes);
 
 app.use("/api/v1/service-areas", serviceAreaRoutes);
@@ -80,6 +83,8 @@ app.use("/api/v1/admin/payments", paymentRoutes);
 app.use( "/api/v1/payout-accounts", payoutAccountRoutes);
 
 app.use( "/api/v1/pricing-rules", pricingRuleRoutes);
+
+
 
 app.use(notFound);
 

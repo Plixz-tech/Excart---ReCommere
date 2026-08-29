@@ -185,10 +185,6 @@ export const createOrderSchema =
         })
         .optional(),
 
-    estimatedAmount:
-      z.number()
-        .min(0)
-        .optional(),
 
     notes:
       z.string()
