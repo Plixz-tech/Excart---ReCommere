@@ -1,13 +1,9 @@
 import Order from "../../models/Order.js";
 
 class OrderRepository {
-
-  async create(orderData) {
-    return Order.create(orderData);
-  }
-
-  async findById(orderId) {
-    return Order.findById(orderId)
+  // COMMON POPULATE
+  populateOrder(query) {
+    return query
       .populate(
         "customer",
         "fullName phone email"
@@ -31,26 +27,32 @@ class OrderRepository {
       );
   }
 
-  async findByOrderNumber(orderNumber) {
-    return Order.findOne({
-      orderNumber,
-    })
-      .populate(
-        "customer",
-        "fullName phone email"
-      )
-      .populate(
-        "agent",
-        "fullName phone email agentProfile.agentId"
-      )
-      .populate(
-        "pickup.assignedAgent",
-        "fullName phone email agentProfile.agentId"
-      )
-      .populate("device");
+  // CREATE ORDER
+  async create(orderData) {
+    return Order.create(orderData);
   }
 
-  async findAll(filter = {}, options = {}) {
+  // FIND ORDER BY ID
+  async findById(orderId) {
+    return this.populateOrder(
+      Order.findById(orderId)
+    );
+  }
+
+  // FIND ORDER BY ORDER NUMBER
+  async findByOrderNumber(orderNumber) {
+    return this.populateOrder(
+      Order.findOne({
+        orderNumber,
+      })
+    );
+  }
+
+  // FIND ALL ORDERS
+  async findAll(
+    filter = {},
+    options = {}
+  ) {
     const {
       page = 1,
       limit = 10,
@@ -65,43 +67,31 @@ class OrderRepository {
     );
 
     const safeLimit = Math.min(
-      Math.max(Number(limit) || 10, 1),
+      Math.max(
+        Number(limit) || 10,
+        1
+      ),
       100
     );
 
     const skip =
       (safePage - 1) * safeLimit;
 
-    const [orders, total] =
-      await Promise.all([
-        Order.find(filter)
-          .populate(
-            "customer",
-            "fullName phone email"
-          )
-          .populate(
-            "agent",
-            "fullName phone email agentProfile.agentId"
-          )
-          .populate(
-            "pickup.assignedAgent",
-            "fullName phone email agentProfile.agentId"
-          )
-          .populate("device")
-          .populate(
-            "createdBy",
-            "fullName email"
-          )
-          .populate(
-            "updatedBy",
-            "fullName email"
-          )
-          .sort(sort)
-          .skip(skip)
-          .limit(safeLimit),
+    const ordersQuery =
+      Order.find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(safeLimit);
 
-        Order.countDocuments(filter),
-      ]);
+    const orders =
+      await this.populateOrder(
+        ordersQuery
+      );
+
+    const total =
+      await Order.countDocuments(
+        filter
+      );
 
     return {
       orders,
@@ -109,51 +99,42 @@ class OrderRepository {
       page: safePage,
       limit: safeLimit,
       totalPages:
-        Math.ceil(total / safeLimit),
+        Math.ceil(
+          total / safeLimit
+        ),
     };
   }
 
+  // UPDATE ORDER
   async updateById(
     orderId,
     updateData
   ) {
-    return Order.findByIdAndUpdate(
-      orderId,
-      updateData,
-      {
-        new: true,
-        runValidators: true,
-      }
-    )
-      .populate(
-        "customer",
-        "fullName phone email"
-      )
-      .populate(
-        "agent",
-        "fullName phone email agentProfile.agentId"
-      )
-      .populate(
-        "pickup.assignedAgent",
-        "fullName phone email agentProfile.agentId"
-      )
-      .populate("device")
-      .populate(
-        "createdBy",
-        "fullName email"
-      )
-      .populate(
-        "updatedBy",
-        "fullName email"
+    const query =
+      Order.findByIdAndUpdate(
+        orderId,
+        updateData,
+        {
+          new: true,
+          runValidators: true,
+        }
       );
+
+    return this.populateOrder(query);
   }
 
+  // DELETE ORDER
   async deleteById(orderId) {
-    return Order.findByIdAndDelete(orderId);
+    return Order.findByIdAndDelete(
+      orderId
+    );
   }
 
+  // COUNT ORDERS
   async count(filter = {}) {
-    return Order.countDocuments(filter);
+    return Order.countDocuments(
+      filter
+    );
   }
 }
 

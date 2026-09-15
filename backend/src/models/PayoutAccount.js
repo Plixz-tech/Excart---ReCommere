@@ -66,6 +66,33 @@ const payoutAccountSchema = new mongoose.Schema(
       default: null,
     },
 
+bankVerification: {
+  provider: {
+    type: String,
+    default: "",
+  },
+
+  accountExists: {
+    type: Boolean,
+    default: false,
+  },
+
+  nameAtBank: {
+    type: String,
+    default: "",
+  },
+
+  utr: {
+    type: String,
+    default: "",
+  },
+
+  verifiedAt: {
+    type: Date,
+    default: null,
+  },
+},
+
     cashfreeBeneficiaryId: {
       type: String,
       trim: true,
@@ -113,3 +140,4 @@ export default mongoose.model(
   "PayoutAccount",
   payoutAccountSchema
 );
+

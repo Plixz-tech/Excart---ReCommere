@@ -21,12 +21,11 @@ export const findActive = async () => {
 // GET ALL CATALOG
 
 export const findAll = async () => {
-  return DeviceCatalog.find()
-    .sort({
-      brand: 1,
-      model: 1,
-      variant: 1,
-    });
+  return DeviceCatalog.find().sort({
+    brand: 1,
+    model: 1,
+    variant: 1,
+  });
 };
 
 // GET BY ID
@@ -52,7 +51,10 @@ export const findMatching = async ({
 
 // UPDATE
 
-export const updateById = async (id, data) => {
+export const updateById = async (
+  id,
+  data
+) => {
   return DeviceCatalog.findByIdAndUpdate(
     id,
     data,

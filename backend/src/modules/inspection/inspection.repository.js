@@ -7,10 +7,6 @@ import Device from "../../models/Device.js";
 import ApiError from "../../utils/errors/ApiError.js";
 import { getPagination } from "../../utils/pagination/paginate.js";
 
-// =====================================================
-// HELPER
-// =====================================================
-
 const populateInspection = (query) => {
   return query
     .populate("order")
@@ -33,10 +29,6 @@ const populateInspection = (query) => {
     );
 };
 
-// =====================================================
-// CREATE INSPECTION
-// =====================================================
-
 export const createInspection = async (
   inspectionData,
   userId
@@ -45,10 +37,6 @@ export const createInspection = async (
     order: orderId,
     device: deviceId,
   } = inspectionData;
-
-
-  // 1. Validate Order ID
-
 
   if (
     !mongoose.Types.ObjectId.isValid(
@@ -61,10 +49,6 @@ export const createInspection = async (
     );
   }
 
-
-  // 2. Validate Device ID
-
-
   if (
     !mongoose.Types.ObjectId.isValid(
       deviceId
@@ -76,10 +60,6 @@ export const createInspection = async (
     );
   }
 
-
-  // 3. Find Order
-
-
   const order =
     await Order.findById(orderId);
 
@@ -89,10 +69,6 @@ export const createInspection = async (
       "Order not found."
     );
   }
-
-
-  // 4. Make sure order belongs to device
-
 
   if (
     !order.device ||
@@ -105,10 +81,6 @@ export const createInspection = async (
     );
   }
 
-
-  // 5. Order must be waiting for inspection
-
-
   if (
     order.status !==
     "inspection_pending"
@@ -119,10 +91,6 @@ export const createInspection = async (
     );
   }
 
-
-  // 6. Find Device
-
-
   const device =
     await Device.findById(deviceId);
 
@@ -132,10 +100,6 @@ export const createInspection = async (
       "Device not found."
     );
   }
-
-
-  // 7. Prevent duplicate inspection
-
 
   const existingInspection =
     await Inspection.findOne({
@@ -148,10 +112,6 @@ export const createInspection = async (
       "Inspection already exists for this order."
     );
   }
-
-
-  // 8. Create Inspection
-
 
   const inspection =
     await Inspection.create({
@@ -170,24 +130,16 @@ export const createInspection = async (
       updatedBy: userId,
     });
 
-
-  // 9. Update Device
-
-
   device.inspectionAgent =
     userId;
 
   device.status =
-    "inspection_pending";
+    "inspection_in_progress";
 
   device.updatedBy =
     userId;
 
   await device.save();
-
-
-  // 10. Update Order
-
 
   order.status =
     "inspection_in_progress";
@@ -216,10 +168,6 @@ export const createInspection = async (
 
   await order.save();
 
-
-  // 11. Return Inspection
-
-
   return populateInspection(
     Inspection.findById(
       inspection._id
@@ -227,9 +175,57 @@ export const createInspection = async (
   );
 };
 
-// =====================================================
-// GET ALL INSPECTIONS
-// =====================================================
+export const getPendingInspections = async (
+  queryParams = {}
+) => {
+  const {
+    page,
+    limit,
+    skip,
+  } = getPagination(queryParams);
+
+  const orders =
+    await Order.find({
+      status: "inspection_pending",
+    })
+      .populate(
+        "customer",
+        "fullName phone email"
+      )
+      .populate("device")
+      .populate(
+        "agent",
+        "fullName phone email"
+      )
+      .sort({
+        createdAt: -1,
+      })
+      .skip(skip)
+      .limit(limit);
+
+  const totalPendingInspections =
+    await Order.countDocuments({
+      status: "inspection_pending",
+    });
+
+  return {
+    orders,
+
+    pagination: {
+      currentPage: page,
+
+      totalPages:
+        Math.ceil(
+          totalPendingInspections /
+            limit
+        ),
+
+      totalPendingInspections,
+
+      limit,
+    },
+  };
+};
 
 export const getInspections = async (
   queryParams
@@ -249,26 +245,14 @@ export const getInspections = async (
     sortBy = "createdAt",
   } = queryParams;
 
-
-  // Filter by status
-
-
   if (status) {
     filter.status = status;
   }
-
-
-  // Filter by grade
-
 
   if (overallGrade) {
     filter.overallGrade =
       overallGrade;
   }
-
-
-  // Allowed sorting fields
-
 
   const allowedSortFields = [
     "batteryHealth",
@@ -293,10 +277,6 @@ export const getInspections = async (
         : -1,
   };
 
-
-  // Fetch inspections
-
-
   const inspections =
     await populateInspection(
       Inspection.find(filter)
@@ -304,10 +284,6 @@ export const getInspections = async (
       .sort(sort)
       .skip(skip)
       .limit(limit);
-
-
-  // Count
-
 
   const totalInspections =
     await Inspection.countDocuments(
@@ -333,17 +309,9 @@ export const getInspections = async (
   };
 };
 
-// =====================================================
-// GET INSPECTION BY ID
-// =====================================================
-
 export const getInspectionById = async (
   inspectionId
 ) => {
-
-  // Validate ID
-
-
   if (
     !mongoose.Types.ObjectId.isValid(
       inspectionId
@@ -354,10 +322,6 @@ export const getInspectionById = async (
       "Invalid inspection ID."
     );
   }
-
-
-  // Find inspection
-
 
   const inspection =
     await populateInspection(
@@ -376,19 +340,11 @@ export const getInspectionById = async (
   return inspection;
 };
 
-// =====================================================
-// UPDATE INSPECTION DETAILS
-// =====================================================
-
 export const updateInspection = async (
   inspectionId,
   inspectionData,
   userId
 ) => {
-
-  // 1. Validate inspection ID
-
-
   if (
     !mongoose.Types.ObjectId.isValid(
       inspectionId
@@ -399,10 +355,6 @@ export const updateInspection = async (
       "Invalid inspection ID."
     );
   }
-
-
-  // 2. Find inspection
-
 
   const inspection =
     await Inspection.findById(
@@ -416,10 +368,6 @@ export const updateInspection = async (
     );
   }
 
-
-  // 3. Only edit while in progress
-
-
   if (
     inspection.status !==
     "in_progress"
@@ -429,10 +377,6 @@ export const updateInspection = async (
       `Inspection cannot be edited because its current status is "${inspection.status}".`
     );
   }
-
-
-  // SIMPLE FIELDS
-
 
   if (
     inspectionData.screenCondition !==
@@ -482,10 +426,6 @@ export const updateInspection = async (
       inspectionData.remarks;
   }
 
-
-  // FUNCTIONAL TESTS
-
-
   if (
     inspectionData.functionalTests
   ) {
@@ -500,10 +440,6 @@ export const updateInspection = async (
       ...inspectionData.functionalTests,
     };
   }
-
-
-  // ACCESSORIES
-
 
   if (
     inspectionData.accessories
@@ -520,10 +456,6 @@ export const updateInspection = async (
     };
   }
 
-
-  // REPAIR HISTORY
-
-
   if (
     inspectionData.repairHistory
   ) {
@@ -538,10 +470,6 @@ export const updateInspection = async (
       ...inspectionData.repairHistory,
     };
   }
-
-
-  // IMEI VERIFICATION
-
 
   if (
     inspectionData.imeiVerification
@@ -576,22 +504,10 @@ export const updateInspection = async (
     };
   }
 
-
-  // AUDIT
-
-
   inspection.updatedBy =
     userId;
 
-
-  // SAVE
-
-
   await inspection.save();
-
-
-  // RETURN UPDATED INSPECTION
-
 
   return populateInspection(
     Inspection.findById(
@@ -600,19 +516,10 @@ export const updateInspection = async (
   );
 };
 
-// =====================================================
-// UPDATE INSPECTION STATUS
-// =====================================================
-
-export const updateInspectionStatus = async (
+export const completeInspection = async (
   inspectionId,
-  status,
   userId
 ) => {
-
-  // 1. Validate ID
-
-
   if (
     !mongoose.Types.ObjectId.isValid(
       inspectionId
@@ -623,10 +530,6 @@ export const updateInspectionStatus = async (
       "Invalid inspection ID."
     );
   }
-
-
-  // 2. Find inspection
-
 
   const inspection =
     await Inspection.findById(
@@ -640,55 +543,113 @@ export const updateInspectionStatus = async (
     );
   }
 
-
-  // 3. Inspection must be in progress
-
-
   if (
     inspection.status !==
     "in_progress"
   ) {
     throw new ApiError(
       400,
-      `Inspection cannot be updated because its current status is "${inspection.status}".`
+      `Inspection cannot be completed because its current status is "${inspection.status}".`
     );
   }
 
-
-  // 4. Only approve/reject
-
-
   if (
-    ![
-      "approved",
-      "rejected",
-    ].includes(status)
+    !inspection.screenCondition
   ) {
     throw new ApiError(
       400,
-      "Inspection can only be approved or rejected."
+      "Screen condition is required before completing the inspection."
     );
   }
 
-
-  // 5. Find Device
-
-
-  const device =
-    await Device.findById(
-      inspection.device
-    );
-
-  if (!device) {
+  if (
+    !inspection.bodyCondition
+  ) {
     throw new ApiError(
-      404,
-      "Device not found."
+      400,
+      "Body condition is required before completing the inspection."
     );
   }
 
+  if (
+    inspection.batteryHealth ===
+      undefined ||
+    inspection.batteryHealth ===
+      null
+  ) {
+    throw new ApiError(
+      400,
+      "Battery health is required before completing the inspection."
+    );
+  }
 
-  // 6. Find Order
+  if (
+    !inspection.functionalTests
+  ) {
+    throw new ApiError(
+      400,
+      "Functional tests are required before completing the inspection."
+    );
+  }
 
+  if (
+    !inspection.accessories
+  ) {
+    throw new ApiError(
+      400,
+      "Accessories details are required before completing the inspection."
+    );
+  }
+
+  if (
+    !inspection.repairHistory
+  ) {
+    throw new ApiError(
+      400,
+      "Repair history is required before completing the inspection."
+    );
+  }
+
+  if (
+    !inspection.imeiVerification
+  ) {
+    throw new ApiError(
+      400,
+      "IMEI verification is required before completing the inspection."
+    );
+  }
+
+  if (
+    inspection.imeiVerification
+      .verified !== true
+  ) {
+    throw new ApiError(
+      400,
+      "IMEI must be verified before completing the inspection."
+    );
+  }
+
+  if (
+    !inspection.overallGrade
+  ) {
+    throw new ApiError(
+      400,
+      "Overall grade is required before completing the inspection."
+    );
+  }
+
+  if (
+    inspection.estimatedPrice ===
+      undefined ||
+    inspection.estimatedPrice ===
+      null ||
+    inspection.estimatedPrice <= 0
+  ) {
+    throw new ApiError(
+      400,
+      "A valid estimated price is required before completing the inspection."
+    );
+  }
 
   const order =
     await Order.findById(
@@ -702,9 +663,166 @@ export const updateInspectionStatus = async (
     );
   }
 
+  if (
+    !order.device ||
+    order.device.toString() !==
+      inspection.device.toString()
+  ) {
+    throw new ApiError(
+      400,
+      "Inspection, order and device relationship is invalid."
+    );
+  }
 
-  // 7. Validate Order / Device relationship
+  const now = new Date();
 
+  inspection.status =
+    "completed";
+
+  inspection.completedAt =
+    now;
+
+  inspection.updatedBy =
+    userId;
+
+  await inspection.save();
+
+  order.status =
+    "inspection_completed";
+
+  order.inspection.status =
+    "completed";
+
+  order.inspection.inspectedBy =
+    inspection.inspectionAgent;
+
+  order.inspection.inspectedAt =
+    now;
+
+  order.inspection.condition =
+    inspection.bodyCondition;
+
+  order.inspection.grade =
+    inspection.overallGrade;
+
+  order.inspection.physicalCondition =
+    inspection.bodyCondition;
+
+  order.inspection.screenCondition =
+    inspection.screenCondition;
+
+  order.inspection.batteryHealth =
+    inspection.batteryHealth;
+
+  order.inspection.inspectionNotes =
+    inspection.remarks;
+
+  order.updatedBy =
+    userId;
+
+  order.timeline.push({
+    status:
+      "inspection_completed",
+
+    message:
+      "Device inspection completed. Awaiting approval.",
+
+    performedBy: userId,
+  });
+
+  await order.save();
+
+  return populateInspection(
+    Inspection.findById(
+      inspection._id
+    )
+  );
+};
+
+export const updateInspectionStatus = async (
+  inspectionId,
+  status,
+  reason,
+  userId
+) => {
+  if (
+    !mongoose.Types.ObjectId.isValid(
+      inspectionId
+    )
+  ) {
+    throw new ApiError(
+      400,
+      "Invalid inspection ID."
+    );
+  }
+
+  const inspection =
+    await Inspection.findById(
+      inspectionId
+    );
+
+  if (!inspection) {
+    throw new ApiError(
+      404,
+      "Inspection not found."
+    );
+  }
+
+  if (
+    inspection.status !==
+    "completed"
+  ) {
+    throw new ApiError(
+      400,
+      `Inspection can only be approved or rejected after it is completed. Current status is "${inspection.status}".`
+    );
+  }
+
+  if (
+    ![
+      "approved",
+      "rejected",
+    ].includes(status)
+  ) {
+    throw new ApiError(
+      400,
+      "Inspection can only be approved or rejected."
+    );
+  }
+
+  if (
+    status === "rejected" &&
+    !reason
+  ) {
+    throw new ApiError(
+      400,
+      "Rejection reason is required when rejecting an inspection."
+    );
+  }
+
+  const device =
+    await Device.findById(
+      inspection.device
+    );
+
+  if (!device) {
+    throw new ApiError(
+      404,
+      "Device not found."
+    );
+  }
+
+  const order =
+    await Order.findById(
+      inspection.order
+    );
+
+  if (!order) {
+    throw new ApiError(
+      404,
+      "Related order not found."
+    );
+  }
 
   if (
     !order.device ||
@@ -717,10 +835,6 @@ export const updateInspectionStatus = async (
     );
   }
 
-
-  // 8. Complete inspection
-
-
   const now = new Date();
 
   inspection.status =
@@ -729,27 +843,25 @@ export const updateInspectionStatus = async (
   inspection.updatedBy =
     userId;
 
-  inspection.completedAt =
-    now;
+  if (status === "approved") {
+    inspection.approvedAt =
+      now;
+  }
 
   if (status === "rejected") {
     inspection.rejectionReason =
-      inspection.rejectionReason ||
+      reason ||
       "Device rejected after inspection.";
   }
 
   await inspection.save();
-
-
-  // 9. Update Device
-
 
   device.updatedBy =
     userId;
 
   if (status === "approved") {
     device.status =
-      "approved";
+      "inventory";
   }
 
   if (status === "rejected") {
@@ -759,28 +871,12 @@ export const updateInspectionStatus = async (
 
   await device.save();
 
-
-  // 10. Update Order
-
-
   order.updatedBy =
     userId;
 
-  // ===================================================
-  // APPROVED
-  // ===================================================
-
   if (status === "approved") {
-    /*
-     * Inspection is approved.
-     *
-     * Payment is the next business step.
-     *
-     * Inventory is NOT created here.
-     */
-
     order.status =
-      "payment_pending";
+      "ready_stock";
 
     order.inspection.status =
       "approved";
@@ -789,7 +885,7 @@ export const updateInspectionStatus = async (
       inspection.inspectionAgent;
 
     order.inspection.inspectedAt =
-      now;
+      inspection.completedAt;
 
     order.inspection.condition =
       inspection.bodyCondition;
@@ -815,46 +911,16 @@ export const updateInspectionStatus = async (
     order.inspection.approvedAt =
       now;
 
-    /*
-     * Inspection valuation becomes
-     * the payment amount.
-     */
-
-    const estimatedPrice =
-      Number(
-        inspection.estimatedPrice
-      );
-
-    if (
-      Number.isFinite(
-        estimatedPrice
-      ) &&
-      estimatedPrice > 0
-    ) {
-      order.payment.estimatedAmount =
-        estimatedPrice;
-
-      order.payment.finalAmount =
-        estimatedPrice;
-    }
-
-    order.payment.status =
-      "pending";
-
     order.timeline.push({
       status:
         "inspection_completed",
 
       message:
-        "Device inspection completed and approved. Payment is pending.",
+        "Device inspection completed and approved. Device is ready for stock.",
 
       performedBy: userId,
     });
   }
-
-  // ===================================================
-  // REJECTED
-  // ===================================================
 
   if (status === "rejected") {
     order.status =
@@ -867,7 +933,7 @@ export const updateInspectionStatus = async (
       inspection.inspectionAgent;
 
     order.inspection.inspectedAt =
-      now;
+      inspection.completedAt;
 
     order.inspection.rejectionReason =
       inspection.rejectionReason;
@@ -883,15 +949,7 @@ export const updateInspectionStatus = async (
     });
   }
 
-
-  // SAVE ORDER
-
-
   await order.save();
-
-
-  // RETURN UPDATED INSPECTION
-
 
   return populateInspection(
     Inspection.findById(
@@ -900,17 +958,9 @@ export const updateInspectionStatus = async (
   );
 };
 
-// =====================================================
-// DELETE INSPECTION
-// =====================================================
-
 export const deleteInspection = async (
   inspectionId
 ) => {
-
-  // Validate ID
-
-
   if (
     !mongoose.Types.ObjectId.isValid(
       inspectionId
@@ -921,10 +971,6 @@ export const deleteInspection = async (
       "Invalid inspection ID."
     );
   }
-
-
-  // Find inspection
-
 
   const inspection =
     await Inspection.findById(
@@ -937,10 +983,6 @@ export const deleteInspection = async (
       "Inspection not found."
     );
   }
-
-
-  // Do not delete completed inspections
-
 
   if (
     [
@@ -956,10 +998,6 @@ export const deleteInspection = async (
       "Completed inspections cannot be deleted."
     );
   }
-
-
-  // Delete
-
 
   await inspection.deleteOne();
 };

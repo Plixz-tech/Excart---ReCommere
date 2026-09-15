@@ -108,6 +108,27 @@ class OrderController {
       next(error);
     }
   }
+
+    async reschedulePickup(req, res, next) {
+    try {
+      const order =
+        await orderService.reschedulePickup(
+          req.params.id,
+          req.body,
+          req.user.userId
+        );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Pickup rescheduled successfully.",
+        data: order,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
+
 
 export default new OrderController();

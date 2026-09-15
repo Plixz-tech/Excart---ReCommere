@@ -1,4 +1,5 @@
 import * as deviceRepository from "./device.repository.js";
+import { verifyIMEI } from "../../services/imei/imei.service.js";
 export const createDevice = async (deviceData, adminId) => {
   return await deviceRepository.createDevice(deviceData, adminId);
 };
@@ -38,4 +39,8 @@ export const deleteDevice = async (
     deviceId,
     adminId
   );
+};
+
+export const verifyDeviceIMEI = async (imei) => {
+  return await verifyIMEI(imei);
 };

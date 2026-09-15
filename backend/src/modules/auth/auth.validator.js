@@ -71,3 +71,32 @@ export const verifyAgentOtpSchema = z.object({
     .min(1, "Device ID is required."),
 });
 
+
+export const updateAgentProfileSchema = z.object({
+  fullName: z
+    .string()
+    .trim()
+    .min(2, "Full name must be at least 2 characters.")
+    .optional(),
+
+  email: z
+    .string()
+    .trim()
+    .email("Please enter a valid email address.")
+    .optional(),
+
+  experience: z
+    .coerce
+    .number()
+    .min(0, "Experience cannot be negative.")
+    .optional(),
+
+  alternatePhone: z
+    .string()
+    .trim()
+    .regex(
+      /^[6-9]\d{9}$/,
+      "Invalid alternate phone number."
+    )
+    .optional(),
+});

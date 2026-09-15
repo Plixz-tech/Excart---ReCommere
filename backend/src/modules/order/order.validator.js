@@ -7,41 +7,56 @@ const objectId = z
     "Invalid ID."
   );
 
+
+
 // CREATE ORDER
 
-export const createOrderSchema =
-  z.object({
-    brand: z
+
+export const createOrderSchema = z.object({
+  brand:
+    z
       .string()
       .trim()
-      .min(1, "Brand is required."),
+      .min(
+        1,
+        "Brand is required."
+      ),
 
-    model: z
+  model:
+    z
       .string()
       .trim()
-      .min(1, "Model is required."),
+      .min(
+        1,
+        "Model is required."
+      ),
 
-    variant: z
-      .string()
-      .trim()
-      .optional(),
-
-    color: z
-      .string()
-      .trim()
-      .optional(),
-
-    storage: z
-      .string()
-      .trim()
-      .optional(),
-
-    ram: z
+  variant:
+    z
       .string()
       .trim()
       .optional(),
 
-    imei1: z
+  color:
+    z
+      .string()
+      .trim()
+      .optional(),
+
+  storage:
+    z
+      .string()
+      .trim()
+      .optional(),
+
+  ram:
+    z
+      .string()
+      .trim()
+      .optional(),
+
+  imei1:
+    z
       .string()
       .trim()
       .regex(
@@ -49,7 +64,8 @@ export const createOrderSchema =
         "IMEI1 must contain exactly 15 digits."
       ),
 
-    imei2: z
+  imei2:
+    z
       .string()
       .trim()
       .regex(
@@ -58,474 +74,698 @@ export const createOrderSchema =
       )
       .optional(),
 
-    serialNumber: z
+  serialNumber:
+    z
       .string()
       .trim()
       .optional(),
 
-    customerEvaluation:
-      z
-        .object({
-          screenCondition:
-            z.string().trim().optional(),
+  // Estimated amount from the initial valuation.
+  estimatedAmount:
+    z
+      .coerce
+      .number()
+      .min(
+        0,
+        "Estimated amount cannot be negative."
+      )
+      .optional(),
 
-          displayIssues:
-            z.array(z.string().trim()).optional(),
+  customerEvaluation:
+    z
+      .object({
+        screenCondition:
+          z
+            .string()
+            .trim()
+            .optional(),
 
-          bodyCondition:
-            z.string().trim().optional(),
+        displayIssues:
+          z
+            .array(
+              z.string().trim()
+            )
+            .optional(),
 
-          batteryHealth:
-            z.number()
-              .min(0)
-              .max(100)
-              .nullable()
-              .optional(),
+        bodyCondition:
+          z
+            .string()
+            .trim()
+            .optional(),
 
-          repairHistory:
-            z.string().trim().optional(),
+        batteryHealth:
+          z
+            .coerce
+            .number()
+            .min(0)
+            .max(100)
+            .nullable()
+            .optional(),
 
-          accessories:
-            z.array(z.string().trim()).optional(),
+        repairHistory:
+          z
+            .string()
+            .trim()
+            .optional(),
 
-          functionalIssues:
-            z.array(z.string().trim()).optional(),
+        accessories:
+          z
+            .array(
+              z.string().trim()
+            )
+            .optional(),
 
-          imeiVerification:
+        functionalIssues:
+          z
+            .array(
+              z.string().trim()
+            )
+            .optional(),
+
+        imeiVerification:
+          z
+            .object({
+              verified:
+                z
+                  .boolean()
+                  .optional(),
+
+              verifiedAt:
+                z
+                  .string()
+                  .optional(),
+            })
+            .optional(),
+      })
+      .optional(),
+
+  photos:
+    z
+      .array(
+        z.object({
+          url:
             z
-              .object({
-                verified:
-                  z.boolean().optional(),
-
-                verifiedAt:
-                  z.string().optional(),
-              })
-              .optional(),
-        })
-        .optional(),
-
-    photos:
-      z
-        .array(
-          z.object({
-            url:
-              z.string().min(
+              .string()
+              .min(
                 1,
                 "Photo URL is required."
               ),
 
-            publicId:
-              z.string().optional(),
-          })
-        )
-        .optional(),
-
-    pickup:
-      z
-        .object({
-          scheduledDate:
-            z.string().optional(),
-
-          scheduledTime:
-            z.string().optional(),
-
-          address:
+          publicId:
             z
-              .object({
-                line1:
-                  z.string()
-                    .trim()
-                    .min(
-                      1,
-                      "Address line is required."
-                    )
-                    .max(200),
-
-                city:
-                  z.string()
-                    .trim()
-                    .min(
-                      1,
-                      "City is required."
-                    )
-                    .max(100),
-
-                state:
-                  z.string()
-                    .trim()
-                    .min(
-                      1,
-                      "State is required."
-                    )
-                    .max(100),
-
-                pinCode:
-                  z.string()
-                    .trim()
-                    .min(4)
-                    .max(10),
-
-                latitude:
-                  z.number()
-                    .optional()
-                    .nullable(),
-
-                longitude:
-                  z.number()
-                    .optional()
-                    .nullable(),
-              })
-              .optional(),
-
-          notes:
-            z.string()
-              .trim()
-              .max(1000)
+              .string()
               .optional(),
         })
-        .optional(),
+      )
+      .optional(),
+
+  // ==========================================================
+  // PICKUP
+  // ==========================================================
+
+  pickup:
+    z
+      .object({
+        scheduledDate:
+          z
+            .string()
+            .regex(
+              /^\d{4}-\d{2}-\d{2}$/,
+              "Scheduled date must be in YYYY-MM-DD format."
+            ),
+
+        scheduledTime:
+          z
+            .string()
+            .regex(
+              /^([01]\d|2[0-3]):[0-5]\d$/,
+              "Scheduled time must be in HH:mm format."
+            ),
+
+        address:
+          z
+            .object({
+              line1:
+                z
+                  .string()
+                  .trim()
+                  .min(
+                    1,
+                    "Address line is required."
+                  )
+                  .max(200),
+
+              city:
+                z
+                  .string()
+                  .trim()
+                  .min(
+                    1,
+                    "City is required."
+                  )
+                  .max(100),
+
+              state:
+                z
+                  .string()
+                  .trim()
+                  .min(
+                    1,
+                    "State is required."
+                  )
+                  .max(100),
+
+              pinCode:
+                z
+                  .string()
+                  .trim()
+                  .min(
+                    4,
+                    "Pin code is required."
+                  )
+                  .max(10),
+
+              latitude:
+                z
+                  .coerce
+                  .number()
+                  .min(-90)
+                  .max(90)
+                  .optional()
+                  .nullable(),
+
+              longitude:
+                z
+                  .coerce
+                  .number()
+                  .min(-180)
+                  .max(180)
+                  .optional()
+                  .nullable(),
+            }),
+
+        notes:
+          z
+            .string()
+            .trim()
+            .max(1000)
+            .optional(),
+      }),
+
+  notes:
+    z
+      .string()
+      .trim()
+      .max(1000)
+      .optional(),
+});
 
 
-    notes:
-      z.string()
-        .trim()
-        .max(1000)
-        .optional(),
-  });
 
 // UPDATE ORDER
 
-export const updateOrderSchema =
-  z.object({
-    device:
-      objectId
-        .optional()
-        .nullable(),
 
-    pickup:
-      z
-        .object({
-          status:
-            z
-              .enum([
-                "pending",
-                "assigned",
-                "scheduled",
-                "in_progress",
-                "completed",
-                "cancelled",
-              ])
-              .optional(),
+export const updateOrderSchema = z.object({
+  device:
+    objectId
+      .optional()
+      .nullable(),
 
-          scheduledDate:
-            z.string().optional(),
+  pickup:
+    z
+      .object({
+        status:
+          z
+            .enum([
+              "pending",
+              "assigned",
+              "scheduled",
+              "in_progress",
+              "completed",
+              "cancelled",
+            ])
+            .optional(),
 
-          scheduledTime:
-            z.string().optional(),
+        scheduledDate:
+          z
+            .string()
+            .regex(
+              /^\d{4}-\d{2}-\d{2}$/,
+              "Scheduled date must be in YYYY-MM-DD format."
+            )
+            .optional(),
 
-          address:
-            z
-              .object({
-                line1:
-                  z.string().optional(),
+        scheduledTime:
+          z
+            .string()
+            .regex(
+              /^([01]\d|2[0-3]):[0-5]\d$/,
+              "Scheduled time must be in HH:mm format."
+            )
+            .optional(),
 
-                city:
-                  z.string().optional(),
+        address:
+          z
+            .object({
+              line1:
+                z
+                  .string()
+                  .trim()
+                  .max(200)
+                  .optional(),
 
-                state:
-                  z.string().optional(),
+              city:
+                z
+                  .string()
+                  .trim()
+                  .max(100)
+                  .optional(),
 
-                pinCode:
-                  z.string().optional(),
+              state:
+                z
+                  .string()
+                  .trim()
+                  .max(100)
+                  .optional(),
 
-                latitude:
-                  z.number()
-                    .optional()
-                    .nullable(),
+              pinCode:
+                z
+                  .string()
+                  .trim()
+                  .min(4)
+                  .max(10)
+                  .optional(),
 
-                longitude:
-                  z.number()
-                    .optional()
-                    .nullable(),
-              })
-              .optional(),
+              latitude:
+                z
+                  .coerce
+                  .number()
+                  .min(-90)
+                  .max(90)
+                  .optional()
+                  .nullable(),
 
-          notes:
-            z.string()
-              .max(1000)
-              .optional(),
-        })
-        .optional(),
+              longitude:
+                z
+                  .coerce
+                  .number()
+                  .min(-180)
+                  .max(180)
+                  .optional()
+                  .nullable(),
+            })
+            .optional(),
 
-    estimatedAmount:
-      z.number()
-        .min(0)
-        .optional(),
+        notes:
+          z
+            .string()
+            .trim()
+            .max(1000)
+            .optional(),
+      })
+      .optional(),
 
-    finalAmount:
-      z.number()
-        .min(0)
-        .optional(),
+  estimatedAmount:
+    z
+      .coerce
+      .number()
+      .min(
+        0,
+        "Estimated amount cannot be negative."
+      )
+      .optional(),
 
-    notes:
-      z.string()
-        .max(1000)
-        .optional(),
-  });
+  finalAmount:
+    z
+      .coerce
+      .number()
+      .min(
+        0,
+        "Final amount cannot be negative."
+      )
+      .optional(),
+
+  notes:
+    z
+      .string()
+      .trim()
+      .max(1000)
+      .optional(),
+});
+
+
 
 // ORDER ID
 
-export const orderIdSchema =
-  z.object({
-    params:
-      z.object({
-        id: objectId,
-      }),
-  });
+
+export const orderIdSchema = z.object({
+  id: objectId,
+});
+
+
 
 // ORDER STATUS
 
-export const orderStatusSchema =
-  z.object({
-    status:
-      z.enum([
-        "pending",
-        "assigned",
-        "pickup_scheduled",
-        "picked_up",
-        "in_transit",
-        "inspection_pending",
-        "inspection_in_progress",
-        "inspection_completed",
-        "ready_stock",
-        "cancelled",
-        "rejected",
-      ]),
-  });
+
+export const orderStatusSchema = z.object({
+  status:
+    z.enum([
+      "pending",
+      "assigned",
+      "pickup_scheduled",
+      "picked_up",
+      "in_transit",
+      "inspection_pending",
+      "inspection_in_progress",
+      "inspection_completed",
+      "approved",
+      "payment_pending",
+      "payment_completed",
+      "ready_stock",
+      "completed",
+      "cancelled",
+      "rejected",
+    ]),
+});
+
+
 
 // ASSIGN ORDER
 
-export const assignOrderSchema =
-  z.object({
-    agentId: objectId,
-  });
+
+export const assignOrderSchema = z.object({
+  agentId: objectId,
+});
+
+
 
 // PROCESS PAYMENT
 
-export const processPaymentSchema =
-  z.object({
-    finalAmount:
-      z.number()
-        .positive(
-          "Final amount must be greater than 0."
-        ),
 
-    paymentMethod:
-      z.enum([
-        "bank_transfer",
-        "upi",
-        "cash",
-        "other",
-      ]),
+export const processPaymentSchema = z.object({
+  finalAmount:
+    z
+      .coerce
+      .number()
+      .positive(
+        "Final amount must be greater than 0."
+      ),
 
-    transactionId:
-      z.string()
-        .trim()
-        .optional(),
+  paymentMethod:
+    z.enum([
+      "bank_transfer",
+      "upi",
+      "cash",
+      "other",
+    ]),
 
-    notes:
-      z.string()
-        .trim()
-        .max(1000)
-        .optional(),
-  });
+  transactionId:
+    z
+      .string()
+      .trim()
+      .optional(),
+
+  notes:
+    z
+      .string()
+      .trim()
+      .max(1000)
+      .optional(),
+});
+
+
 
 // AGENT PICKUP
 
-export const agentPickupSchema =
-  z.object({
-    status:
-      z.literal("picked_up"),
-  });
+
+export const agentPickupSchema = z.object({
+  status:
+    z.literal("picked_up"),
+});
+
+
 
 // START TRANSIT
 
-export const startTransitSchema =
-  z.object({
-    status:
-      z.literal("in_transit"),
-  });
+
+export const startTransitSchema = z.object({
+  status:
+    z.literal("in_transit"),
+});
+
+
 
 // RECEIVE ORDER
 
-export const receiveOrderSchema =
-  z.object({
-    status:
-      z.literal(
-        "inspection_pending"
+
+export const receiveOrderSchema = z.object({
+  status:
+    z.literal("inspection_pending"),
+});
+
+
+
+// CUSTOMER AADHAAR - SEND OTP
+
+
+export const sendCustomerAadhaarOtpSchema = z.object({
+  aadhaarNumber:
+    z
+      .string()
+      .trim()
+      .regex(
+        /^\d{12}$/,
+        "Aadhaar number must contain exactly 12 digits."
       ),
-  });
+});
+
+
+
+// CUSTOMER AADHAAR - VERIFY OTP
+
+
+export const verifyCustomerAadhaarOtpSchema = z.object({
+  otp:
+    z
+      .string()
+      .trim()
+      .regex(
+        /^\d{6}$/,
+        "OTP must contain exactly 6 digits."
+      ),
+});
+
+
 
 // PICKUP VERIFICATION
 
-export const pickupVerificationSchema =
-  z.object({
-    customerPhotoUrl:
-      z.string()
-        .min(
-          1,
-          "Customer photo is required."
-        ),
 
-    customerPhotoPublicId:
-      z.string()
-        .optional(),
+export const pickupVerificationSchema = z.object({
+  customerPhotoUrl:
+    z
+      .string()
+      .min(
+        1,
+        "Customer photo is required."
+      ),
 
-    aadhaarUrl:
-      z.string()
-        .min(
-          1,
-          "Aadhaar document is required."
-        ),
+  customerPhotoPublicId:
+    z
+      .string()
+      .optional(),
 
-    aadhaarPublicId:
-      z.string()
-        .optional(),
+  aadhaarUrl:
+    z
+      .string()
+      .min(
+        1,
+        "Aadhaar document is required."
+      ),
 
-    aadhaarVerified:
-      z.boolean()
-        .refine(
-          (value) => value === true,
-          {
-            message:
-              "Aadhaar must be verified before pickup.",
-          }
-        ),
-  });
+  aadhaarPublicId:
+    z
+      .string()
+      .optional(),
+});
+
+
 
 // SELF ASSIGN
 
-export const selfAssignOrderSchema =
-  z.object({
-    confirm:
-      z.literal(true),
-  });
+
+export const selfAssignOrderSchema = z.object({
+  confirm:
+    z.literal(true),
+});
+
+
 
 // ASSIGN TO AGENT
 
-export const assignToAgentSchema =
-  z.object({
-    agentId: objectId,
-  });
+
+export const assignToAgentSchema = z.object({
+  agentId: objectId,
+});
+
+
 
 // SCHEDULE PICKUP
 
-export const schedulePickupSchema =
-  z.object({
-    scheduledDate:
-      z.string()
-        .min(
-          1,
-          "Scheduled date is required."
-        ),
 
-    scheduledTime:
-      z.string()
-        .min(
-          1,
-          "Scheduled time is required."
-        ),
-  });
+export const schedulePickupSchema = z.object({
+  scheduledDate:
+    z
+      .string()
+      .regex(
+        /^\d{4}-\d{2}-\d{2}$/,
+        "Scheduled date must be in YYYY-MM-DD format."
+      ),
+
+  scheduledTime:
+    z
+      .string()
+      .regex(
+        /^([01]\d|2[0-3]):[0-5]\d$/,
+        "Scheduled time must be in HH:mm format."
+      ),
+});
+
+
+
+// RESCHEDULE PICKUP
+
+
+export const reschedulePickupSchema = z.object({
+  scheduledDate:
+    z
+      .string()
+      .regex(
+        /^\d{4}-\d{2}-\d{2}$/,
+        "Scheduled date must be in YYYY-MM-DD format."
+      ),
+
+  scheduledTime:
+    z
+      .string()
+      .regex(
+        /^([01]\d|2[0-3]):[0-5]\d$/,
+        "Scheduled time must be in HH:mm format."
+      ),
+});
+
+
 
 // PICKUP LOCATION
 
-export const pickupLocationSchema =
-  z.object({
-    latitude:
-      z.number()
-        .min(-90)
-        .max(90),
 
-    longitude:
-      z.number()
-        .min(-180)
-        .max(180),
-  });
+export const pickupLocationSchema = z.object({
+  latitude:
+    z
+      .coerce
+      .number()
+      .min(-90)
+      .max(90),
+
+  longitude:
+    z
+      .coerce
+      .number()
+      .min(-180)
+      .max(180),
+});
+
+
 
 // START INSPECTION
 
-export const startInspectionSchema =
-  z.object({
-    status:
-      z.literal(
-        "inspection_in_progress"
-      ),
-  });
+
+export const startInspectionSchema = z.object({
+  status:
+    z.literal(
+      "inspection_in_progress"
+    ),
+});
+
+
 
 // COMPLETE INSPECTION
 
-export const completeInspectionSchema =
-  z.object({
-    condition:
-      z.string()
-        .trim()
-        .optional(),
 
-    grade:
-      z.string()
-        .trim()
-        .optional(),
+export const completeInspectionSchema = z.object({
+  condition:
+    z
+      .string()
+      .trim()
+      .optional(),
 
-    physicalCondition:
-      z.string()
-        .trim()
-        .optional(),
+  grade:
+    z
+      .string()
+      .trim()
+      .optional(),
 
-    screenCondition:
-      z.string()
-        .trim()
-        .optional(),
+  physicalCondition:
+    z
+      .string()
+      .trim()
+      .optional(),
 
-    batteryHealth:
-      z.number()
-        .min(0)
-        .max(100)
-        .nullable()
-        .optional(),
+  screenCondition:
+    z
+      .string()
+      .trim()
+      .optional(),
 
-    functionalIssues:
-      z.array(
+  batteryHealth:
+    z
+      .coerce
+      .number()
+      .min(0)
+      .max(100)
+      .nullable()
+      .optional(),
+
+  functionalIssues:
+    z
+      .array(
         z.string().trim()
-      ).optional(),
+      )
+      .optional(),
 
-    inspectionNotes:
-      z.string()
-        .trim()
-        .max(2000)
-        .optional(),
-  });
+  inspectionNotes:
+    z
+      .string()
+      .trim()
+      .max(2000)
+      .optional(),
+});
+
+
 
 // APPROVE INSPECTION
 
-export const approveInspectionSchema =
-  z.object({
-    status:
-      z.literal("approved"),
-  });
+
+export const approveInspectionSchema = z.object({
+  status:
+    z.literal("approved"),
+});
+
+
 
 // REJECT INSPECTION
 
-export const rejectInspectionSchema =
-  z.object({
-    status:
-      z.literal("rejected"),
 
-    reason:
-      z.string()
-        .trim()
-        .min(
-          1,
-          "Rejection reason is required."
-        )
-        .max(2000),
-  });
+export const rejectInspectionSchema = z.object({
+  status:
+    z.literal("rejected"),
+
+  reason:
+    z
+      .string()
+      .trim()
+      .min(
+        1,
+        "Rejection reason is required."
+      )
+      .max(2000),
+});

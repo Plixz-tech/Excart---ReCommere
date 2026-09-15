@@ -10,6 +10,7 @@ import {
 } from "./order.validator.js";
 
 import validateRequest from "../../middlewares/validation/validateRequest.js";
+import validateParams from "../../middlewares/validation/validateParams.js";
 import protect from "../../middlewares/auth/protect.js";
 import authorize from "../../middlewares/auth/authorize.js";
 
@@ -31,7 +32,7 @@ router.get(
 
 router.get(
   "/:id",
-  validateRequest(orderIdSchema),
+  validateParams(orderIdSchema),
   adminOrderController.getOrderById
 );
 
@@ -39,7 +40,7 @@ router.get(
 
 router.patch(
   "/:id",
-  validateRequest(orderIdSchema),
+  validateParams(orderIdSchema),
   validateRequest(updateOrderSchema),
   adminOrderController.updateOrder
 );
@@ -48,7 +49,7 @@ router.patch(
 
 router.patch(
   "/:id/status",
-  validateRequest(orderIdSchema),
+  validateParams(orderIdSchema),
   validateRequest(orderStatusSchema),
   adminOrderController.updateOrderStatus
 );
@@ -57,17 +58,16 @@ router.patch(
 
 router.patch(
   "/:id/assign",
-  validateRequest(orderIdSchema),
+  validateParams(orderIdSchema),
   validateRequest(assignOrderSchema),
   adminOrderController.assignOrder
 );
-
 
 // GET PURCHASE INVOICE
 
 router.get(
   "/:id/purchase-invoice",
-  validateRequest(orderIdSchema),
+  validateParams(orderIdSchema),
   adminOrderController.getPurchaseInvoice
 );
 
@@ -75,7 +75,7 @@ router.get(
 
 router.get(
   "/:id/payment-slip",
-  validateRequest(orderIdSchema),
+  validateParams(orderIdSchema),
   adminOrderController.getPaymentSlip
 );
 
@@ -83,7 +83,7 @@ router.get(
 
 router.patch(
   "/:id/receive",
-  validateRequest(orderIdSchema),
+  validateParams(orderIdSchema),
   adminOrderController.receiveOrder
 );
 
@@ -91,7 +91,7 @@ router.patch(
 
 router.delete(
   "/:id",
-  validateRequest(orderIdSchema),
+  validateParams(orderIdSchema),
   adminOrderController.deleteOrder
 );
 

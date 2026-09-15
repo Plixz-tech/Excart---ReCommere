@@ -2,7 +2,10 @@ import express from "express";
 
 import protect from "../../middlewares/auth/protect.js";
 import authorize from "../../middlewares/auth/authorize.js";
+
 import validateRequest from "../../middlewares/validation/validateRequest.js";
+import validateParams from "../../middlewares/validation/validateParams.js";
+import validateQuery from "../../middlewares/validation/validateQuery.js";
 
 import {
   createDeviceCatalogController,
@@ -23,9 +26,7 @@ import {
 
 const router = express.Router();
 
-
 // CUSTOMER / AUTHENTICATED USER
-// GET ACTIVE DEVICE CATALOG
 
 router.get(
   "/",
@@ -33,18 +34,14 @@ router.get(
   getActiveDeviceCatalogController
 );
 
-
 // FIND SPECIFIC DEVICE VARIANT
 
 router.get(
   "/match",
   protect,
-  validateRequest(
-    findMatchingDeviceCatalogSchema
-  ),
+  validateQuery(findMatchingDeviceCatalogSchema),
   findMatchingDeviceCatalogController
 );
-
 
 // ADMIN CREATE
 
@@ -52,12 +49,9 @@ router.post(
   "/",
   protect,
   authorize("admin"),
-  validateRequest(
-    createDeviceCatalogSchema
-  ),
+  validateRequest(createDeviceCatalogSchema),
   createDeviceCatalogController
 );
-
 
 // ADMIN GET ALL
 
@@ -68,19 +62,15 @@ router.get(
   getAllDeviceCatalogController
 );
 
-
 // ADMIN GET BY ID
 
 router.get(
   "/:id",
   protect,
   authorize("admin"),
-  validateRequest(
-    deviceCatalogIdSchema
-  ),
+  validateParams(deviceCatalogIdSchema),
   getDeviceCatalogByIdController
 );
-
 
 // ADMIN UPDATE
 
@@ -88,12 +78,10 @@ router.patch(
   "/:id",
   protect,
   authorize("admin"),
-  validateRequest(
-    updateDeviceCatalogSchema
-  ),
+  validateParams(deviceCatalogIdSchema),
+  validateRequest(updateDeviceCatalogSchema),
   updateDeviceCatalogController
 );
-
 
 // ADMIN DELETE
 
@@ -101,9 +89,7 @@ router.delete(
   "/:id",
   protect,
   authorize("admin"),
-  validateRequest(
-    deviceCatalogIdSchema
-  ),
+  validateParams(deviceCatalogIdSchema),
   deleteDeviceCatalogController
 );
 

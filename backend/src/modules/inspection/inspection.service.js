@@ -18,6 +18,14 @@ export const getInspections = async (
   );
 };
 
+export const getPendingInspections = async (
+  queryParams
+) => {
+  return await inspectionRepository.getPendingInspections(
+    queryParams
+  );
+};
+
 export const getInspectionById = async (
   inspectionId
 ) => {
@@ -38,14 +46,26 @@ export const updateInspection = async (
   );
 };
 
+export const completeInspection = async (
+  inspectionId,
+  userId
+) => {
+  return await inspectionRepository.completeInspection(
+    inspectionId,
+    userId
+  );
+};
+
 export const updateInspectionStatus = async (
   inspectionId,
   status,
+  reason,
   userId
 ) => {
   return await inspectionRepository.updateInspectionStatus(
     inspectionId,
     status,
+    reason,
     userId
   );
 };

@@ -2,9 +2,9 @@ import mongoose from "mongoose";
 
 const deviceSchema = new mongoose.Schema(
   {
-   
+    
     // DEVICE DETAILS
-   
+    
 
     brand: {
       type: String,
@@ -42,9 +42,9 @@ const deviceSchema = new mongoose.Schema(
       trim: true,
     },
 
-   
+    
     // DEVICE IDENTITY
-   
+    
 
     imei1: {
       type: String,
@@ -66,9 +66,9 @@ const deviceSchema = new mongoose.Schema(
       trim: true,
     },
 
-   
+    
     // CUSTOMER PROVIDED DEVICE CONDITION
-   
+    
 
     customerEvaluation: {
       screenCondition: {
@@ -108,10 +108,34 @@ const deviceSchema = new mongoose.Schema(
         default: [],
       },
 
+      // Customer-side IMEI verification
       imeiVerification: {
         verified: {
           type: Boolean,
           default: false,
+        },
+
+        status: {
+          type: String,
+          enum: ["CLEAN", "BLACKLISTED", "UNKNOWN", "ERROR"],
+          default: "UNKNOWN",
+        },
+
+        deviceMatch: {
+          type: Boolean,
+          default: false,
+        },
+
+        provider: {
+          type: String,
+          default: "",
+          trim: true,
+        },
+
+        providerReference: {
+          type: String,
+          default: "",
+          trim: true,
         },
 
         verifiedAt: {
@@ -121,72 +145,99 @@ const deviceSchema = new mongoose.Schema(
       },
     },
 
+    
     // AGENT PHYSICAL DEVICE INSPECTION
+    
 
-agentEvaluation: {
-  screenCondition: {
-    type: String,
-    default: "",
-  },
+    agentEvaluation: {
+      screenCondition: {
+        type: String,
+        default: "",
+      },
 
-  displayIssues: {
-    type: [String],
-    default: [],
-  },
+      displayIssues: {
+        type: [String],
+        default: [],
+      },
 
-  bodyCondition: {
-    type: String,
-    default: "",
-  },
+      bodyCondition: {
+        type: String,
+        default: "",
+      },
 
-  batteryHealth: {
-    type: Number,
-    min: 0,
-    max: 100,
-    default: null,
-  },
+      batteryHealth: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: null,
+      },
 
-  repairHistory: {
-    type: String,
-    default: "",
-  },
+      repairHistory: {
+        type: String,
+        default: "",
+      },
 
-  accessories: {
-    type: [String],
-    default: [],
-  },
+      accessories: {
+        type: [String],
+        default: [],
+      },
 
-  functionalIssues: {
-    type: [String],
-    default: [],
-  },
+      functionalIssues: {
+        type: [String],
+        default: [],
+      },
 
-  imeiVerification: {
-    verified: {
-      type: Boolean,
-      default: false,
+      // Agent-side IMEI verification
+      imeiVerification: {
+        verified: {
+          type: Boolean,
+          default: false,
+        },
+
+        status: {
+          type: String,
+          enum: ["CLEAN", "BLACKLISTED", "UNKNOWN", "ERROR"],
+          default: "UNKNOWN",
+        },
+
+        deviceMatch: {
+          type: Boolean,
+          default: false,
+        },
+
+        provider: {
+          type: String,
+          default: "",
+          trim: true,
+        },
+
+        providerReference: {
+          type: String,
+          default: "",
+          trim: true,
+        },
+
+        verifiedAt: {
+          type: Date,
+          default: null,
+        },
+      },
+
+      verifiedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+
+      verifiedAt: {
+        type: Date,
+        default: null,
+      },
     },
 
-    verifiedAt: {
-      type: Date,
-      default: null,
-    },
-  },
-
-  verifiedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    default: null,
-  },
-
-  verifiedAt: {
-    type: Date,
-    default: null,
-  },
-},
-
-   
-// PRICING
+    
+    // PRICING
+    
 
 valuationPrice: {
   type: Number,
@@ -194,20 +245,27 @@ valuationPrice: {
   min: 0,
 },
 
-purchasePrice: {
+agentCommission: {
   type: Number,
   default: 0,
   min: 0,
 },
 
-expectedSellingPrice: {
-  type: Number,
-  default: 0,
-  min: 0,
-},
-   
+    purchasePrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    expectedSellingPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    
     // OWNERSHIP / AGENTS
-   
+    
 
     customer: {
       type: mongoose.Schema.Types.ObjectId,
@@ -230,9 +288,9 @@ expectedSellingPrice: {
       index: true,
     },
 
-   
+    
     // PHOTOS
-   
+    
 
     photos: [
       {
@@ -253,9 +311,9 @@ expectedSellingPrice: {
       },
     ],
 
-   
+    
     // DEVICE STATUS
-   
+    
 
     status: {
       type: String,
@@ -279,9 +337,9 @@ expectedSellingPrice: {
       index: true,
     },
 
-   
+    
     // AUDIT
-   
+    
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

@@ -1,21 +1,139 @@
 import orderRepository from "./order.repository.js";
 import Device from "../../models/Device.js";
+import DeviceCatalog from "../../models/DeviceCatalog.js";
+import AgentEarning from "../../models/AgentEarning.js";
 import User from "../../models/User.js";
-import {calculatePrice,} from "../pricingRule/pricingRule.service.js";
-
 import { generateGoogleMapsUrl } from "../../lib/googleMaps.js";
 import { uploadBufferToCloudinary } from "../../lib/uploadBuffer.js";
-import { generatePurchaseInvoicePdf } from "../../lib/purchaseInvoicePdf.js";
-import { generatePaymentSlipPdf } from "../../lib/paymentSlipPdf.js";
+import * as verificationService from "../../services/verification/verification.service.js";
+import notificationService from "../notification/notification.service.js";
+
+// ExCart currently operates in India.
+// Pickup date/time received from the frontend is treated as IST.
+
+const buildPickupDateTime = (
+  scheduledDate,
+  scheduledTime
+) => {
+  const pickupDate = new Date(
+    `${scheduledDate}T${scheduledTime}:00+05:30`
+  );
+
+  if (Number.isNaN(pickupDate.getTime())) {
+    const error = new Error(
+      "Invalid pickup date or time."
+    );
+
+    error.statusCode = 400;
+
+    throw error;
+  }
+
+  return pickupDate;
+};
+
+
+
+// ORDER STATUS TRANSITIONS
+
+
+const allowedStatusTransitions = {
+  pending: [
+    "pickup_scheduled",
+    "assigned",
+    "cancelled",
+    "rejected",
+  ],
+
+  pickup_scheduled: [
+    "assigned",
+    "cancelled",
+    "rejected",
+  ],
+
+  assigned: [
+    "cancelled",
+    "rejected",
+  ],
+
+  picked_up: [
+    "payment_pending",
+  ],
+
+  payment_pending: [
+    "payment_completed",
+    "rejected",
+  ],
+
+  payment_completed: [
+    "in_transit",
+  ],
+
+  in_transit: [
+    "inspection_pending",
+  ],
+
+  inspection_pending: [
+    "inspection_in_progress",
+    "rejected",
+  ],
+
+  inspection_in_progress: [
+    "inspection_completed",
+    "rejected",
+  ],
+
+  inspection_completed: [
+    "approved",
+    "rejected",
+  ],
+
+  approved: [
+    "ready_stock",
+  ],
+
+  ready_stock: [
+    "completed",
+  ],
+
+  rejected: [],
+
+  cancelled: [],
+
+  completed: [],
+};
+
+const validateStatusTransition = (
+  currentStatus,
+  nextStatus
+) => {
+  if (currentStatus === nextStatus) {
+    return;
+  }
+
+  const allowed =
+    allowedStatusTransitions[currentStatus] || [];
+
+  if (!allowed.includes(nextStatus)) {
+    const error = new Error(
+      `Order cannot move from "${currentStatus}" to "${nextStatus}".`
+    );
+
+    error.statusCode = 400;
+
+    throw error;
+  }
+};
+
 
 class OrderService {
 
+
+
   // CUSTOMER CREATE ORDER
 
-  async createOrder(data, userId) {
-    const orderNumber =
-      await this.generateOrderNumber();
 
+  async createOrder(data, userId) {
     const {
       brand,
       model,
@@ -32,6 +150,55 @@ class OrderService {
       estimatedAmount,
       notes,
     } = data;
+
+    if (!pickup) {
+      const error = new Error(
+        "Pickup details are required."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    if (!pickup.scheduledDate) {
+      const error = new Error(
+        "Pickup date is required."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    if (!pickup.scheduledTime) {
+      const error = new Error(
+        "Pickup time is required."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const pickupDate =
+      buildPickupDateTime(
+        pickup.scheduledDate,
+        pickup.scheduledTime
+      );
+
+    if (pickupDate <= new Date()) {
+      const error = new Error(
+        "Pickup date and time must be in the future."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const orderNumber =
+      await this.generateOrderNumber();
 
     const existingDevice =
       await Device.findOne({
@@ -56,6 +223,19 @@ class OrderService {
       throw error;
     }
 
+    const catalogDevice =
+      await DeviceCatalog.findOne({
+        brand,
+        model,
+        variant: variant || "",
+        storage: storage || "",
+        ram: ram || "",
+        active: true,
+      });
+
+    const agentCommission =
+      catalogDevice?.agentCommission ?? 0;
+
     const device =
       await Device.create({
         brand,
@@ -67,72 +247,100 @@ class OrderService {
         imei1,
         imei2,
         serialNumber,
+
         customerEvaluation:
           customerEvaluation || {},
-        photos: photos || [],
-        customer: userId,
-        pickupAgent: null,
-        inspectionAgent: null,
-        status: "pending_pickup",
-        purchasePrice: 0,
-        expectedSellingPrice: 0,
-        createdBy: userId,
-        updatedBy: userId,
+
+        photos:
+          photos || [],
+
+        customer:
+          userId,
+
+        pickupAgent:
+          null,
+
+        inspectionAgent:
+          null,
+
+        status:
+          "pending_pickup",
+
+        agentCommission,
+
+        purchasePrice:
+          0,
+
+        expectedSellingPrice:
+          0,
+
+        createdBy:
+          userId,
+
+        updatedBy:
+          userId,
       });
 
     const mapsUrl =
       generateGoogleMapsUrl(
-        pickup?.address
+        pickup.address
       );
-
-    const scheduled =
-      pickup?.scheduledDate &&
-      pickup?.scheduledTime;
 
     const orderData = {
       orderNumber,
-      customer: userId,
-      agent: null,
-      device: device._id,
 
-      status: scheduled
-        ? "pickup_scheduled"
-        : "pending",
+      customer:
+        userId,
+
+      agent:
+        null,
+
+      device:
+        device._id,
+
+      status:
+        "pickup_scheduled",
 
       pickup: {
-        ...(pickup || {}),
+        ...pickup,
 
-        status: scheduled
-          ? "scheduled"
-          : "pending",
+        status:
+          "scheduled",
 
         scheduledDate:
-          pickup?.scheduledDate || null,
+          pickupDate,
 
         scheduledTime:
-          pickup?.scheduledTime || "",
+          pickup.scheduledTime,
 
-        assignedAgent: null,
+        assignedAgent:
+          null,
 
         mapsUrl,
 
-        pickedUpAt: null,
+        pickedUpAt:
+          null,
       },
 
       payment: {
         estimatedAmount:
           estimatedAmount ?? 0,
 
-        finalAmount: 0,
+        finalAmount:
+          0,
 
-        status: "pending",
+        status:
+          "pending",
       },
 
-      notes: notes || "",
+      notes:
+        notes || "",
 
-      createdBy: userId,
+      createdBy:
+        userId,
 
-      updatedBy: userId,
+      updatedBy:
+        userId,
     };
 
     const order =
@@ -140,12 +348,39 @@ class OrderService {
         orderData
       );
 
+    try {
+      await notificationService.createNotification({
+        recipient:
+          userId,
+
+        title:
+          "Order Confirmed",
+
+        message:
+          `Your order ${order.orderNumber} has been created successfully.`,
+
+        type:
+          "order_created",
+
+        order:
+          order._id,
+      });
+    } catch (error) {
+      console.error(
+        "Failed to create order notification:",
+        error
+      );
+    }
+
     return orderRepository.findById(
       order._id
     );
   }
 
+
+
   // CUSTOMER UPLOAD DEVICE INVOICE
+
 
   async uploadDeviceInvoice(
     orderId,
@@ -197,12 +432,15 @@ class OrderService {
         {
           folder:
             `excart/orders/${orderId}/device-invoice`,
-          resource_type: "auto",
+
+          resource_type:
+            "auto",
         }
       );
 
     const invoiceDocument = {
-      type: "device_invoice",
+      type:
+        "device_invoice",
 
       url:
         uploadedFile.secure_url ||
@@ -214,11 +452,14 @@ class OrderService {
         "",
 
       fileName:
-        file.originalname || "",
+        file.originalname ||
+        "",
 
-      uploadedBy: userId,
+      uploadedBy:
+        userId,
 
-      uploadedAt: new Date(),
+      uploadedAt:
+        new Date(),
     };
 
     return orderRepository.updateById(
@@ -229,12 +470,16 @@ class OrderService {
             invoiceDocument,
         },
 
-        updatedBy: userId,
+        updatedBy:
+          userId,
       }
     );
   }
 
+
+
   // CUSTOMER ORDERS
+
 
   async getMyOrders(
     userId,
@@ -247,14 +492,19 @@ class OrderService {
 
     return orderRepository.findAll(
       {
-        customer: userId,
+        customer:
+          userId,
       },
       {
-        page: Number(page),
-        limit: Number(limit),
+        page:
+          Number(page),
+
+        limit:
+          Number(limit),
       }
     );
   }
+
 
   async getMyOrderById(
     orderId,
@@ -291,6 +541,11 @@ class OrderService {
 
     return order;
   }
+
+
+
+  // CUSTOMER CANCEL ORDER
+
 
   async cancelOrder(
     orderId,
@@ -341,29 +596,204 @@ class OrderService {
       throw error;
     }
 
-    return orderRepository.updateById(
-      orderId,
-      {
-        status: "cancelled",
+    const updatedOrder =
+      await orderRepository.updateById(
+        orderId,
+        {
+          status:
+            "cancelled",
 
-        cancellationReason:
-          "Cancelled by customer",
+          cancellationReason:
+            "Cancelled by customer",
 
-        updatedBy: userId,
+          updatedBy:
+            userId,
 
-        $push: {
-          timeline: {
-            status: "cancelled",
-            message:
-              "Order cancelled by customer.",
-            performedBy: userId,
+          $push: {
+            timeline: {
+              status:
+                "cancelled",
+
+              message:
+                "Order cancelled by customer.",
+
+              performedBy:
+                userId,
+            },
           },
-        },
-      }
-    );
+        }
+      );
+
+    try {
+      await notificationService.createNotification({
+        recipient:
+          userId,
+
+        title:
+          "Order Cancelled",
+
+        message:
+          `Your order ${order.orderNumber} has been cancelled successfully.`,
+
+        type:
+          "order_status",
+
+        order:
+          order._id,
+      });
+    } catch (error) {
+      console.error(
+        "Failed to create cancellation notification:",
+        error
+      );
+    }
+
+    return updatedOrder;
   }
 
+
+
+  // CUSTOMER RESCHEDULE PICKUP
+
+
+  async reschedulePickup(
+    orderId,
+    data,
+    userId
+  ) {
+    const order =
+      await orderRepository.findById(
+        orderId
+      );
+
+    if (!order) {
+      const error = new Error(
+        "Order not found."
+      );
+
+      error.statusCode = 404;
+
+      throw error;
+    }
+
+    if (
+      !order.customer ||
+      order.customer._id.toString() !==
+        userId.toString()
+    ) {
+      const error = new Error(
+        "You are not authorized to reschedule this order."
+      );
+
+      error.statusCode = 403;
+
+      throw error;
+    }
+
+    if (
+      ![
+        "pending",
+        "pickup_scheduled",
+        "assigned",
+      ].includes(order.status)
+    ) {
+      const error = new Error(
+        "This order cannot be rescheduled after pickup has started."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const {
+      scheduledDate,
+      scheduledTime,
+    } = data;
+
+    const requestedPickup =
+      buildPickupDateTime(
+        scheduledDate,
+        scheduledTime
+      );
+
+    if (
+      requestedPickup <= new Date()
+    ) {
+      const error = new Error(
+        "Pickup date and time must be in the future."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const updatedOrder =
+      await orderRepository.updateById(
+        orderId,
+        {
+          status:
+            "pickup_scheduled",
+
+          "pickup.status":
+            "scheduled",
+
+          "pickup.scheduledDate":
+            requestedPickup,
+
+          "pickup.scheduledTime":
+            scheduledTime,
+
+          updatedBy:
+            userId,
+
+          $push: {
+            timeline: {
+              status:
+                "pickup_rescheduled",
+
+              message:
+                `Pickup rescheduled to ${scheduledDate} at ${scheduledTime}.`,
+
+              performedBy:
+                userId,
+            },
+          },
+        }
+      );
+
+    try {
+      await notificationService.createNotification({
+        recipient:
+          userId,
+
+        title:
+          "Pickup Rescheduled",
+
+        message:
+          `Your pickup for order ${order.orderNumber} has been rescheduled to ${scheduledDate} at ${scheduledTime}.`,
+
+        type:
+          "pickup_rescheduled",
+
+        order:
+          order._id,
+      });
+    } catch (error) {
+      console.error(
+        "Failed to create reschedule notification:",
+        error
+      );
+    }
+
+    return updatedOrder;
+  }
+
+
+
   // ADMIN GET ORDERS
+
 
   async getOrders(query) {
     const {
@@ -377,27 +807,36 @@ class OrderService {
     const filter = {};
 
     if (status) {
-      filter.status = status;
+      filter.status =
+        status;
     }
 
     if (customer) {
-      filter.customer = customer;
+      filter.customer =
+        customer;
     }
 
     if (agent) {
-      filter.agent = agent;
+      filter.agent =
+        agent;
     }
 
     return orderRepository.findAll(
       filter,
       {
-        page: Number(page),
-        limit: Number(limit),
+        page:
+          Number(page),
+
+        limit:
+          Number(limit),
       }
     );
   }
 
-  async getOrderById(orderId) {
+
+  async getOrderById(
+    orderId
+  ) {
     const order =
       await orderRepository.findById(
         orderId
@@ -416,7 +855,10 @@ class OrderService {
     return order;
   }
 
+
+
   // ADMIN UPDATE ORDER
+
 
   async updateOrder(
     orderId,
@@ -453,16 +895,187 @@ class OrderService {
       throw error;
     }
 
+    const updateData = {
+      updatedBy:
+        userId,
+    };
+
+   
+    // DEVICE
+   
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        data,
+        "device"
+      )
+    ) {
+      updateData.device =
+        data.device;
+    }
+
+   
+    // PICKUP
+   
+
+    if (data.pickup) {
+      if (
+        Object.prototype.hasOwnProperty.call(
+          data.pickup,
+          "status"
+        )
+      ) {
+        updateData["pickup.status"] =
+          data.pickup.status;
+      }
+
+      if (
+        Object.prototype.hasOwnProperty.call(
+          data.pickup,
+          "scheduledDate"
+        )
+      ) {
+        updateData["pickup.scheduledDate"] =
+          buildPickupDateTime(
+            data.pickup.scheduledDate,
+            data.pickup.scheduledTime ||
+              order.pickup?.scheduledTime
+          );
+      }
+
+      if (
+        Object.prototype.hasOwnProperty.call(
+          data.pickup,
+          "scheduledTime"
+        )
+      ) {
+        updateData["pickup.scheduledTime"] =
+          data.pickup.scheduledTime;
+      }
+
+      if (data.pickup.address) {
+        if (
+          Object.prototype.hasOwnProperty.call(
+            data.pickup.address,
+            "line1"
+          )
+        ) {
+          updateData["pickup.address.line1"] =
+            data.pickup.address.line1;
+        }
+
+        if (
+          Object.prototype.hasOwnProperty.call(
+            data.pickup.address,
+            "city"
+          )
+        ) {
+          updateData["pickup.address.city"] =
+            data.pickup.address.city;
+        }
+
+        if (
+          Object.prototype.hasOwnProperty.call(
+            data.pickup.address,
+            "state"
+          )
+        ) {
+          updateData["pickup.address.state"] =
+            data.pickup.address.state;
+        }
+
+        if (
+          Object.prototype.hasOwnProperty.call(
+            data.pickup.address,
+            "pinCode"
+          )
+        ) {
+          updateData["pickup.address.pinCode"] =
+            data.pickup.address.pinCode;
+        }
+
+        if (
+          Object.prototype.hasOwnProperty.call(
+            data.pickup.address,
+            "latitude"
+          )
+        ) {
+          updateData["pickup.address.latitude"] =
+            data.pickup.address.latitude;
+        }
+
+        if (
+          Object.prototype.hasOwnProperty.call(
+            data.pickup.address,
+            "longitude"
+          )
+        ) {
+          updateData["pickup.address.longitude"] =
+            data.pickup.address.longitude;
+        }
+      }
+
+      if (
+        Object.prototype.hasOwnProperty.call(
+          data.pickup,
+          "notes"
+        )
+      ) {
+        updateData["pickup.notes"] =
+          data.pickup.notes;
+      }
+    }
+
+   
+    // PAYMENT
+   
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        data,
+        "estimatedAmount"
+      )
+    ) {
+      updateData[
+        "payment.estimatedAmount"
+      ] = data.estimatedAmount;
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        data,
+        "finalAmount"
+      )
+    ) {
+      updateData[
+        "payment.finalAmount"
+      ] = data.finalAmount;
+    }
+
+   
+    // NOTES
+   
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        data,
+        "notes"
+      )
+    ) {
+      updateData.notes =
+        data.notes;
+    }
+
     return orderRepository.updateById(
       orderId,
-      {
-        ...data,
-        updatedBy: userId,
-      }
+      updateData
     );
   }
 
+
+
   // ADMIN UPDATE STATUS
+
 
   async updateOrderStatus(
     orderId,
@@ -484,51 +1097,66 @@ class OrderService {
       throw error;
     }
 
-    if (order.status === "completed") {
-      const error = new Error(
-        "Completed order status cannot be changed."
-      );
-
-      error.statusCode = 400;
-
-      throw error;
-    }
-
-    if (
-      order.status === "cancelled" &&
-      status !== "cancelled"
-    ) {
-      const error = new Error(
-        "Cancelled order status cannot be changed."
-      );
-
-      error.statusCode = 400;
-
-      throw error;
-    }
-
-    return orderRepository.updateById(
-      orderId,
-      {
-        status,
-
-        updatedBy: userId,
-
-        $push: {
-          timeline: {
-            status,
-
-            message:
-              `Order status changed to ${status}.`,
-
-            performedBy: userId,
-          },
-        },
-      }
+    validateStatusTransition(
+      order.status,
+      status
     );
+
+    const updatedOrder =
+      await orderRepository.updateById(
+        orderId,
+        {
+          status,
+
+          updatedBy:
+            userId,
+
+          $push: {
+            timeline: {
+              status,
+
+              message:
+                `Order status changed to ${status}.`,
+
+              performedBy:
+                userId,
+            },
+          },
+        }
+      );
+
+    try {
+      await notificationService.createNotification({
+        recipient:
+          order.customer._id ||
+          order.customer,
+
+        title:
+          "Order Status Updated",
+
+        message:
+          `Your order ${order.orderNumber} is now ${status.replaceAll("_", " ")}.`,
+
+        type:
+          "order_status",
+
+        order:
+          order._id,
+      });
+    } catch (error) {
+      console.error(
+        "Failed to create status notification:",
+        error
+      );
+    }
+
+    return updatedOrder;
   }
 
+
+
   // ADMIN ASSIGN ORDER
+
 
   async assignOrder(
     orderId,
@@ -551,9 +1179,10 @@ class OrderService {
     }
 
     if (
-      [
-        "completed",
-        "cancelled",
+      ![
+        "pending",
+        "pickup_scheduled",
+        "assigned",
       ].includes(order.status)
     ) {
       const error = new Error(
@@ -566,7 +1195,9 @@ class OrderService {
     }
 
     const agent =
-      await User.findById(agentId);
+      await User.findById(
+        agentId
+      );
 
     if (!agent) {
       const error = new Error(
@@ -578,7 +1209,10 @@ class OrderService {
       throw error;
     }
 
-    if (agent.role !== "agent") {
+    if (
+      agent.role !==
+      "agent"
+    ) {
       const error = new Error(
         "Selected user is not an agent."
       );
@@ -621,44 +1255,109 @@ class OrderService {
 
     await device.save();
 
-    const scheduled =
-      order.pickup?.scheduledDate &&
-      order.pickup?.scheduledTime;
+    const updatedOrder =
+      await orderRepository.updateById(
+        orderId,
+        {
+          agent:
+            agentId,
 
-    return orderRepository.updateById(
-      orderId,
-      {
-        agent: agentId,
+          status:
+            "pickup_scheduled",
 
-        status: scheduled
-          ? "pickup_scheduled"
-          : "assigned",
+          "pickup.status":
+            "scheduled",
 
-        "pickup.status":
-          scheduled
-            ? "scheduled"
-            : "assigned",
+          "pickup.assignedAgent":
+            agentId,
 
-        "pickup.assignedAgent":
+          updatedBy:
+            adminId,
+
+          $push: {
+            timeline: {
+              status:
+                "assigned",
+
+              message:
+                "Order assigned to an agent.",
+
+              performedBy:
+                adminId,
+            },
+          },
+        }
+      );
+
+    try {
+      await notificationService.createNotification({
+        recipient:
+          order.customer._id ||
+          order.customer,
+
+        title:
+          "Pickup Agent Assigned",
+
+        message:
+          `An agent has been assigned to your order ${order.orderNumber}.`,
+
+        type:
+          "pickup_assigned",
+
+        order:
+          order._id,
+
+        metadata: {
+          agentId:
+            agentId.toString(),
+
+          agentName:
+            agent.fullName || "",
+        },
+      });
+    } catch (error) {
+      console.error(
+        "Failed to create agent assignment notification:",
+        error
+      );
+    }
+
+    try {
+      await notificationService.createNotification({
+        recipient:
           agentId,
 
-        updatedBy: adminId,
+        title:
+          "New Pickup Assigned",
 
-        $push: {
-          timeline: {
-            status: "assigned",
+        message:
+          `You have been assigned to pickup order ${order.orderNumber}.`,
 
-            message:
-              "Order assigned to an agent.",
+        type:
+          "pickup_assigned",
 
-            performedBy: adminId,
-          },
+        order:
+          order._id,
+
+        metadata: {
+          orderNumber:
+            order.orderNumber,
         },
-      }
-    );
+      });
+    } catch (error) {
+      console.error(
+        "Failed to create agent notification:",
+        error
+      );
+    }
+
+    return updatedOrder;
   }
 
+
+
   // AGENT GET ASSIGNED ORDERS
+
 
   async getMyAssignedOrders(
     agentId,
@@ -671,21 +1370,27 @@ class OrderService {
     } = query;
 
     const filter = {
-      agent: agentId,
+      agent:
+        agentId,
     };
 
     if (status) {
-      filter.status = status;
+      filter.status =
+        status;
     }
 
     return orderRepository.findAll(
       filter,
       {
-        page: Number(page),
-        limit: Number(limit),
+        page:
+          Number(page),
+
+        limit:
+          Number(limit),
       }
     );
   }
+
 
   async getMyAssignedOrderById(
     orderId,
@@ -729,12 +1434,16 @@ class OrderService {
       ...order.toObject(),
 
       navigation: {
-        googleMapsUrl: mapsUrl,
+        googleMapsUrl:
+          mapsUrl,
       },
     };
   }
 
+
+
   // AGENT SELF ASSIGN
+
 
   async selfAssignOrder(
     orderId,
@@ -776,15 +1485,9 @@ class OrderService {
     }
 
     if (
-      [
-        "cancelled",
-        "rejected",
-        "picked_up",
-        "in_transit",
-        "inspection_pending",
-        "inspection_in_progress",
-        "inspection_completed",
-        "ready_stock",
+      ![
+        "pending",
+        "pickup_scheduled",
       ].includes(order.status)
     ) {
       const error = new Error(
@@ -797,7 +1500,9 @@ class OrderService {
     }
 
     const agent =
-      await User.findById(agentId);
+      await User.findById(
+        agentId
+      );
 
     if (!agent) {
       const error = new Error(
@@ -809,7 +1514,10 @@ class OrderService {
       throw error;
     }
 
-    if (agent.role !== "agent") {
+    if (
+      agent.role !==
+      "agent"
+    ) {
       const error = new Error(
         "Only an agent can self-assign an order."
       );
@@ -852,45 +1560,379 @@ class OrderService {
 
     await device.save();
 
-    const scheduled =
-      order.pickup?.scheduledDate &&
-      order.pickup?.scheduledTime;
+    const updatedOrder =
+      await orderRepository.updateById(
+        orderId,
+        {
+          agent:
+            agentId,
+
+          "pickup.assignedAgent":
+            agentId,
+
+          "pickup.status":
+            "scheduled",
+
+          status:
+            "pickup_scheduled",
+
+          updatedBy:
+            agentId,
+
+          $push: {
+            timeline: {
+              status:
+                "assigned",
+
+              message:
+                "Agent accepted the pickup request.",
+
+              performedBy:
+                agentId,
+            },
+          },
+        }
+      );
+
+    try {
+      await notificationService.createNotification({
+        recipient:
+          order.customer._id ||
+          order.customer,
+
+        title:
+          "Pickup Agent Assigned",
+
+        message:
+          `An agent has accepted your pickup request for order ${order.orderNumber}.`,
+
+        type:
+          "pickup_assigned",
+
+        order:
+          order._id,
+
+        metadata: {
+          agentId:
+            agentId.toString(),
+
+          agentName:
+            agent.fullName || "",
+        },
+      });
+    } catch (error) {
+      console.error(
+        "Failed to create self-assignment notification:",
+        error
+      );
+    }
+
+    try {
+      await notificationService.createNotification({
+        recipient:
+          agentId,
+
+        title:
+          "Pickup Accepted",
+
+        message:
+          `You have accepted pickup order ${order.orderNumber}.`,
+
+        type:
+          "pickup_assigned",
+
+        order:
+          order._id,
+      });
+    } catch (error) {
+      console.error(
+        "Failed to create agent self-assignment notification:",
+        error
+      );
+    }
+
+    return updatedOrder;
+  }
+
+
+
+  // AGENT - CUSTOMER AADHAAR SEND OTP
+
+
+  async sendCustomerAadhaarOtp(
+    orderId,
+    agentId,
+    aadhaarNumber
+  ) {
+    const order =
+      await orderRepository.findById(
+        orderId
+      );
+
+    if (!order) {
+      const error = new Error(
+        "Order not found."
+      );
+
+      error.statusCode = 404;
+
+      throw error;
+    }
+
+    if (
+      !order.agent ||
+      order.agent._id.toString() !==
+        agentId.toString()
+    ) {
+      const error = new Error(
+        "You are not authorized to verify Aadhaar for this order."
+      );
+
+      error.statusCode = 403;
+
+      throw error;
+    }
+
+    if (
+      ![
+        "assigned",
+        "pickup_scheduled",
+      ].includes(order.status)
+    ) {
+      const error = new Error(
+        `Customer Aadhaar verification cannot be started when order status is "${order.status}".`
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const normalizedAadhaar =
+      aadhaarNumber.trim();
+
+    if (
+      !/^\d{12}$/.test(
+        normalizedAadhaar
+      )
+    ) {
+      const error = new Error(
+        "Invalid Aadhaar number."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const result =
+      await verificationService.sendAadhaarOtp(
+        normalizedAadhaar
+      );
+
+    const referenceId =
+      result?.data?.reference_id;
+
+    if (!referenceId) {
+      const error = new Error(
+        "PowerAPI did not return an Aadhaar verification reference ID."
+      );
+
+      error.statusCode = 502;
+
+      throw error;
+    }
+
+    await orderRepository.updateById(
+      orderId,
+      {
+        "pickup.verification.status":
+          "pending",
+
+        "pickup.verification.aadhaar.verification.status":
+          "pending",
+
+        "pickup.verification.aadhaar.verification.referenceId":
+          referenceId,
+
+        "pickup.verification.aadhaar.verification.aadhaarLast4":
+          normalizedAadhaar.slice(-4),
+
+        updatedBy:
+          agentId,
+      }
+    );
+
+    return {
+      referenceId,
+
+      aadhaarLast4:
+        normalizedAadhaar.slice(-4),
+
+      message:
+        "Aadhaar OTP sent successfully.",
+    };
+  }
+
+
+
+  // AGENT - CUSTOMER AADHAAR VERIFY OTP
+
+
+  async verifyCustomerAadhaarOtp(
+    orderId,
+    agentId,
+    otp
+  ) {
+    const order =
+      await orderRepository.findById(
+        orderId
+      );
+
+    if (!order) {
+      const error = new Error(
+        "Order not found."
+      );
+
+      error.statusCode = 404;
+
+      throw error;
+    }
+
+    if (
+      !order.agent ||
+      order.agent._id.toString() !==
+        agentId.toString()
+    ) {
+      const error = new Error(
+        "You are not authorized to verify Aadhaar for this order."
+      );
+
+      error.statusCode = 403;
+
+      throw error;
+    }
+
+    if (
+      ![
+        "assigned",
+        "pickup_scheduled",
+      ].includes(order.status)
+    ) {
+      const error = new Error(
+        `Customer Aadhaar verification cannot be completed when order status is "${order.status}".`
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const referenceId =
+      order.pickup?.verification
+        ?.aadhaar?.verification
+        ?.referenceId;
+
+    if (!referenceId) {
+      const error = new Error(
+        "Please send the Aadhaar OTP first."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const normalizedOtp =
+      otp.trim();
+
+    if (
+      !/^\d{6}$/.test(
+        normalizedOtp
+      )
+    ) {
+      const error = new Error(
+        "Invalid OTP."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const result =
+      await verificationService.verifyAadhaarOtp(
+        normalizedOtp,
+        referenceId
+      );
+
+    if (!result?.success) {
+      const error = new Error(
+        "Customer Aadhaar verification failed."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const aadhaarData =
+      result?.data || {};
+
+    const verifiedAadhaar =
+      aadhaarData.aadhaar_number ||
+      "";
+
+    const aadhaarLast4 =
+      verifiedAadhaar.length >= 4
+        ? verifiedAadhaar.slice(-4)
+        : order.pickup?.verification
+            ?.aadhaar?.verification
+            ?.aadhaarLast4 || "";
 
     return orderRepository.updateById(
       orderId,
       {
-        agent: agentId,
+        "pickup.verification.status":
+          "pending",
 
-        "pickup.assignedAgent":
+        "pickup.verification.aadhaar.verification.status":
+          "verified",
+
+        "pickup.verification.aadhaar.verification.referenceId":
+          referenceId,
+
+        "pickup.verification.aadhaar.verification.aadhaarLast4":
+          aadhaarLast4,
+
+        "pickup.verification.aadhaar.verification.name":
+          aadhaarData.name || "",
+
+        "pickup.verification.aadhaar.verification.dateOfBirth":
+          aadhaarData.date_of_birth || "",
+
+        "pickup.verification.aadhaar.verification.gender":
+          aadhaarData.gender || "",
+
+        "pickup.verification.aadhaar.verification.address":
+          aadhaarData.address || "",
+
+        "pickup.verification.aadhaar.verification.verifiedAt":
+          new Date(),
+
+        "pickup.verification.aadhaar.verification.verifiedBy":
           agentId,
 
-        "pickup.status":
-          scheduled
-            ? "scheduled"
-            : "assigned",
-
-        status:
-          scheduled
-            ? "pickup_scheduled"
-            : "assigned",
-
-        updatedBy: agentId,
-
-        $push: {
-          timeline: {
-            status: "assigned",
-
-            message:
-              "Agent accepted the pickup request.",
-
-            performedBy: agentId,
-          },
-        },
+        updatedBy:
+          agentId,
       }
     );
   }
 
+
+
   // AGENT PICKUP VERIFICATION
+
 
   async verifyPickup(
     orderId,
@@ -946,12 +1988,11 @@ class OrderService {
       customerPhotoPublicId,
       aadhaarUrl,
       aadhaarPublicId,
-      aadhaarVerified,
     } = data;
 
-    if (!aadhaarVerified) {
+    if (!customerPhotoUrl) {
       const error = new Error(
-        "Aadhaar must be verified before pickup."
+        "Customer photo is required."
       );
 
       error.statusCode = 400;
@@ -959,31 +2000,82 @@ class OrderService {
       throw error;
     }
 
+    if (!aadhaarUrl) {
+      const error = new Error(
+        "Aadhaar document is required."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const aadhaarVerification =
+      order.pickup?.verification
+        ?.aadhaar?.verification;
+
+    if (
+      aadhaarVerification?.status !==
+      "verified"
+    ) {
+      const error = new Error(
+        "Customer Aadhaar must be verified before pickup."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const verifiedAt =
+      new Date();
+
     return orderRepository.updateById(
       orderId,
       {
-        pickupVerification: {
-          customerPhoto: {
-            url: customerPhotoUrl,
+        "pickup.verification.customerPhoto":
+          {
+            url:
+              customerPhotoUrl,
+
             publicId:
-              customerPhotoPublicId || "",
+              customerPhotoPublicId ||
+              "",
+
+            uploadedBy:
+              agentId,
+
+            uploadedAt:
+              verifiedAt,
           },
 
-          aadhaar: {
-            url: aadhaarUrl,
+        "pickup.verification.aadhaar.document":
+          {
+            url:
+              aadhaarUrl,
+
             publicId:
-              aadhaarPublicId || "",
-            verified: true,
-            verifiedBy: agentId,
-            verifiedAt: new Date(),
+              aadhaarPublicId ||
+              "",
+
+            uploadedBy:
+              agentId,
+
+            uploadedAt:
+              verifiedAt,
           },
 
-          verifiedBy: agentId,
+        "pickup.verification.status":
+          "verified",
 
-          verifiedAt: new Date(),
-        },
+        "pickup.verification.verifiedBy":
+          agentId,
 
-        updatedBy: agentId,
+        "pickup.verification.verifiedAt":
+          verifiedAt,
+
+        updatedBy:
+          agentId,
 
         $push: {
           timeline: {
@@ -991,16 +2083,20 @@ class OrderService {
               "pickup_verification_completed",
 
             message:
-              "Customer and Aadhaar verification completed.",
+              "Customer photo, Aadhaar document, and Aadhaar verification completed.",
 
-            performedBy: agentId,
+            performedBy:
+              agentId,
           },
         },
       }
     );
   }
 
+
+
   // AGENT PICKUP
+
 
   async pickupOrder(
     orderId,
@@ -1051,7 +2147,7 @@ class OrderService {
     }
 
     const verification =
-      order.pickupVerification;
+      order.pickup?.verification;
 
     if (
       !verification?.customerPhoto?.url
@@ -1066,7 +2162,7 @@ class OrderService {
     }
 
     if (
-      !verification?.aadhaar?.url
+      !verification?.aadhaar?.document?.url
     ) {
       const error = new Error(
         "Aadhaar document is required before pickup."
@@ -1078,11 +2174,25 @@ class OrderService {
     }
 
     if (
-      verification.aadhaar.verified !==
-      true
+      verification?.aadhaar?.verification
+        ?.status !==
+      "verified"
     ) {
       const error = new Error(
         "Aadhaar must be verified before pickup."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    if (
+      verification?.status !==
+      "verified"
+    ) {
+      const error = new Error(
+        "Pickup verification must be completed before pickup."
       );
 
       error.statusCode = 400;
@@ -1134,145 +2244,113 @@ class OrderService {
       await device.save();
     }
 
-    return orderRepository.updateById(
-      orderId,
-      {
-        status: "picked_up",
+    const updatedOrder =
+      await orderRepository.updateById(
+        orderId,
+        {
+          status:
+            "payment_pending",
 
-        "pickup.status":
-          "completed",
+          "pickup.status":
+            "completed",
 
-        "pickup.assignedAgent":
+          "pickup.assignedAgent":
+            agentId,
+
+          "pickup.pickedUpAt":
+            pickedUpAt,
+
+          "pickup.verification.verifiedBy":
+            agentId,
+
+          "pickup.verification.verifiedAt":
+            pickedUpAt,
+
+          "payment.status":
+            "pending",
+
+          updatedBy:
+            agentId,
+
+          $push: {
+            timeline: {
+              status:
+                "payment_pending",
+
+              message:
+                "Device picked up successfully. Payment to customer is pending.",
+
+              performedBy:
+                agentId,
+            },
+          },
+        }
+      );
+
+    try {
+      await AgentEarning.create({
+        agent:
           agentId,
 
-        "pickup.pickedUpAt":
-          pickedUpAt,
+        order:
+          order._id,
 
-        "pickupVerification.verifiedBy":
-          agentId,
+        amount:
+          Number(
+            order.device?.agentCommission ?? 0
+          ),
 
-        "pickupVerification.verifiedAt":
-          pickedUpAt,
-
-        updatedBy: agentId,
-
-        $push: {
-          timeline: {
-            status: "picked_up",
-
-            message:
-              "Device picked up after successful customer and Aadhaar verification.",
-
-            performedBy: agentId,
-          },
-        },
+        status:
+          "pending",
+      });
+    } catch (error) {
+      if (
+        error?.code ===
+        11000
+      ) {
+        console.warn(
+          `Agent earning already exists for order ${order.orderNumber}.`
+        );
+      } else {
+        console.error(
+          `Failed to create agent earning for order ${order.orderNumber}:`,
+          error
+        );
       }
-    );
+    }
+
+    try {
+      await notificationService.createNotification({
+        recipient:
+          order.customer._id ||
+          order.customer,
+
+        title:
+          "Device Picked Up",
+
+        message:
+          `Your device for order ${order.orderNumber} has been picked up successfully.`,
+
+        type:
+          "pickup_completed",
+
+        order:
+          order._id,
+      });
+    } catch (error) {
+      console.error(
+        "Failed to create pickup notification:",
+        error
+      );
+    }
+
+    return updatedOrder;
   }
 
-  // AGENT START TRANSIT
 
-  async startTransit(
-    orderId,
-    agentId
-  ) {
-    const order =
-      await orderRepository.findById(
-        orderId
-      );
-
-    if (!order) {
-      const error = new Error(
-        "Order not found."
-      );
-
-      error.statusCode = 404;
-
-      throw error;
-    }
-
-    if (
-      !order.agent ||
-      order.agent._id.toString() !==
-        agentId.toString()
-    ) {
-      const error = new Error(
-        "You are not authorized to start transit for this order."
-      );
-
-      error.statusCode = 403;
-
-      throw error;
-    }
-
-    if (
-      order.status !==
-      "picked_up"
-    ) {
-      const error = new Error(
-        `Order cannot be moved to transit because its current status is "${order.status}".`
-      );
-
-      error.statusCode = 400;
-
-      throw error;
-    }
-
-    if (!order.device) {
-      const error = new Error(
-        "Associated device not found."
-      );
-
-      error.statusCode = 400;
-
-      throw error;
-    }
-
-    const device =
-      await Device.findById(
-        order.device._id
-      );
-
-    if (!device) {
-      const error = new Error(
-        "Associated device not found."
-      );
-
-      error.statusCode = 404;
-
-      throw error;
-    }
-
-    device.status =
-      "in_transit";
-
-    device.updatedBy =
-      agentId;
-
-    await device.save();
-
-    return orderRepository.updateById(
-      orderId,
-      {
-        status: "in_transit",
-
-        updatedBy: agentId,
-
-        $push: {
-          timeline: {
-            status: "in_transit",
-
-            message:
-              "Device is in transit to the store.",
-
-            performedBy: agentId,
-          },
-        },
-      }
-    );
-  }
 
   // ADMIN RECEIVE DEVICE
+
 
   async receiveOrder(
     orderId,
@@ -1339,35 +2417,45 @@ class OrderService {
 
     await device.save();
 
-    return orderRepository.updateById(
-      orderId,
-      {
-        status:
-          "inspection_pending",
+    const updatedOrder =
+      await orderRepository.updateById(
+        orderId,
+        {
+          status:
+            "inspection_pending",
 
-        "inspection.status":
-          "pending",
+          "inspection.status":
+            "pending",
 
-        updatedBy: adminId,
+          updatedBy:
+            adminId,
 
-        $push: {
-          timeline: {
-            status:
-              "inspection_pending",
+          $push: {
+            timeline: {
+              status:
+                "inspection_pending",
 
-            message:
-              "Device received at store. Inspection is pending.",
+              message:
+                "Device received at store. Inspection is pending.",
 
-            performedBy: adminId,
+              performedBy:
+                adminId,
+            },
           },
-        },
-      }
-    );
+        }
+      );
+
+    return updatedOrder;
   }
+
+
 
   // GET PURCHASE INVOICE
 
-  async getPurchaseInvoice(orderId) {
+
+  async getPurchaseInvoice(
+    orderId
+  ) {
     const order =
       await orderRepository.findById(
         orderId
@@ -1403,9 +2491,14 @@ class OrderService {
     return invoice;
   }
 
+
+
   // GET PAYMENT SLIP
 
-  async getPaymentSlip(orderId) {
+
+  async getPaymentSlip(
+    orderId
+  ) {
     const order =
       await orderRepository.findById(
         orderId
@@ -1441,9 +2534,14 @@ class OrderService {
     return paymentSlip;
   }
 
+
+
   // DELETE ORDER
 
-  async deleteOrder(orderId) {
+
+  async deleteOrder(
+    orderId
+  ) {
     const order =
       await orderRepository.findById(
         orderId
@@ -1479,11 +2577,15 @@ class OrderService {
     );
   }
 
+
+
   // GENERATE ORDER NUMBER
+
 
   async generateOrderNumber() {
     return `ORD-${Date.now()}`;
   }
 }
+
 
 export default new OrderService();

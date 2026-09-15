@@ -62,6 +62,50 @@ class AgentOrderController {
     }
   }
 
+  // CUSTOMER AADHAAR - SEND OTP
+
+  async sendCustomerAadhaarOtp(req, res, next) {
+    try {
+      const result =
+        await orderService.sendCustomerAadhaarOtp(
+          req.params.id,
+          req.user.userId,
+          req.body.aadhaarNumber
+        );
+
+      return res.status(200).json({
+        success: true,
+        message: "Customer Aadhaar OTP sent successfully.",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // CUSTOMER AADHAAR - VERIFY OTP
+
+  async verifyCustomerAadhaarOtp(req, res, next) {
+    try {
+      const order =
+        await orderService.verifyCustomerAadhaarOtp(
+          req.params.id,
+          req.user.userId,
+          req.body.otp
+        );
+
+      return res.status(200).json({
+        success: true,
+        message: "Customer Aadhaar verified successfully.",
+        data: order,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // PICKUP VERIFICATION
+
   async verifyPickup(req, res, next) {
     try {
       const order =
@@ -81,6 +125,8 @@ class AgentOrderController {
     }
   }
 
+  // PICKUP ORDER
+
   async pickupOrder(req, res, next) {
     try {
       const order =
@@ -99,17 +145,20 @@ class AgentOrderController {
     }
   }
 
-  async startTransit(req, res, next) {
+  // COMPLETE PAYMENT
+
+  async completePayment(req, res, next) {
     try {
       const order =
-        await orderService.startTransit(
+        await orderService.completeAgentPayment(
           req.params.id,
-          req.user.userId
+          req.user.userId,
+          req.body
         );
 
       return res.status(200).json({
         success: true,
-        message: "Order moved to transit successfully.",
+        message: "Payment completed successfully. Order moved to transit.",
         data: order,
       });
     } catch (error) {

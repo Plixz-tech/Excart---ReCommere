@@ -4,13 +4,22 @@ import * as deviceCatalogRepository from "./deviceCatalog.repository.js";
 
 // CREATE
 
-export const createDeviceCatalog = async (data, userId) => {
+export const createDeviceCatalog = async (
+  data,
+  userId
+) => {
   if (!data.brand) {
-    throw new ApiError(400, "Brand is required.");
+    throw new ApiError(
+      400,
+      "Brand is required."
+    );
   }
 
   if (!data.model) {
-    throw new ApiError(400, "Model is required.");
+    throw new ApiError(
+      400,
+      "Model is required."
+    );
   }
 
   if (
@@ -30,87 +39,128 @@ export const createDeviceCatalog = async (data, userId) => {
     );
   }
 
+  if (
+    data.agentCommission !== undefined &&
+    Number(data.agentCommission) < 0
+  ) {
+    throw new ApiError(
+      400,
+      "Agent commission cannot be negative."
+    );
+  }
+
   return deviceCatalogRepository.create({
     brand: data.brand.trim(),
+
+    brandImage:
+      data.brandImage?.trim() || "",
+
     model: data.model.trim(),
-    variant: data.variant?.trim() || "",
-    storage: data.storage?.trim() || "",
-    ram: data.ram?.trim() || "",
-    valuationPrice: Number(data.valuationPrice),
+
+    modelImage:
+      data.modelImage?.trim() || "",
+
+    variant:
+      data.variant?.trim() || "",
+
+    storage:
+      data.storage?.trim() || "",
+
+    ram:
+      data.ram?.trim() || "",
+
+    valuationPrice:
+      Number(data.valuationPrice),
+
+    agentCommission:
+      Number(data.agentCommission ?? 0),
+
     active:
       data.active !== undefined
         ? data.active
         : true,
+
     createdBy: userId || null,
+
     updatedBy: userId || null,
   });
 };
 
 // GET ACTIVE CATALOG
 
-export const getActiveDeviceCatalog = async () => {
-  return deviceCatalogRepository.findActive();
-};
+export const getActiveDeviceCatalog =
+  async () => {
+    return deviceCatalogRepository.findActive();
+  };
 
 // GET ALL CATALOG
 
-export const getAllDeviceCatalog = async () => {
-  return deviceCatalogRepository.findAll();
-};
+export const getAllDeviceCatalog =
+  async () => {
+    return deviceCatalogRepository.findAll();
+  };
 
 // GET BY ID
 
-export const getDeviceCatalogById = async (id) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new ApiError(
-      400,
-      "Invalid device catalog ID."
-    );
-  }
+export const getDeviceCatalogById =
+  async (id) => {
+    if (
+      !mongoose.Types.ObjectId.isValid(id)
+    ) {
+      throw new ApiError(
+        400,
+        "Invalid device catalog ID."
+      );
+    }
 
-  const catalog =
-    await deviceCatalogRepository.findById(id);
+    const catalog =
+      await deviceCatalogRepository.findById(
+        id
+      );
 
-  if (!catalog) {
-    throw new ApiError(
-      404,
-      "Device catalog not found."
-    );
-  }
+    if (!catalog) {
+      throw new ApiError(
+        404,
+        "Device catalog not found."
+      );
+    }
 
-  return catalog;
-};
+    return catalog;
+  };
 
 // FIND MATCHING CATALOG
 
-export const findMatchingDeviceCatalog = async ({
-  brand,
-  model,
-  variant,
-}) => {
-  if (!brand || !model) {
-    throw new ApiError(
-      400,
-      "Brand and model are required."
-    );
-  }
+export const findMatchingDeviceCatalog =
+  async ({
+    brand,
+    model,
+    variant,
+  }) => {
+    if (!brand || !model) {
+      throw new ApiError(
+        400,
+        "Brand and model are required."
+      );
+    }
 
-  const catalog =
-    await deviceCatalogRepository.findMatching({
-      brand,
-      model,
-      variant,
-    });
+    const catalog =
+      await deviceCatalogRepository.findMatching(
+        {
+          brand,
+          model,
+          variant,
+        }
+      );
 
-  if (!catalog) {
-    throw new ApiError(
-      404,
-      "Matching device catalog not found."
-    );
-  }
+    if (!catalog) {
+      throw new ApiError(
+        404,
+        "Matching device catalog not found."
+      );
+    }
 
-  return catalog;
-};
+    return catalog;
+  };
 
 // UPDATE
 
@@ -119,7 +169,9 @@ export const updateDeviceCatalog = async (
   data,
   userId
 ) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (
+    !mongoose.Types.ObjectId.isValid(id)
+  ) {
     throw new ApiError(
       400,
       "Invalid device catalog ID."
@@ -127,7 +179,9 @@ export const updateDeviceCatalog = async (
   }
 
   const existing =
-    await deviceCatalogRepository.findById(id);
+    await deviceCatalogRepository.findById(
+      id
+    );
 
   if (!existing) {
     throw new ApiError(
@@ -141,27 +195,44 @@ export const updateDeviceCatalog = async (
   };
 
   if (data.brand !== undefined) {
-    updateData.brand = data.brand.trim();
+    updateData.brand =
+      data.brand.trim();
+  }
+
+  if (data.brandImage !== undefined) {
+    updateData.brandImage =
+      data.brandImage.trim();
   }
 
   if (data.model !== undefined) {
-    updateData.model = data.model.trim();
+    updateData.model =
+      data.model.trim();
+  }
+
+  if (data.modelImage !== undefined) {
+    updateData.modelImage =
+      data.modelImage.trim();
   }
 
   if (data.variant !== undefined) {
-    updateData.variant = data.variant.trim();
+    updateData.variant =
+      data.variant.trim();
   }
 
   if (data.storage !== undefined) {
-    updateData.storage = data.storage.trim();
+    updateData.storage =
+      data.storage.trim();
   }
 
   if (data.ram !== undefined) {
-    updateData.ram = data.ram.trim();
+    updateData.ram =
+      data.ram.trim();
   }
 
   if (data.valuationPrice !== undefined) {
-    if (Number(data.valuationPrice) < 0) {
+    if (
+      Number(data.valuationPrice) < 0
+    ) {
       throw new ApiError(
         400,
         "Valuation price cannot be negative."
@@ -172,8 +243,23 @@ export const updateDeviceCatalog = async (
       Number(data.valuationPrice);
   }
 
+  if (data.agentCommission !== undefined) {
+    if (
+      Number(data.agentCommission) < 0
+    ) {
+      throw new ApiError(
+        400,
+        "Agent commission cannot be negative."
+      );
+    }
+
+    updateData.agentCommission =
+      Number(data.agentCommission);
+  }
+
   if (data.active !== undefined) {
-    updateData.active = data.active;
+    updateData.active =
+      data.active;
   }
 
   return deviceCatalogRepository.updateById(
@@ -184,28 +270,35 @@ export const updateDeviceCatalog = async (
 
 // DELETE
 
-export const deleteDeviceCatalog = async (id) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new ApiError(
-      400,
-      "Invalid device catalog ID."
+export const deleteDeviceCatalog =
+  async (id) => {
+    if (
+      !mongoose.Types.ObjectId.isValid(id)
+    ) {
+      throw new ApiError(
+        400,
+        "Invalid device catalog ID."
+      );
+    }
+
+    const existing =
+      await deviceCatalogRepository.findById(
+        id
+      );
+
+    if (!existing) {
+      throw new ApiError(
+        404,
+        "Device catalog not found."
+      );
+    }
+
+    await deviceCatalogRepository.deleteById(
+      id
     );
-  }
 
-  const existing =
-    await deviceCatalogRepository.findById(id);
-
-  if (!existing) {
-    throw new ApiError(
-      404,
-      "Device catalog not found."
-    );
-  }
-
-  await deviceCatalogRepository.deleteById(id);
-
-  return {
-    message:
-      "Device catalog deleted successfully.",
+    return {
+      message:
+        "Device catalog deleted successfully.",
+    };
   };
-};

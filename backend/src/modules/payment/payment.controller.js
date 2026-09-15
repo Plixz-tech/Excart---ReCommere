@@ -54,7 +54,7 @@ export const updatePayment = async (
       await paymentService.updatePayment(
         req.params.orderId,
         req.body,
-        req.user._id
+        req.user.userId
       );
 
     return res.status(200).json({
@@ -78,7 +78,7 @@ export const completePayment = async (
       await paymentService.completePayment(
         req.params.orderId,
         req.body,
-        req.user._id
+        req.user.userId
       );
 
     return res.status(200).json({
@@ -102,7 +102,7 @@ export const failPayment = async (
       await paymentService.failPayment(
         req.params.orderId,
         req.body,
-        req.user._id
+        req.user.userId
       );
 
     return res.status(200).json({

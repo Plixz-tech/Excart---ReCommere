@@ -6,6 +6,8 @@ import Order from "../../models/Order.js";
 
 import Device from "../../models/Device.js";
 
+import Inspection from "../../models/Inspection.js";
+
 class InventoryService {
 
 
@@ -175,6 +177,22 @@ class InventoryService {
       throw error;
     }
 
+    const inspection =
+      await Inspection.findOne({
+        order: order._id,
+        status: "completed",
+      });
+
+    if (!inspection) {
+      const error = new Error(
+        "Completed inspection not found for this order."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
     // 5. Prevent duplicate inventory
 
     const existingInventory =
@@ -201,6 +219,9 @@ class InventoryService {
 
       device:
         order.device._id,
+
+      inspection:
+        inspection._id,
 
       customer:
         order.customer._id,
@@ -608,7 +629,7 @@ class InventoryService {
       inventory.device._id,
       {
         status:
-          "removed",
+          "returned",
 
         updatedBy:
           adminId,

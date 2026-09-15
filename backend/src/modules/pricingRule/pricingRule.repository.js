@@ -1,4 +1,4 @@
-import PricingRule from "../../models/pricingRule.js";
+import PricingRule from "../../models/PricingRule.js";
 
 // GET ACTIVE RULES
 

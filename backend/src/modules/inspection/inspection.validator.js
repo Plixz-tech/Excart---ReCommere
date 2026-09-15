@@ -1,61 +1,21 @@
 import { z } from "zod";
+
 const objectId = z
   .string()
-  .regex(/^[0-9a-fA-F]{24}$/, "Invalid ObjectId.");
-// Start Inspection
-export const createInspectionSchema = z.object({
-  device: objectId,
-  screenCondition: z.enum([
-    "Excellent",
-    "Good",
-    "Average",
-    "Poor",
-    "Broken",
-  ]),
-  bodyCondition: z.enum([
-    "Excellent",
-    "Good",
-    "Average",
-    "Poor",
-  ]),
-  batteryHealth: z.coerce.number().min(0).max(100),
-  functionalTests: z.object({
-    camera: z.boolean(),
-    speaker: z.boolean(),
-    microphone: z.boolean(),
-    chargingPort: z.boolean(),
-    wifi: z.boolean(),
-    bluetooth: z.boolean(),
-    network: z.boolean(),
-    faceId: z.boolean(),
-    fingerprint: z.boolean(),
-  }),
-  accessories: z.object({
-    charger: z.boolean(),
-    cable: z.boolean(),
-    box: z.boolean(),
-    bill: z.boolean(),
-    simEjector: z.boolean(),
-  }),
-  repairHistory: z.object({
-    repaired: z.boolean(),
-    remarks: z.string().trim().optional(),
-  }),
-  imeiVerification: z.object({
-    verified: z.boolean(),
-    remarks: z.string().trim().optional(),
-  }),
-  overallGrade: z.enum([
-    "A+",
-    "A",
-    "B",
-    "C",
-    "D",
-  ]),
-  estimatedPrice: z.coerce.number().min(0),
-  remarks: z.string().trim().optional(),
+  .regex(
+    /^[0-9a-fA-F]{24}$/,
+    "Invalid ObjectId."
+  );
+
+export const inspectionIdSchema = z.object({
+  id: objectId,
 });
-// Update inspection / Save Draft
+
+export const createInspectionSchema = z.object({
+  order: objectId,
+  device: objectId,
+});
+
 export const updateInspectionSchema = z.object({
   screenCondition: z
     .enum([
@@ -66,6 +26,7 @@ export const updateInspectionSchema = z.object({
       "Broken",
     ])
     .optional(),
+
   bodyCondition: z
     .enum([
       "Excellent",
@@ -74,12 +35,13 @@ export const updateInspectionSchema = z.object({
       "Poor",
     ])
     .optional(),
-  batteryHealth: z
-    .coerce
+
+  batteryHealth: z.coerce
     .number()
     .min(0)
     .max(100)
     .optional(),
+
   functionalTests: z
     .object({
       camera: z.boolean().optional(),
@@ -93,6 +55,7 @@ export const updateInspectionSchema = z.object({
       fingerprint: z.boolean().optional(),
     })
     .optional(),
+
   accessories: z
     .object({
       charger: z.boolean().optional(),
@@ -102,18 +65,21 @@ export const updateInspectionSchema = z.object({
       simEjector: z.boolean().optional(),
     })
     .optional(),
+
   repairHistory: z
     .object({
       repaired: z.boolean().optional(),
       remarks: z.string().trim().optional(),
     })
     .optional(),
+
   imeiVerification: z
     .object({
       verified: z.boolean().optional(),
       remarks: z.string().trim().optional(),
     })
     .optional(),
+
   overallGrade: z
     .enum([
       "A+",
@@ -123,17 +89,47 @@ export const updateInspectionSchema = z.object({
       "D",
     ])
     .optional(),
-  estimatedPrice: z
-    .coerce
+
+  estimatedPrice: z.coerce
     .number()
     .min(0)
     .optional(),
+
   remarks: z.string().trim().optional(),
 });
-// Approve / Reject
-export const updateInspectionStatusSchema = z.object({
-  status: z.enum([
-    "approved",
-    "rejected",
-  ]),
-});
+
+export const completeInspectionSchema = z.object({});
+
+export const updateInspectionStatusSchema = z
+  .object({
+    status: z.enum([
+      "approved",
+      "rejected",
+    ]),
+
+    reason: z
+      .string()
+      .trim()
+      .min(
+        1,
+        "Rejection reason is required when rejecting an inspection."
+      )
+      .max(
+        1000,
+        "Rejection reason is too long."
+      )
+      .optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.status === "rejected" &&
+      !data.reason
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["reason"],
+        message:
+          "Rejection reason is required when rejecting an inspection.",
+      });
+    }
+  });

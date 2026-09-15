@@ -3,22 +3,22 @@ import * as paymentRepository from "./payment.repository.js";
 export const getPaymentByOrderId = async (
   orderId
 ) => {
-  return await paymentRepository.getPaymentByOrderId(
+  return paymentRepository.getPaymentByOrderId(
     orderId
   );
 };
 
 export const getPayments = async (
-  queryParams
+  query
 ) => {
-  return await paymentRepository.getPayments(
-    queryParams
+  return paymentRepository.getPayments(
+    query
   );
 };
 
 export const updatePayment = async (
   orderId,
-  paymentData,
+  data,
   userId
 ) => {
   const order =
@@ -26,57 +26,44 @@ export const updatePayment = async (
       orderId
     );
 
-  if (order.status !== "payment_pending") {
+  if (!order) {
     const error = new Error(
-      `Payment cannot be updated because the order status is "${order.status}".`
+      "Order not found."
     );
 
-    error.statusCode = 400;
-
-    throw error;
-  }
-
-  if (order.payment.status === "completed") {
-    const error = new Error(
-      "Payment has already been completed."
-    );
-
-    error.statusCode = 400;
+    error.statusCode = 404;
 
     throw error;
   }
 
   if (
-    paymentData.finalAmount !== undefined
+    order.status !==
+      "payment_pending" &&
+    order.status !==
+      "payment_completed"
   ) {
-    const finalAmount = Number(
-      paymentData.finalAmount
+    const error = new Error(
+      `Payment cannot be updated when order status is "${order.status}".`
     );
 
-    if (
-      !Number.isFinite(finalAmount) ||
-      finalAmount < 0
-    ) {
-      const error = new Error(
-        "A valid final payment amount is required."
-      );
+    error.statusCode = 400;
 
-      error.statusCode = 400;
-
-      throw error;
-    }
+    throw error;
   }
 
-  return await paymentRepository.updatePayment(
-    order,
-    paymentData,
-    userId
+  return paymentRepository.updatePayment(
+    orderId,
+    {
+      ...data,
+      updatedBy:
+        userId,
+    }
   );
 };
 
 export const completePayment = async (
   orderId,
-  paymentData,
+  data,
   userId
 ) => {
   const order =
@@ -84,39 +71,22 @@ export const completePayment = async (
       orderId
     );
 
-  if (order.status !== "payment_pending") {
+  if (!order) {
     const error = new Error(
-      `Payment cannot be completed because the order status is "${order.status}".`
+      "Order not found."
     );
 
-    error.statusCode = 400;
+    error.statusCode = 404;
 
     throw error;
   }
-
-  if (order.payment.status === "completed") {
-    const error = new Error(
-      "Payment has already been completed."
-    );
-
-    error.statusCode = 400;
-
-    throw error;
-  }
-
-  const finalAmount =
-    paymentData.finalAmount !== undefined
-      ? Number(paymentData.finalAmount)
-      : Number(
-          order.payment.finalAmount
-        );
 
   if (
-    !Number.isFinite(finalAmount) ||
-    finalAmount <= 0
+    order.status !==
+    "payment_pending"
   ) {
     const error = new Error(
-      "A valid final payment amount greater than zero is required."
+      `Payment cannot be completed when order status is "${order.status}".`
     );
 
     error.statusCode = 400;
@@ -124,21 +94,33 @@ export const completePayment = async (
     throw error;
   }
 
-  const updatedPaymentData = {
-    ...paymentData,
-    finalAmount,
-  };
+  if (
+    !order.payment ||
+    order.payment.status !==
+      "pending"
+  ) {
+    const error = new Error(
+      "Payment is not pending for this order."
+    );
 
-  return await paymentRepository.completePayment(
-    order,
-    updatedPaymentData,
-    userId
+    error.statusCode = 400;
+
+    throw error;
+  }
+
+  return paymentRepository.completePayment(
+    orderId,
+    {
+      ...data,
+      completedBy:
+        userId,
+    }
   );
 };
 
 export const failPayment = async (
   orderId,
-  paymentData,
+  data,
   userId
 ) => {
   const order =
@@ -146,9 +128,22 @@ export const failPayment = async (
       orderId
     );
 
-  if (order.status !== "payment_pending") {
+  if (!order) {
     const error = new Error(
-      `Payment cannot be marked as failed because the order status is "${order.status}".`
+      "Order not found."
+    );
+
+    error.statusCode = 404;
+
+    throw error;
+  }
+
+  if (
+    order.status !==
+    "payment_pending"
+  ) {
+    const error = new Error(
+      `Payment cannot be failed when order status is "${order.status}".`
     );
 
     error.statusCode = 400;
@@ -156,19 +151,12 @@ export const failPayment = async (
     throw error;
   }
 
-  if (order.payment.status === "completed") {
-    const error = new Error(
-      "A completed payment cannot be marked as failed."
-    );
-
-    error.statusCode = 400;
-
-    throw error;
-  }
-
-  return await paymentRepository.failPayment(
-    order,
-    paymentData,
-    userId
+  return paymentRepository.failPayment(
+    orderId,
+    {
+      ...data,
+      updatedBy:
+        userId,
+    }
   );
 };

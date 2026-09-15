@@ -8,127 +8,149 @@ const objectId = z
   );
 
 // CREATE DEVICE CATALOG
+// Validates req.body
+export const createDeviceCatalogSchema = z.object({
+  brand: z
+    .string()
+    .trim()
+    .min(2, "Brand is required."),
 
-export const createDeviceCatalogSchema =
-  z.object({
-    body: z.object({
-      brand: z
-        .string()
-        .trim()
-        .min(2, "Brand is required."),
+  brandImage: z
+    .string()
+    .trim()
+    .optional(),
 
-      model: z
-        .string()
-        .trim()
-        .min(2, "Model is required."),
+  model: z
+    .string()
+    .trim()
+    .min(2, "Model is required."),
 
-      variant: z
-        .string()
-        .trim()
-        .optional(),
+  modelImage: z
+    .string()
+    .trim()
+    .optional(),
 
-      storage: z
-        .string()
-        .trim()
-        .optional(),
+  variant: z
+    .string()
+    .trim()
+    .optional(),
 
-      ram: z
-        .string()
-        .trim()
-        .optional(),
+  storage: z
+    .string()
+    .trim()
+    .optional(),
 
-      valuationPrice: z
-        .coerce
-        .number()
-        .min(
-          0,
-          "Valuation price cannot be negative."
-        ),
+  ram: z
+    .string()
+    .trim()
+    .optional(),
 
-      active: z
-        .boolean()
-        .optional(),
-    }),
-  });
+  valuationPrice: z
+    .coerce
+    .number()
+    .min(
+      0,
+      "Valuation price cannot be negative."
+    ),
+
+  agentCommission: z
+    .coerce
+    .number()
+    .min(
+      0,
+      "Agent commission cannot be negative."
+    )
+    .default(0),
+
+  active: z
+    .boolean()
+    .optional(),
+});
 
 // UPDATE DEVICE CATALOG
+// Validates req.body
+export const updateDeviceCatalogSchema = z.object({
+  brand: z
+    .string()
+    .trim()
+    .min(2)
+    .optional(),
 
-export const updateDeviceCatalogSchema =
-  z.object({
-    params: z.object({
-      id: objectId,
-    }),
+  brandImage: z
+    .string()
+    .trim()
+    .optional(),
 
-    body: z.object({
-      brand: z
-        .string()
-        .trim()
-        .min(2)
-        .optional(),
+  model: z
+    .string()
+    .trim()
+    .min(2)
+    .optional(),
 
-      model: z
-        .string()
-        .trim()
-        .min(2)
-        .optional(),
+  modelImage: z
+    .string()
+    .trim()
+    .optional(),
 
-      variant: z
-        .string()
-        .trim()
-        .optional(),
+  variant: z
+    .string()
+    .trim()
+    .optional(),
 
-      storage: z
-        .string()
-        .trim()
-        .optional(),
+  storage: z
+    .string()
+    .trim()
+    .optional(),
 
-      ram: z
-        .string()
-        .trim()
-        .optional(),
+  ram: z
+    .string()
+    .trim()
+    .optional(),
 
-      valuationPrice: z
-        .coerce
-        .number()
-        .min(
-          0,
-          "Valuation price cannot be negative."
-        )
-        .optional(),
+  valuationPrice: z
+    .coerce
+    .number()
+    .min(
+      0,
+      "Valuation price cannot be negative."
+    )
+    .optional(),
 
-      active: z
-        .boolean()
-        .optional(),
-    }),
-  });
+  agentCommission: z
+    .coerce
+    .number()
+    .min(
+      0,
+      "Agent commission cannot be negative."
+    )
+    .optional(),
+
+  active: z
+    .boolean()
+    .optional(),
+});
 
 // DEVICE CATALOG ID
-
-export const deviceCatalogIdSchema =
-  z.object({
-    params: z.object({
-      id: objectId,
-    }),
-  });
+// Validates req.params
+export const deviceCatalogIdSchema = z.object({
+  id: objectId,
+});
 
 // FIND MATCHING DEVICE
+// Validates req.query
+export const findMatchingDeviceCatalogSchema = z.object({
+  brand: z
+    .string()
+    .trim()
+    .min(1, "Brand is required."),
 
-export const findMatchingDeviceCatalogSchema =
-  z.object({
-    query: z.object({
-      brand: z
-        .string()
-        .trim()
-        .min(1, "Brand is required."),
+  model: z
+    .string()
+    .trim()
+    .min(1, "Model is required."),
 
-      model: z
-        .string()
-        .trim()
-        .min(1, "Model is required."),
-
-      variant: z
-        .string()
-        .trim()
-        .optional(),
-    }),
-  });
+  variant: z
+    .string()
+    .trim()
+    .optional(),
+});

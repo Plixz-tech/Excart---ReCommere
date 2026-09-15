@@ -2,17 +2,35 @@ import mongoose from "mongoose";
 
 const deviceCatalogSchema = new mongoose.Schema(
   {
+    // BRAND
+
     brand: {
       type: String,
       required: true,
       trim: true,
     },
 
+    brandImage: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    // MODEL
+
     model: {
       type: String,
       required: true,
       trim: true,
     },
+
+    modelImage: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    // VARIANT DETAILS
 
     variant: {
       type: String,
@@ -32,17 +50,29 @@ const deviceCatalogSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // PRICING
+
     valuationPrice: {
       type: Number,
       required: true,
       min: 0,
     },
 
+    agentCommission: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+
+    // STATUS
+
     active: {
       type: Boolean,
       default: true,
       index: true,
     },
+
+    // AUDIT
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

@@ -1,30 +1,58 @@
 import express from "express";
+
 import cors from "cors";
+
 import helmet from "helmet";
+
 import compression from "compression";
+
 import cookieParser from "cookie-parser";
 
 import authRoutes from "./modules/auth/auth.routes.js";
+
 import adminRoutes from "./modules/admin/admin.routes.js";
+
 import userRoutes from "./modules/user/user.routes.js";
+
 import agentRoutes from "./modules/agent/agent.routes.js";
+
 import deviceRoutes from "./modules/device/device.routes.js";
+
 import addressRoutes from "./modules/address/address.routes.js";
+
 import serviceAreaRoutes from "./modules/serviceArea/serviceArea.routes.js";
 
 import orderRoutes from "./modules/order/order.routes.js";
+
 import adminOrderRoutes from "./modules/order/adminOrder.routes.js";
+
 import agentOrderRoutes from "./modules/order/agentOrder.routes.js";
 
 import inspectionRoutes from "./modules/inspection/inspection.routes.js";
+
 import inventoryRoutes from "./modules/inventory/inventory.routes.js";
+
 import paymentRoutes from "./modules/payment/payment.routes.js";
+
 import pricingRuleRoutes from "./modules/pricingRule/pricingRule.routes.js";
 
 import notFound from "./middlewares/errors/notFound.js";
+
 import errorHandler from "./middlewares/errors/errorHandler.js";
+
 import payoutAccountRoutes from "./modules/payment/payoutAccount.routes.js";
+
 import deviceCatalogRoutes from "./modules/deviceCatalog/deviceCatalog.routes.js";
+
+import notificationRoutes from "./modules/notification/notification.routes.js";
+
+import agentEarningRoutes from "./modules/agentEarning/agentEarning.routes.js";
+
+import reportRoutes from "./modules/report/report.routes.js";
+
+import agentTrackingRoutes from "./modules/agentTracking/agentTracking.routes.js";
+
+import settingRoutes from "./modules/setting/setting.routes.js";
 
 const app = express();
 
@@ -40,6 +68,7 @@ app.use(
 app.use(compression());
 
 app.use(express.json());
+
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cookieParser());
@@ -80,11 +109,19 @@ app.use("/api/v1/admin/inventory", inventoryRoutes);
 
 app.use("/api/v1/admin/payments", paymentRoutes);
 
-app.use( "/api/v1/payout-accounts", payoutAccountRoutes);
+app.use("/api/v1/payout-accounts", payoutAccountRoutes);
 
-app.use( "/api/v1/pricing-rules", pricingRuleRoutes);
+app.use("/api/v1/pricing-rules", pricingRuleRoutes);
 
+app.use("/api/v1/notifications", notificationRoutes);
 
+app.use("/api/v1/settings", settingRoutes);
+
+app.use("/api/v1/agent-earnings", agentEarningRoutes);
+
+app.use("/api/v1/agent-tracking", agentTrackingRoutes);
+
+app.use("/api/v1/admin/reports", reportRoutes);
 
 app.use(notFound);
 

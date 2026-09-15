@@ -67,3 +67,19 @@ export const deleteDevice = asyncHandler(async (req, res) => {
       new ApiResponse(200, null, "Device deleted successfully.")
     );
 });
+
+export const verifyIMEI = asyncHandler(async (req, res) => {
+  const { imei } = req.body;
+
+  const result = await deviceService.verifyDeviceIMEI(imei);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        result,
+        "IMEI verification completed."
+      )
+    );
+});

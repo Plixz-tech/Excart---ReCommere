@@ -1,11 +1,16 @@
 import * as inspectionService from "./inspection.service.js";
+
 import asyncHandler from "../../utils/api/asyncHandler.js";
+
 import ApiResponse from "../../utils/response/ApiResponse.js";
+
 export const createInspection = asyncHandler(async (req, res) => {
-  const inspection = await inspectionService.createInspection(
-    req.body,
-    req.user.userId
-  );
+  const inspection =
+    await inspectionService.createInspection(
+      req.body,
+      req.user.userId
+    );
+
   return res
     .status(201)
     .json(
@@ -16,10 +21,13 @@ export const createInspection = asyncHandler(async (req, res) => {
       )
     );
 });
+
 export const getInspections = asyncHandler(async (req, res) => {
-  const inspections = await inspectionService.getInspections(
-    req.query
-  );
+  const inspections =
+    await inspectionService.getInspections(
+      req.query
+    );
+
   return res
     .status(200)
     .json(
@@ -30,11 +38,13 @@ export const getInspections = asyncHandler(async (req, res) => {
       )
     );
 });
+
 export const getPendingInspections = asyncHandler(async (req, res) => {
   const pendingInspections =
     await inspectionService.getPendingInspections(
       req.query
     );
+
   return res
     .status(200)
     .json(
@@ -45,11 +55,13 @@ export const getPendingInspections = asyncHandler(async (req, res) => {
       )
     );
 });
+
 export const getInspectionById = asyncHandler(async (req, res) => {
   const inspection =
     await inspectionService.getInspectionById(
       req.params.id
     );
+
   return res
     .status(200)
     .json(
@@ -60,6 +72,7 @@ export const getInspectionById = asyncHandler(async (req, res) => {
       )
     );
 });
+
 export const updateInspection = asyncHandler(async (req, res) => {
   const inspection =
     await inspectionService.updateInspection(
@@ -67,6 +80,7 @@ export const updateInspection = asyncHandler(async (req, res) => {
       req.body,
       req.user.userId
     );
+
   return res
     .status(200)
     .json(
@@ -77,14 +91,35 @@ export const updateInspection = asyncHandler(async (req, res) => {
       )
     );
 });
+
+export const completeInspection = asyncHandler(async (req, res) => {
+  const inspection =
+    await inspectionService.completeInspection(
+      req.params.id,
+      req.user.userId
+    );
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        inspection,
+        "Inspection completed successfully."
+      )
+    );
+});
+
 export const updateInspectionStatus = asyncHandler(
   async (req, res) => {
     const inspection =
       await inspectionService.updateInspectionStatus(
         req.params.id,
         req.body.status,
+        req.body.reason,
         req.user.userId
       );
+
     return res
       .status(200)
       .json(

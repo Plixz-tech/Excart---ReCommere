@@ -3,13 +3,19 @@ import express from "express";
 import agentOrderController from "./agentOrder.controller.js";
 
 import protect from "../../middlewares/auth/protect.js";
+
 import authorize from "../../middlewares/auth/authorize.js";
+
 import validateRequest from "../../middlewares/validation/validateRequest.js";
+
+import validateParams from "../../middlewares/validation/validateParams.js";
 
 import {
   orderIdSchema,
   agentPickupSchema,
   pickupVerificationSchema,
+  sendCustomerAadhaarOtpSchema,
+  verifyCustomerAadhaarOtpSchema,
 } from "./order.validator.js";
 
 const router = express.Router();
@@ -30,7 +36,7 @@ router.get(
 
 router.get(
   "/:id",
-  validateRequest(orderIdSchema),
+  validateParams(orderIdSchema),
   agentOrderController.getMyOrderById
 );
 
@@ -38,15 +44,33 @@ router.get(
 
 router.patch(
   "/:id/self-assign",
-  validateRequest(orderIdSchema),
+  validateParams(orderIdSchema),
   agentOrderController.selfAssignOrder
+);
+
+// CUSTOMER AADHAAR - SEND OTP
+
+router.post(
+  "/:id/aadhaar/send-otp",
+  validateParams(orderIdSchema),
+  validateRequest(sendCustomerAadhaarOtpSchema),
+  agentOrderController.sendCustomerAadhaarOtp
+);
+
+// CUSTOMER AADHAAR - VERIFY OTP
+
+router.post(
+  "/:id/aadhaar/verify-otp",
+  validateParams(orderIdSchema),
+  validateRequest(verifyCustomerAadhaarOtpSchema),
+  agentOrderController.verifyCustomerAadhaarOtp
 );
 
 // PICKUP VERIFICATION
 
 router.patch(
   "/:id/pickup-verification",
-  validateRequest(orderIdSchema),
+  validateParams(orderIdSchema),
   validateRequest(pickupVerificationSchema),
   agentOrderController.verifyPickup
 );
@@ -55,17 +79,9 @@ router.patch(
 
 router.patch(
   "/:id/pickup",
-  validateRequest(orderIdSchema),
+  validateParams(orderIdSchema),
   validateRequest(agentPickupSchema),
   agentOrderController.pickupOrder
-);
-
-// START TRANSIT
-
-router.patch(
-  "/:id/transit",
-  validateRequest(orderIdSchema),
-  agentOrderController.startTransit
 );
 
 export default router;

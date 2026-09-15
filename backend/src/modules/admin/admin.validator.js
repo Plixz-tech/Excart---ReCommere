@@ -15,27 +15,22 @@ export const adminLoginSchema = z.object({
     .min(1, "Device ID is required."),
 });
 export const updateProfileSchema = z.object({
-  body: z.object({
-    fullName: z.string().trim().min(2).optional(),
-    email: z.string().trim().email().optional(),
-    profileImage: z.string().url().optional(),
-  }),
+  fullName: z.string().trim().min(2).optional(),
+  email: z.string().trim().email().optional(),
+  profileImage: z.string().url().optional(),
 });
 export const changePasswordSchema = z.object({
-  body: z.object({
-    currentPassword: z
-      .string()
-      .min(8, "Current password is required."),
-    newPassword: z
-      .string()
-      .min(8, "New password must be at least 8 characters."),
-  }),
+  currentPassword: z
+    .string()
+    .min(8, "Current password is required."),
+
+  newPassword: z
+    .string()
+    .min(8, "New password must be at least 8 characters."),
 });
 export const logoutSchema = z.object({
-  body: z.object({
-    refreshToken: z
-      .string()
-      .trim()
-      .min(1, "Refresh token is required."),
-  }),
+  refreshToken: z
+    .string()
+    .trim()
+    .min(1, "Refresh token is required."),
 });

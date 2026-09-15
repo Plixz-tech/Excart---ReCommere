@@ -4,11 +4,9 @@ import ApiError from "../../utils/errors/ApiError.js";
 
 import * as payoutAccountRepository from "./payoutAccount.repository.js";
 
-import {
-  createBeneficiary,
-} from "../../lib/cashfreePayout.js";
+import * as verificationService from "../../services/verification/verification.service.js";
 
-
+import {createBeneficiary,} from "../../lib/cashfreePayout.js";
 
 // GET PAYOUT ACCOUNT
 
@@ -148,7 +146,6 @@ export const createPayoutAccount = async (
 
 // VERIFY PAYOUT ACCOUNT
 
-
 export const verifyPayoutAccount = async (
   payoutAccountId,
   userId
@@ -187,9 +184,8 @@ export const verifyPayoutAccount = async (
     );
   }
 
-  // Make sure this payout account belongs to
-  // the currently authenticated user
-
+  // Make sure the payout account belongs
+  // to the authenticated user.
   if (
     payoutAccount.user.toString() !==
     userId.toString()
@@ -201,25 +197,92 @@ export const verifyPayoutAccount = async (
   }
 
   // Already verified
-
   if (payoutAccount.isVerified) {
     return payoutAccount;
   }
 
+  // PowerAPI bank verification is currently
+  // implemented for bank accounts.
+  if (payoutAccount.type !== "bank") {
+    throw new ApiError(
+      400,
+      "Only bank accounts can be verified."
+    );
+  }
+
+  // Check required bank details
+  if (
+    !payoutAccount.bankAccountNumber ||
+    !payoutAccount.bankIfsc
+  ) {
+    throw new ApiError(
+      400,
+      "Bank account number and IFSC are required."
+    );
+  }
+
+  // Call PowerAPI
+  const verificationResult =
+    await verificationService.verifyBankAccount(
+      payoutAccount.bankAccountNumber,
+      payoutAccount.bankIfsc
+    );
+
+  // PowerAPI request failed
+  if (!verificationResult?.success) {
+    throw new ApiError(
+      400,
+      verificationResult?.message ||
+        "Bank account verification failed."
+    );
+  }
+
+  const bankData =
+    verificationResult?.data || {};
+
+  /*
+   * Only mark the account as verified when
+   * PowerAPI explicitly confirms the account exists.
+   */
+  if (bankData.account_exists !== true) {
+    throw new ApiError(
+      400,
+      "Bank account could not be verified."
+    );
+  }
+
+  const verifiedAt = new Date();
+
+  // Save successful verification
   const verifiedAccount =
     await payoutAccountRepository.updateById(
       payoutAccountId,
       {
         isVerified: true,
-        verifiedAt: new Date(),
+
+        verifiedAt,
+
         updatedBy: userId,
+
+        bankVerification: {
+          provider: "powerapi",
+
+          accountExists:
+            bankData.account_exists,
+
+          nameAtBank:
+            bankData.name_at_bank || "",
+
+          utr:
+            bankData.utr || "",
+
+          verifiedAt,
+        },
       }
     );
 
   return verifiedAccount;
 };
-
-
 // UPDATE PAYOUT ACCOUNT
 
 

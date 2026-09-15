@@ -1,89 +1,97 @@
-import Joi from "joi";
+import { z } from "zod";
 
-export const updatePaymentValidator = Joi.object({
-  paymentMethod: Joi.string()
-    .valid(
+export const updatePaymentValidator = z.object({
+  paymentMethod: z
+    .enum([
       "bank_transfer",
       "upi",
       "cash",
-      "other"
-    )
+      "other",
+    ])
     .optional(),
 
-  transactionId: Joi.string()
+  transactionId: z
+    .string()
     .trim()
     .max(100)
-    .optional()
-    .allow(""),
+    .optional(),
 
-  notes: Joi.string()
+  notes: z
+    .string()
     .trim()
     .max(500)
-    .optional()
-    .allow(""),
+    .optional(),
 
-  estimatedAmount: Joi.number()
+  estimatedAmount: z
+    .coerce
+    .number()
     .min(0)
     .optional(),
 
-  finalAmount: Joi.number()
+  finalAmount: z
+    .coerce
+    .number()
     .min(0)
     .optional(),
 
-  status: Joi.string()
-    .valid(
+  status: z
+    .enum([
       "pending",
       "processing",
       "completed",
       "failed",
-      "cancelled"
-    )
+      "cancelled",
+    ])
     .optional(),
 
-  paidAt: Joi.date()
-    .optional()
-    .allow(null),
+  paidAt: z
+    .coerce
+    .date()
+    .nullable()
+    .optional(),
 });
 
+export const completePaymentValidator = z.object({
+  paymentMethod: z.enum([
+    "bank_transfer",
+    "upi",
+    "cash",
+    "other",
+  ]),
 
-export const completePaymentValidator =
-  Joi.object({
-    paymentMethod: Joi.string()
-      .valid(
-        "bank_transfer",
-        "upi",
-        "cash",
-        "other"
-      )
-      .required(),
+  transactionId: z
+    .string()
+    .trim()
+    .max(100)
+    .optional(),
 
-    transactionId: Joi.string()
-      .trim()
-      .max(100)
-      .required(),
+  finalAmount: z
+    .coerce
+    .number()
+    .positive(
+      "Final payment amount must be greater than 0."
+    ),
 
-    finalAmount: Joi.number()
-      .min(0.01)
-      .required(),
+  notes: z
+    .string()
+    .trim()
+    .max(500)
+    .optional(),
+});
 
-    notes: Joi.string()
-      .trim()
-      .max(500)
-      .optional()
-      .allow(""),
-  });
+export const failPaymentValidator = z.object({
+  transactionId: z
+    .string()
+    .trim()
+    .max(100)
+    .optional(),
 
-
-export const failPaymentValidator =
-  Joi.object({
-    transactionId: Joi.string()
-      .trim()
-      .max(100)
-      .optional()
-      .allow(""),
-
-    notes: Joi.string()
-      .trim()
-      .max(500)
-      .required(),
-  });
+  notes: z
+    .string()
+    .trim()
+    .min(
+      1,
+      "Payment failure reason is required."
+    )
+    .max(500),
+});

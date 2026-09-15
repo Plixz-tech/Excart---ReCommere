@@ -8,6 +8,7 @@ import {
   refreshTokenSchema,
   logoutSchema,
   updateProfileSchema,
+  updateAgentProfileSchema,
   sendAgentOtpSchema,
   verifyAgentOtpSchema,
 } from "./auth.validator.js";
@@ -21,6 +22,7 @@ import {
   logout,
   getMe,
   updateProfile,
+  updateAgentProfileController,
   sendAgentOtp,
   verifyAgentOtp,
 } from "./auth.controller.js";
@@ -39,6 +41,15 @@ router.patch(
   upload.single("profileImage"),
   validateRequest(updateProfileSchema),
   updateProfile
+);
+
+router.patch(
+  "/agent/me",
+  protect,
+  authorize("agent"),
+  upload.single("profileImage"),
+  validateRequest(updateAgentProfileSchema),
+  updateAgentProfileController
 );
 router.post(
   "/agent/send-otp",
@@ -59,4 +70,5 @@ router.post(
   validateRequest(logoutSchema),
   logout
 );
+
 export default router;

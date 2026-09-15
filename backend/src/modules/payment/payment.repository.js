@@ -1,10 +1,14 @@
 import mongoose from "mongoose";
 
 import Order from "../../models/Order.js";
+import Device from "../../models/Device.js";
 import ApiError from "../../utils/errors/ApiError.js";
 import { getPagination } from "../../utils/pagination/paginate.js";
 
-// GET PAYMENT BY ORDER ID
+const getPaymentOrderStatuses = [
+  "payment_pending",
+  "payment_completed",
+];
 
 export const getPaymentByOrderId = async (
   orderId
@@ -50,8 +54,6 @@ export const getPaymentByOrderId = async (
   };
 };
 
-// GET ALL PAYMENTS
-
 export const getPayments = async (
   queryParams
 ) => {
@@ -69,14 +71,10 @@ export const getPayments = async (
 
   const filter = {};
 
-  // Filter by payment status
-
   if (status) {
     filter["payment.status"] =
       status;
   }
-
-  // Allowed sorting fields
 
   const allowedSortFields = [
     "createdAt",
@@ -109,7 +107,7 @@ export const getPayments = async (
       .populate("device")
       .populate(
         "agent",
-        "fullName email phone"
+        "fullName phone email"
       )
       .sort(sort)
       .skip(skip)
@@ -155,8 +153,6 @@ export const getPayments = async (
   };
 };
 
-// FIND ORDER FOR PAYMENT
-
 export const findOrderForPayment = async (
   orderId
 ) => {
@@ -186,13 +182,35 @@ export const findOrderForPayment = async (
   return order;
 };
 
-// UPDATE PAYMENT
-
 export const updatePayment = async (
-  order,
-  paymentData,
-  userId
+  orderId,
+  paymentData
 ) => {
+  const order =
+    await findOrderForPayment(
+      orderId
+    );
+
+  if (
+    !getPaymentOrderStatuses.includes(
+      order.status
+    )
+  ) {
+    throw new ApiError(
+      400,
+      `Payment cannot be updated when order status is "${order.status}".`
+    );
+  }
+
+  if (
+    !order.payment
+  ) {
+    throw new ApiError(
+      400,
+      "Payment information is not available for this order."
+    );
+  }
+
   if (
     paymentData.paymentMethod !==
     undefined
@@ -234,14 +252,6 @@ export const updatePayment = async (
   }
 
   if (
-    paymentData.status !==
-    undefined
-  ) {
-    order.payment.status =
-      paymentData.status;
-  }
-
-  if (
     paymentData.paidAt !==
     undefined
   ) {
@@ -250,20 +260,55 @@ export const updatePayment = async (
   }
 
   order.updatedBy =
-    userId;
+    paymentData.updatedBy;
 
   await order.save();
 
   return order;
 };
 
-// COMPLETE PAYMENT
-
 export const completePayment = async (
-  order,
-  paymentData,
-  userId
+  orderId,
+  paymentData
 ) => {
+  const order =
+    await findOrderForPayment(
+      orderId
+    );
+
+  if (
+    !order.payment
+  ) {
+    throw new ApiError(
+      400,
+      "Payment information is not available for this order."
+    );
+  }
+
+  if (
+    order.status !==
+    "payment_pending"
+  ) {
+    throw new ApiError(
+      400,
+      `Payment cannot be completed when order status is "${order.status}".`
+    );
+  }
+
+  if (
+    ![
+      "pending",
+      "failed",
+    ].includes(
+      order.payment.status
+    )
+  ) {
+    throw new ApiError(
+      400,
+      `Payment cannot be completed when payment status is "${order.payment.status}".`
+    );
+  }
+
   if (
     paymentData.paymentMethod !==
     undefined
@@ -302,14 +347,11 @@ export const completePayment = async (
   order.payment.paidAt =
     new Date();
 
-  // Payment is completed.
-  // The device can now move into transit.
-
   order.status =
     "in_transit";
 
   order.updatedBy =
-    userId;
+    paymentData.completedBy;
 
   order.timeline.push({
     status:
@@ -319,23 +361,82 @@ export const completePayment = async (
       "Payment completed successfully. Device is now in transit.",
 
     performedBy:
-      userId,
+      paymentData.completedBy,
   });
+
+  if (!order.device) {
+    throw new ApiError(
+      400,
+      "Associated device not found."
+    );
+  }
+
+  const device =
+    await Device.findById(
+      order.device
+    );
+
+  if (!device) {
+    throw new ApiError(
+      404,
+      "Associated device not found."
+    );
+  }
+
+  device.status =
+    "in_transit";
+
+  device.updatedBy =
+    paymentData.completedBy;
+
+  await device.save();
 
   await order.save();
 
   return order;
 };
 
-// FAIL PAYMENT
-
 export const failPayment = async (
-  order,
-  paymentData,
-  userId
+  orderId,
+  paymentData
 ) => {
-  order.payment.status =
-    "failed";
+  const order =
+    await findOrderForPayment(
+      orderId
+    );
+
+  if (
+    order.status !==
+    "payment_pending"
+  ) {
+    throw new ApiError(
+      400,
+      `Payment cannot be failed when order status is "${order.status}".`
+    );
+  }
+
+  if (
+    !order.payment
+  ) {
+    throw new ApiError(
+      400,
+      "Payment information is not available for this order."
+    );
+  }
+
+  if (
+    ![
+      "pending",
+      "processing",
+    ].includes(
+      order.payment.status
+    )
+  ) {
+    throw new ApiError(
+      400,
+      `Payment cannot be failed when payment status is "${order.payment.status}".`
+    );
+  }
 
   if (
     paymentData.transactionId !==
@@ -353,11 +454,11 @@ export const failPayment = async (
       paymentData.notes;
   }
 
-  order.updatedBy =
-    userId;
+  order.payment.status =
+    "failed";
 
-  // Keep the order waiting for payment.
-  // It must not move to transit.
+  order.updatedBy =
+    paymentData.updatedBy;
 
   order.status =
     "payment_pending";
@@ -371,7 +472,7 @@ export const failPayment = async (
       "Payment failed. Payment needs to be processed again.",
 
     performedBy:
-      userId,
+      paymentData.updatedBy,
   });
 
   await order.save();
