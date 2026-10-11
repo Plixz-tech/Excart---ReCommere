@@ -25,10 +25,62 @@ class ReportRepository {
     });
   }
 
+  // INSPECTION SUMMARY
+
+async getInspectionSummary() {
+  const result = await Inspection.aggregate([
+    {
+      $group: {
+        _id: "$status",
+        count: {
+          $sum: 1,
+        },
+      },
+    },
+  ]);
+
+  const inspectionSummary = {
+    pending: 0,
+    inProgress: 0,
+    completed: 0,
+    passed: 0,
+    failed: 0,
+  };
+
+  for (const item of result) {
+    switch (item._id) {
+      case "pending":
+        inspectionSummary.pending = item.count;
+        break;
+
+      case "in_progress":
+        inspectionSummary.inProgress = item.count;
+        break;
+
+      case "completed":
+        inspectionSummary.completed = item.count;
+        break;
+
+      case "approved":
+        inspectionSummary.passed = item.count;
+        break;
+
+      case "rejected":
+        inspectionSummary.failed = item.count;
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  return inspectionSummary;
+}
+
   async getInventoryDevices() {
     return Inventory.countDocuments({
       status: {
-        $in: ["draft", "listed"],
+        $in: ["in_inventory", "listed"],
       },
     });
   }
@@ -41,6 +93,61 @@ class ReportRepository {
       },
     });
   }
+
+  // PICKUP MANAGEMENT
+
+async getPickupManagement(startOfDay, endOfDay) {
+  const result = await Order.aggregate([
+    {
+      $match: {
+        "pickup.scheduledDate": {
+          $gte: startOfDay,
+          $lt: endOfDay,
+        },
+      },
+    },
+    {
+      $group: {
+        _id: "$pickup.status",
+        count: {
+          $sum: 1,
+        },
+      },
+    },
+  ]);
+
+  const pickupManagement = {
+    total: 0,
+    completed: 0,
+    inProgress: 0,
+    pending: 0,
+  };
+
+  for (const item of result) {
+    pickupManagement.total += item.count;
+
+    switch (item._id) {
+      case "completed":
+        pickupManagement.completed += item.count;
+        break;
+
+      case "in_progress":
+        pickupManagement.inProgress += item.count;
+        break;
+
+      case "pending":
+      case "assigned":
+      case "scheduled":
+        pickupManagement.pending += item.count;
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  return pickupManagement;
+}
 
   // ORDER PIPELINE
 
@@ -85,6 +192,10 @@ class ReportRepository {
         case "inspection_completed":
         case "approved":
           pipeline.inspected += item.count;
+          break;
+        case "payment_pending":
+        case "payment_completed":
+          pipeline.inTransit += item.count;
           break;
 
         case "in_transit":
@@ -366,6 +477,104 @@ class ReportRepository {
 
     return result;
   }
+// AGENT PERFORMANCE
+
+async getAgentPerformance() {
+  const result = await Order.aggregate([
+    {
+      $match: {
+        agent: {
+          $ne: null,
+        },
+      },
+    },
+    {
+      $group: {
+        _id: "$agent",
+
+        totalOrders: {
+          $sum: 1,
+        },
+
+        assignedOrders: {
+          $sum: {
+            $cond: [
+              {
+                $eq: ["$status", "assigned"],
+              },
+              1,
+              0,
+            ],
+          },
+        },
+
+        pickedUpOrders: {
+          $sum: {
+            $cond: [
+              {
+                $eq: ["$status", "picked_up"],
+              },
+              1,
+              0,
+            ],
+          },
+        },
+
+        completedOrders: {
+          $sum: {
+            $cond: [
+              {
+                $eq: ["$status", "completed"],
+              },
+              1,
+              0,
+            ],
+          },
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "agent",
+      },
+    },
+    {
+      $unwind: {
+        path: "$agent",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        agentId: "$_id",
+        fullName: {
+          $ifNull: ["$agent.fullName", ""],
+        },
+        agentCode: {
+          $ifNull: [
+            "$agent.agentProfile.agentId",
+            "",
+          ],
+        },
+        totalOrders: 1,
+        assignedOrders: 1,
+        pickedUpOrders: 1,
+        completedOrders: 1,
+      },
+    },
+    {
+      $sort: {
+        totalOrders: -1,
+      },
+    },
+  ]);
+
+  return result;
+}
 
   // AGENT EARNINGS SUMMARY
 

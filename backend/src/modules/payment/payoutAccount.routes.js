@@ -1,6 +1,7 @@
 import express from "express";
 
 import {
+  getPayoutAccountController,
   createPayoutAccountController,
   verifyPayoutAccountController,
   registerCashfreeBeneficiaryController,
@@ -20,6 +21,13 @@ const router = express.Router();
 
 // All payout account routes require authentication.
 router.use(protect);
+
+// GET PAYOUT ACCOUNT
+
+router.get(
+  "/",
+  getPayoutAccountController
+);
 
 // CREATE PAYOUT ACCOUNT
 router.post(

@@ -64,6 +64,28 @@ const deviceCatalogSchema = new mongoose.Schema(
       default: 0,
     },
 
+// EVALUATION CONFIGURATION
+
+evaluationConfig: {
+  battery: {
+    type: String,
+    enum: ["percentage", "status", "none"],
+    default: "none",
+  },
+
+  biometric: {
+    type: String,
+    enum: [
+      "face_id",
+      "touch_id",
+      "fingerprint",
+      "fingerprint_face",
+      "none",
+    ],
+    default: "none",
+  },
+},
+
     // STATUS
 
     active: {

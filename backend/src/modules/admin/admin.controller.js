@@ -54,7 +54,10 @@ export const changePassword = async (req, res, next) => {
 };
 export const logout = async (req, res, next) => {
   try {
-    await adminService.logout(req.body.refreshToken);
+    await adminService.logout(
+  req.body.refreshToken,
+  req.user.userId
+);
     res.status(200).json({
       success: true,
       message: "Logged out successfully.",

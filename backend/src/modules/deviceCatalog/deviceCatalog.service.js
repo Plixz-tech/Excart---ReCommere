@@ -74,7 +74,15 @@ export const createDeviceCatalog = async (
 
     agentCommission:
       Number(data.agentCommission ?? 0),
+    evaluationConfig: {
+      battery:
+        data.evaluationConfig?.battery ??
+        "none",
 
+      biometric:
+        data.evaluationConfig?.biometric ??
+        "none",
+    },
     active:
       data.active !== undefined
         ? data.active
@@ -255,6 +263,17 @@ export const updateDeviceCatalog = async (
 
     updateData.agentCommission =
       Number(data.agentCommission);
+  }
+  if (data.evaluationConfig !== undefined) {
+    updateData.evaluationConfig = {
+      battery:
+        data.evaluationConfig.battery ??
+        "none",
+
+      biometric:
+        data.evaluationConfig.biometric ??
+        "none",
+    };
   }
 
   if (data.active !== undefined) {

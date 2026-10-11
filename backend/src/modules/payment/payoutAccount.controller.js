@@ -1,11 +1,43 @@
 import ApiError from "../../utils/errors/ApiError.js";
 
 import {
+    getPayoutAccount,
     createPayoutAccount,
     verifyPayoutAccount,
     registerCashfreeBeneficiary,
 } from "./payoutAccount.service.js";
 
+// GET PAYOUT ACCOUNT
+
+export const getPayoutAccountController = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const userId =
+      req.user?.userId?.toString();
+
+    if (!userId) {
+      throw new ApiError(
+        401,
+        "Authentication required."
+      );
+    }
+
+    const payoutAccount =
+      await getPayoutAccount(userId);
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Payout account fetched successfully.",
+      data: payoutAccount,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 
 // CREATE PAYOUT ACCOUNT

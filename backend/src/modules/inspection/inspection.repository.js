@@ -6,6 +6,7 @@ import Device from "../../models/Device.js";
 
 import ApiError from "../../utils/errors/ApiError.js";
 import { getPagination } from "../../utils/pagination/paginate.js";
+import inventoryService from "../inventory/inventory.service.js";
 
 const populateInspection = (query) => {
   return query
@@ -471,6 +472,8 @@ export const updateInspection = async (
     };
   }
 
+  // IMEI verification is kept for future use.
+  // It is not required to complete inspection.
   if (
     inspectionData.imeiVerification
   ) {
@@ -610,24 +613,10 @@ export const completeInspection = async (
     );
   }
 
-  if (
-    !inspection.imeiVerification
-  ) {
-    throw new ApiError(
-      400,
-      "IMEI verification is required before completing the inspection."
-    );
-  }
-
-  if (
-    inspection.imeiVerification
-      .verified !== true
-  ) {
-    throw new ApiError(
-      400,
-      "IMEI must be verified before completing the inspection."
-    );
-  }
+  /*
+   * IMEI verification is intentionally not required.
+   * ExCart only collects the IMEI number at this stage.
+   */
 
   if (
     !inspection.overallGrade
@@ -674,7 +663,27 @@ export const completeInspection = async (
     );
   }
 
+  const device =
+    await Device.findById(
+      inspection.device
+    );
+
+  if (!device) {
+    throw new ApiError(
+      404,
+      "Related device not found."
+    );
+  }
+
   const now = new Date();
+
+  device.status =
+    "inspection_completed";
+
+  device.updatedBy =
+    userId;
+
+  await device.save();
 
   inspection.status =
     "completed";
@@ -745,217 +754,312 @@ export const updateInspectionStatus = async (
   reason,
   userId
 ) => {
-  if (
-    !mongoose.Types.ObjectId.isValid(
-      inspectionId
-    )
-  ) {
-    throw new ApiError(
-      400,
-      "Invalid inspection ID."
-    );
-  }
+  const session = await mongoose.startSession();
 
-  const inspection =
-    await Inspection.findById(
-      inspectionId
-    );
+  try {
+    let updatedInspection;
 
-  if (!inspection) {
-    throw new ApiError(
-      404,
-      "Inspection not found."
-    );
-  }
+    await session.withTransaction(async () => {
+      if (
+        !mongoose.Types.ObjectId.isValid(
+          inspectionId
+        )
+      ) {
+        throw new ApiError(
+          400,
+          "Invalid inspection ID."
+        );
+      }
 
-  if (
-    inspection.status !==
-    "completed"
-  ) {
-    throw new ApiError(
-      400,
-      `Inspection can only be approved or rejected after it is completed. Current status is "${inspection.status}".`
-    );
-  }
+      const inspection =
+        await Inspection.findById(
+          inspectionId
+        ).session(session);
 
-  if (
-    ![
-      "approved",
-      "rejected",
-    ].includes(status)
-  ) {
-    throw new ApiError(
-      400,
-      "Inspection can only be approved or rejected."
-    );
-  }
+      if (!inspection) {
+        throw new ApiError(
+          404,
+          "Inspection not found."
+        );
+      }
 
-  if (
-    status === "rejected" &&
-    !reason
-  ) {
-    throw new ApiError(
-      400,
-      "Rejection reason is required when rejecting an inspection."
-    );
-  }
+      if (
+        inspection.status !==
+        "completed"
+      ) {
+        throw new ApiError(
+          400,
+          `Inspection can only be approved or rejected after it is completed. Current status is "${inspection.status}".`
+        );
+      }
 
-  const device =
-    await Device.findById(
-      inspection.device
-    );
+      if (
+        ![
+          "approved",
+          "rejected",
+        ].includes(status)
+      ) {
+        throw new ApiError(
+          400,
+          "Inspection can only be approved or rejected."
+        );
+      }
 
-  if (!device) {
-    throw new ApiError(
-      404,
-      "Device not found."
-    );
-  }
+      if (
+        status === "rejected" &&
+        !reason
+      ) {
+        throw new ApiError(
+          400,
+          "Rejection reason is required when rejecting an inspection."
+        );
+      }
 
-  const order =
-    await Order.findById(
-      inspection.order
-    );
+      const device =
+        await Device.findById(
+          inspection.device
+        ).session(session);
 
-  if (!order) {
-    throw new ApiError(
-      404,
-      "Related order not found."
-    );
-  }
+      if (!device) {
+        throw new ApiError(
+          404,
+          "Device not found."
+        );
+      }
 
-  if (
-    !order.device ||
-    order.device.toString() !==
-      inspection.device.toString()
-  ) {
-    throw new ApiError(
-      400,
-      "Inspection, order and device relationship is invalid."
-    );
-  }
+      const order =
+        await Order.findById(
+          inspection.order
+        ).session(session);
 
-  const now = new Date();
+      if (!order) {
+        throw new ApiError(
+          404,
+          "Related order not found."
+        );
+      }
 
-  inspection.status =
-    status;
+      if (
+        !order.device ||
+        order.device.toString() !==
+          inspection.device.toString()
+      ) {
+        throw new ApiError(
+          400,
+          "Inspection, order and device relationship is invalid."
+        );
+      }
 
-  inspection.updatedBy =
-    userId;
+      const now = new Date();
 
-  if (status === "approved") {
-    inspection.approvedAt =
-      now;
-  }
+      /*
+       * APPROVE INSPECTION
+       */
+      if (status === "approved") {
+        /*
+         * Create inventory only if an inventory
+         * record does not already exist.
+         */
+        if (
+          !order.inventory ||
+          !order.inventory.inventoryId
+        ) {
+          const inventory =
+            await inventoryService.createInventory(
+              {
+                orderId:
+                  order._id.toString(),
 
-  if (status === "rejected") {
-    inspection.rejectionReason =
-      reason ||
-      "Device rejected after inspection.";
-  }
+                listedPrice: 0,
+              },
+              userId,
+              session
+            );
 
-  await inspection.save();
+          order.inventory.inventoryId =
+            inventory._id;
+        }
 
-  device.updatedBy =
-    userId;
+        /*
+         * Update device status
+         */
+        device.status =
+          "inventory";
 
-  if (status === "approved") {
-    device.status =
-      "inventory";
-  }
+        device.updatedBy =
+          userId;
 
-  if (status === "rejected") {
-    device.status =
-      "rejected";
-  }
+        /*
+         * Update order inventory information
+         */
+        order.inventory.status =
+          "in_inventory";
 
-  await device.save();
+        order.inventory.listedPrice =
+          0;
+      }
 
-  order.updatedBy =
-    userId;
+      /*
+       * REJECT INSPECTION
+       */
+      if (status === "rejected") {
+        device.status =
+          "rejected";
 
-  if (status === "approved") {
-    order.status =
-      "ready_stock";
+        device.updatedBy =
+          userId;
+      }
 
-    order.inspection.status =
-      "approved";
+      /*
+       * Save device changes
+       */
+      await device.save({
+        session,
+      });
 
-    order.inspection.inspectedBy =
-      inspection.inspectionAgent;
+      /*
+       * Update inspection status
+       */
+      inspection.status =
+        status;
 
-    order.inspection.inspectedAt =
-      inspection.completedAt;
+      inspection.updatedBy =
+        userId;
 
-    order.inspection.condition =
-      inspection.bodyCondition;
+      if (status === "approved") {
+        inspection.approvedAt =
+          now;
+      }
 
-    order.inspection.grade =
-      inspection.overallGrade;
+      if (status === "rejected") {
+        inspection.rejectionReason =
+          reason ||
+          "Device rejected after inspection.";
+      }
 
-    order.inspection.physicalCondition =
-      inspection.bodyCondition;
+      /*
+       * Save inspection changes
+       */
+      await inspection.save({
+        session,
+      });
 
-    order.inspection.screenCondition =
-      inspection.screenCondition;
+      /*
+       * Update order
+       */
+      order.updatedBy =
+        userId;
 
-    order.inspection.batteryHealth =
-      inspection.batteryHealth;
+      /*
+       * APPROVED
+       */
+      if (status === "approved") {
+        order.status =
+          "ready_stock";
 
-    order.inspection.functionalIssues =
-      [];
+        order.inspection.status =
+          "approved";
 
-    order.inspection.inspectionNotes =
-      inspection.remarks;
+        order.inspection.inspectedBy =
+          inspection.inspectionAgent;
 
-    order.inspection.approvedAt =
-      now;
+        order.inspection.inspectedAt =
+          inspection.completedAt;
 
-    order.timeline.push({
-      status:
-        "inspection_completed",
+        order.inspection.condition =
+          inspection.bodyCondition;
 
-      message:
-        "Device inspection completed and approved. Device is ready for stock.",
+        order.inspection.grade =
+          inspection.overallGrade;
 
-      performedBy: userId,
+        order.inspection.physicalCondition =
+          inspection.bodyCondition;
+
+        order.inspection.screenCondition =
+          inspection.screenCondition;
+
+        order.inspection.batteryHealth =
+          inspection.batteryHealth;
+
+        order.inspection.functionalIssues =
+          [];
+
+        order.inspection.inspectionNotes =
+          inspection.remarks;
+
+        order.inspection.approvedAt =
+          now;
+
+        order.timeline.push({
+          status:
+            "inspection_completed",
+
+          message:
+            "Device inspection completed and approved. Device is ready for stock.",
+
+          performedBy:
+            userId,
+        });
+      }
+
+      /*
+       * REJECTED
+       */
+      if (status === "rejected") {
+        order.status =
+          "rejected";
+
+        order.inspection.status =
+          "rejected";
+
+        order.inspection.inspectedBy =
+          inspection.inspectionAgent;
+
+        order.inspection.inspectedAt =
+          inspection.completedAt;
+
+        order.inspection.rejectionReason =
+          inspection.rejectionReason;
+
+        order.timeline.push({
+          status: "rejected",
+
+          message:
+            inspection.rejectionReason ||
+            "Device rejected after inspection.",
+
+          performedBy:
+            userId,
+        });
+      }
+
+      /*
+       * Save order
+       */
+      await order.save({
+        session,
+      });
+
+      /*
+       * Store updated inspection
+       * for returning after transaction.
+       */
+      updatedInspection =
+        inspection._id;
     });
+
+    /*
+     * Transaction completed successfully.
+     * Fetch the final inspection after commit.
+     */
+    return populateInspection(
+      Inspection.findById(
+        updatedInspection
+      )
+    );
+  } finally {
+    await session.endSession();
   }
-
-  if (status === "rejected") {
-    order.status =
-      "rejected";
-
-    order.inspection.status =
-      "rejected";
-
-    order.inspection.inspectedBy =
-      inspection.inspectionAgent;
-
-    order.inspection.inspectedAt =
-      inspection.completedAt;
-
-    order.inspection.rejectionReason =
-      inspection.rejectionReason;
-
-    order.timeline.push({
-      status: "rejected",
-
-      message:
-        inspection.rejectionReason ||
-        "Device rejected after inspection.",
-
-      performedBy: userId,
-    });
-  }
-
-  await order.save();
-
-  return populateInspection(
-    Inspection.findById(
-      inspection._id
-    )
-  );
 };
 
 export const deleteInspection = async (

@@ -1,12 +1,14 @@
 import mongoose from "mongoose";
 import User from "../../models/User.js";
 import ApiError from "../../utils/errors/ApiError.js";
+import AgentEarning from "../../models/AgentEarning.js";
 import bcrypt from "bcrypt";
 import { getPagination } from "../../utils/pagination/paginate.js";
 import cloudinary from "../../lib/cloudinary.js";
 import streamifier from "streamifier";
-import * as aadhaarService from "../../services/aadhaar.service.js";
-import * as panService from "../../services/pan.service.js";
+import * as verificationService
+  from "../../services/verification/verification.service.js";
+import agentTrackingController from "../agentTracking/agentTracking.controller.js";
 
 /**
  * Upload file to Cloudinary
@@ -77,8 +79,8 @@ const isAgentVerificationComplete = (agent) => {
   return (
     profile.aadhaarNumberVerified === true &&
     profile.panNumberVerified === true &&
-    documents.aadhaar?.verified === true &&
-    documents.panCard?.verified === true &&
+    Boolean(documents.aadhaar?.url) &&
+    Boolean(documents.panCard?.url) &&
     Boolean(documents.policeClearance?.url) &&
     Boolean(documents.drivingLicense?.url) &&
     Boolean(documents.photo?.url)
@@ -200,7 +202,41 @@ export const getAgentById = async (agentId) => {
     );
   }
 
-  return agent;
+  const earnings = await AgentEarning.find({
+    agent: agentId,
+  })
+    .populate(
+      "order",
+      "orderNumber status agentCommission"
+    )
+    .sort({ createdAt: -1 });
+
+  const commissionSummary = {
+    total: 0,
+    pending: 0,
+    approved: 0,
+    paid: 0,
+    cancelled: 0,
+  };
+
+  for (const earning of earnings) {
+    const amount = Number(earning.amount || 0);
+
+    commissionSummary.total += amount;
+
+    if (
+      commissionSummary[earning.status] !==
+      undefined
+    ) {
+      commissionSummary[earning.status] += amount;
+    }
+  }
+
+  return {
+    ...agent.toObject(),
+    commissionSummary,
+    earnings,
+  };
 };
 
 /**
@@ -653,139 +689,6 @@ export const uploadDocuments = async (
       verifiedBy: null,
     };
 
-    /*
-     *
-     * AADHAAR DOCUMENT VERIFICATION
-     *
-     */
-    if (field === "aadhaar") {
-      if (
-        !agent.agentProfile.aadhaarNumber
-      ) {
-        await deleteFromCloudinary(
-          uploadedDocument.publicId
-        );
-
-        throw new ApiError(
-          400,
-          "Please verify the Aadhaar number before uploading the Aadhaar document."
-        );
-      }
-
-      if (
-        !agent.agentProfile
-          .aadhaarNumberVerified
-      ) {
-        await deleteFromCloudinary(
-          uploadedDocument.publicId
-        );
-
-        throw new ApiError(
-          400,
-          "Aadhaar number must be verified before uploading the Aadhaar document."
-        );
-      }
-
-      /*
-       * External Aadhaar document verification
-       */
-      const verificationResult =
-        await aadhaarService.verifyAadhaarDocument(
-          {
-            documentUrl:
-              uploadedDocument.url,
-
-            aadhaarNumber:
-              agent.agentProfile
-                .aadhaarNumber,
-          }
-        );
-
-      if (
-        !verificationResult?.verified
-      ) {
-        await deleteFromCloudinary(
-          uploadedDocument.publicId
-        );
-
-        throw new ApiError(
-          400,
-          "Aadhaar document verification failed."
-        );
-      }
-
-      documents.aadhaar.verified =
-        true;
-
-      documents.aadhaar.verifiedAt =
-        new Date();
-
-      documents.aadhaar.verifiedBy =
-        adminId;
-
-      documents.aadhaar.rejected =
-        false;
-
-      documents.aadhaar.rejectionReason =
-        "";
-    }
-
-    /*
-     *
-     * PAN DOCUMENT VERIFICATION
-     *
-     */
-    if (field === "panCard") {
-      const verificationResult =
-        await panService.verifyPanDocument(
-          {
-            documentUrl:
-              uploadedDocument.url,
-          }
-        );
-
-      if (
-        !verificationResult?.verified
-      ) {
-        await deleteFromCloudinary(
-          uploadedDocument.publicId
-        );
-
-        throw new ApiError(
-          400,
-          "PAN document verification failed."
-        );
-      }
-
-      /*
-       * Save PAN number returned by
-       * external verification service.
-       */
-      if (
-        verificationResult.panNumber
-      ) {
-        agent.agentProfile.panNumber =
-          verificationResult.panNumber;
-      }
-
-      agent.agentProfile
-        .panNumberVerified = true;
-
-      documents.panCard.verified =
-        true;
-
-      documents.panCard.verifiedAt =
-        new Date();
-
-      documents.panCard.verifiedBy =
-        adminId;
-
-      documents.panCard.rejected =
-        false;
-
-      documents.panCard.rejectionReason =
-        "";
-    }
 
     /*
      * Driving License
@@ -1076,5 +979,38 @@ export const verifyAgentPan = async (
   ).select(
     "-password -googleId -facebookId"
   );
+};
+
+/**
+ * Update agent current location
+ */
+export const updateAgentLocation = async (
+  agentId,
+  latitude,
+  longitude
+) => {
+  const agent = await User.findOne({
+    _id: agentId,
+    role: "agent",
+    status: { $ne: "deleted" },
+  });
+
+  if (!agent) {
+    throw new ApiError(404, "Agent not found.");
+  }
+
+  agent.agentProfile.currentLocation = {
+    latitude,
+    longitude,
+    updatedAt: new Date(),
+  };
+
+  await agent.save();
+
+  return {
+    latitude: agent.agentProfile.currentLocation.latitude,
+    longitude: agent.agentProfile.currentLocation.longitude,
+    updatedAt: agent.agentProfile.currentLocation.updatedAt,
+  };
 };
 

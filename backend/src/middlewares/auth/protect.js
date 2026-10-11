@@ -28,9 +28,20 @@ const protect = asyncHandler(async (req, res, next) => {
     throw new ApiError(401, "User not found.");
   }
 
-  if (user.status === "blocked") {
-    throw new ApiError(403, "Your account has been blocked.");
-  }
+ if (
+  user.status === "blocked" ||
+  user.status === "deleted"
+) {
+  const error = new Error(
+    user.status === "deleted"
+      ? "This account is no longer available."
+      : "Your account has been blocked. Please contact support."
+  );
+
+  error.statusCode = 403;
+
+  throw error;
+}
 
   // Attach user to request
 req.user = {

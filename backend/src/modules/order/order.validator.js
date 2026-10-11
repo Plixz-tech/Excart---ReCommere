@@ -13,6 +13,9 @@ const objectId = z
 
 
 export const createOrderSchema = z.object({
+  deviceCatalogId:
+  objectId,
+
   brand:
     z
       .string()
@@ -91,73 +94,115 @@ export const createOrderSchema = z.object({
       )
       .optional(),
 
-  customerEvaluation:
-    z
-      .object({
-        screenCondition:
-          z
-            .string()
-            .trim()
-            .optional(),
+customerEvaluation:
+  z
+    .object({
+      screenCondition:
+        z
+          .string()
+          .trim()
+          .optional(),
 
-        displayIssues:
-          z
-            .array(
-              z.string().trim()
-            )
-            .optional(),
+      displayIssues:
+        z
+          .array(
+            z.string().trim()
+          )
+          .optional(),
 
-        bodyCondition:
-          z
-            .string()
-            .trim()
-            .optional(),
+      bodyCondition:
+        z
+          .string()
+          .trim()
+          .optional(),
 
-        batteryHealth:
-          z
-            .coerce
-            .number()
-            .min(0)
-            .max(100)
-            .nullable()
-            .optional(),
+      batteryHealth:
+        z
+          .coerce
+          .number()
+          .min(0)
+          .max(100)
+          .nullable()
+          .optional(),
 
-        repairHistory:
-          z
-            .string()
-            .trim()
-            .optional(),
+      functionalTests:
+        z
+          .object({
+            camera:
+              z.boolean().optional(),
 
-        accessories:
-          z
-            .array(
-              z.string().trim()
-            )
-            .optional(),
+            speaker:
+              z.boolean().optional(),
 
-        functionalIssues:
-          z
-            .array(
-              z.string().trim()
-            )
-            .optional(),
+            microphone:
+              z.boolean().optional(),
 
-        imeiVerification:
-          z
-            .object({
-              verified:
-                z
-                  .boolean()
-                  .optional(),
+            chargingPort:
+              z.boolean().optional(),
 
-              verifiedAt:
-                z
-                  .string()
-                  .optional(),
-            })
-            .optional(),
-      })
-      .optional(),
+            wifi:
+              z.boolean().optional(),
+
+            bluetooth:
+              z.boolean().optional(),
+
+            network:
+              z.boolean().optional(),
+
+            faceId:
+              z.boolean().optional(),
+
+            fingerprint:
+              z.boolean().optional(),
+          })
+          .optional(),
+
+      accessories:
+        z
+          .object({
+            charger:
+              z.boolean().optional(),
+
+            cable:
+              z.boolean().optional(),
+
+            box:
+              z.boolean().optional(),
+
+            bill:
+              z.boolean().optional(),
+
+            simEjector:
+              z.boolean().optional(),
+          })
+          .optional(),
+
+      repairHistory:
+        z
+          .object({
+            repaired:
+              z.boolean().optional(),
+
+            remarks:
+              z
+                .string()
+                .trim()
+                .optional(),
+          })
+          .optional(),
+
+      overallGrade:
+        z
+          .enum([
+            "A+",
+            "A",
+            "B",
+            "C",
+            "D",
+          ])
+          .optional(),
+    })
+    .optional(),
 
   photos:
     z
@@ -498,11 +543,7 @@ export const processPaymentSchema = z.object({
 // AGENT PICKUP
 
 
-export const agentPickupSchema = z.object({
-  status:
-    z.literal("picked_up"),
-});
-
+export const agentPickupSchema = z.object({});
 
 
 // START TRANSIT
@@ -674,6 +715,34 @@ export const pickupLocationSchema = z.object({
       .max(180),
 });
 
+// AGENT DEVICE CONDITION / PHYSICAL INSPECTION
+
+export const agentDeviceConditionSchema = z.object({
+  screenCondition: z.string().trim().optional(),
+
+  displayIssues: z
+    .array(z.string().trim())
+    .optional(),
+
+  bodyCondition: z.string().trim().optional(),
+
+  batteryHealth: z.coerce
+    .number()
+    .min(0)
+    .max(100)
+    .nullable()
+    .optional(),
+
+  repairHistory: z.string().trim().optional(),
+
+  accessories: z
+    .array(z.string().trim())
+    .optional(),
+
+  functionalIssues: z
+    .array(z.string().trim())
+    .optional(),
+});
 
 
 // START INSPECTION

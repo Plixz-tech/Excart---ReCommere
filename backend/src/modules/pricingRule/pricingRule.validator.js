@@ -9,6 +9,7 @@ const objectId = z
 
 const conditionTypeSchema = z.enum([
   "screenCondition",
+  "displayIssues",
   "bodyCondition",
   "batteryHealth",
   "functionalTests",
@@ -21,6 +22,7 @@ const conditionTypeSchema = z.enum([
 const operatorSchema = z.enum([
   "equals",
   "not_equals",
+  "contains",
   "less_than",
   "less_than_or_equal",
   "greater_than",
@@ -168,7 +170,7 @@ const imeiVerificationSchema = z.object({
 });
 
 export const calculatePriceSchema = z.object({
-  deviceId: objectId,
+    deviceCatalogId: objectId,
 
   evaluation: z
     .object({
@@ -180,6 +182,12 @@ export const calculatePriceSchema = z.object({
           "Poor",
           "Broken",
         ])
+        .optional(),
+
+      displayIssues: z
+        .array(
+          z.string().trim()
+        )
         .optional(),
 
       bodyCondition: z

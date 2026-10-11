@@ -34,8 +34,11 @@ router.post(
 
 router.get(
   "/",
+  protect,
+  authorize("admin"),
   deviceController.getDevices
 );
+
 
 
 // GET DEVICE BY ID

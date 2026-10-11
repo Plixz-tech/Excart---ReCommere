@@ -10,12 +10,15 @@ import validateRequest from "../../middlewares/validation/validateRequest.js";
 
 import validateParams from "../../middlewares/validation/validateParams.js";
 
+import upload from "../../middlewares/upload.js";
+
 import {
   orderIdSchema,
   agentPickupSchema,
   pickupVerificationSchema,
   sendCustomerAadhaarOtpSchema,
   verifyCustomerAadhaarOtpSchema,
+  agentDeviceConditionSchema,
 } from "./order.validator.js";
 
 const router = express.Router();
@@ -48,6 +51,27 @@ router.patch(
   agentOrderController.selfAssignOrder
 );
 
+router.patch(
+  "/:id/device-condition",
+  validateParams(orderIdSchema),
+  validateRequest(agentDeviceConditionSchema),
+  agentOrderController.updateDeviceCondition
+);
+
+// CALCULATE DEVICE VALUATION
+
+router.post(
+  "/:id/calculate-valuation",
+  validateParams(orderIdSchema),
+  agentOrderController.calculateDeviceValuation
+);
+
+router.post(
+  "/:id/device-photos",
+  validateParams(orderIdSchema),
+  upload.array("photos", 8),
+  agentOrderController.uploadDevicePhotos
+);
 // CUSTOMER AADHAAR - SEND OTP
 
 router.post(
@@ -64,6 +88,18 @@ router.post(
   validateParams(orderIdSchema),
   validateRequest(verifyCustomerAadhaarOtpSchema),
   agentOrderController.verifyCustomerAadhaarOtp
+);
+
+// UPLOAD PICKUP DOCUMENTS
+
+router.post(
+  "/:id/pickup-documents",
+  validateParams(orderIdSchema),
+  upload.fields([
+    { name: "customerPhoto", maxCount: 1 },
+    { name: "aadhaarDocument", maxCount: 1 },
+  ]),
+  agentOrderController.uploadPickupDocuments
 );
 
 // PICKUP VERIFICATION

@@ -2,6 +2,15 @@ import mongoose from "mongoose";
 
 import agentEarningRepository from "./agentEarning.repository.js";
 
+import {
+  getPayoutAccount,
+  registerCashfreeBeneficiary,
+} from "../payment/payoutAccount.service.js";
+
+import {
+  createTransfer,
+} from "../../lib/cashfreePayout.js";
+
 class AgentEarningService {
   // AGENT - GET OWN EARNINGS
 
@@ -269,81 +278,210 @@ class AgentEarningService {
   }
 
   // ADMIN - MARK EARNING AS PAID
+// ADMIN - MARK EARNING AS PAID
 
-  async markEarningAsPaid(
-    earningId,
-    adminId,
-    data = {}
-  ) {
-    const earning =
-      await agentEarningRepository.findById(
-        earningId
-      );
-
-    if (!earning) {
-      const error = new Error(
-        "Earning not found."
-      );
-
-      error.statusCode = 404;
-
-      throw error;
-    }
-
-    if (
-      earning.status !==
-      "approved"
-    ) {
-      const error = new Error(
-        `Only approved earnings can be marked as paid. Current status is "${earning.status}".`
-      );
-
-      error.statusCode = 400;
-
-      throw error;
-    }
-
-    const paymentReference =
-      data.paymentReference?.trim() ||
-      "";
-
-    if (
-      !paymentReference
-    ) {
-      const error = new Error(
-        "Payment reference is required."
-      );
-
-      error.statusCode = 400;
-
-      throw error;
-    }
-
-    return agentEarningRepository.updateById(
-      earningId,
-      {
-        status:
-          "paid",
-
-        paidAt:
-          new Date(),
-
-        paidBy:
-          adminId,
-
-        paymentReference,
-
-        ...(data.notes !==
-        undefined
-          ? {
-              notes:
-                data.notes.trim(),
-            }
-          : {}),
-      }
+async markEarningAsPaid(
+  earningId,
+  adminId,
+  data = {}
+) {
+  const earning =
+    await agentEarningRepository.findById(
+      earningId
     );
+
+  if (!earning) {
+    const error = new Error(
+      "Earning not found."
+    );
+
+    error.statusCode = 404;
+
+    throw error;
   }
 
+  if (
+    earning.status !==
+    "approved"
+  ) {
+    const error = new Error(
+      `Only approved earnings can be paid. Current status is "${earning.status}".`
+    );
+
+    error.statusCode = 400;
+
+    throw error;
+  }
+
+  // Get agent payout account
+  const agentId =
+    earning.agent?._id?.toString();
+
+  if (!agentId) {
+    const error = new Error(
+      "Agent information is missing for this earning."
+    );
+
+    error.statusCode = 400;
+
+    throw error;
+  }
+
+  const payoutAccount =
+    await getPayoutAccount(
+      agentId
+    );
+
+  if (!payoutAccount) {
+    const error = new Error(
+      "Agent payout account not found."
+    );
+
+    error.statusCode = 400;
+
+    throw error;
+  }
+
+  // Payout account must be verified
+  if (!payoutAccount.isVerified) {
+    const error = new Error(
+      "Agent payout account must be verified before payment."
+    );
+
+    error.statusCode = 400;
+
+    throw error;
+  }
+
+  // Make sure Cashfree beneficiary exists
+  let beneficiaryId =
+    payoutAccount.cashfreeBeneficiaryId;
+
+  if (
+    payoutAccount.cashfreeBeneficiaryStatus !==
+      "created" ||
+    !beneficiaryId
+  ) {
+    const beneficiaryResult =
+      await registerCashfreeBeneficiary({
+        payoutAccountId:
+          payoutAccount._id,
+        userId: agentId,
+      });
+
+    beneficiaryId =
+      beneficiaryResult?.payoutAccount
+        ?.cashfreeBeneficiaryId ||
+      beneficiaryResult?.cashfreeBeneficiaryId ||
+      "";
+
+    if (!beneficiaryId) {
+      const error = new Error(
+        "Cashfree beneficiary registration failed."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+  }
+
+  // Generate a unique transfer ID
+  const transferId =
+    `AGENT-${earning._id.toString()}-${Date.now()}`;
+
+  // Initiate Cashfree payout
+  let cashfreeResponse;
+
+  try {
+    cashfreeResponse =
+      await createTransfer({
+        transferId,
+        amount: earning.amount,
+        beneficiaryId,
+        transferMode:
+          payoutAccount.type === "upi"
+            ? "upi"
+            : "banktransfer",
+        remarks:
+          `Agent commission for order ${earning.order?.orderNumber || earning.order?._id}`,
+      });
+  } catch (error) {
+    await agentEarningRepository.updateById(
+      earningId,
+      {
+        payout: {
+          provider: "cashfree",
+          beneficiaryId,
+          transferId,
+          referenceId: "",
+          status: "failed",
+          initiatedAt: new Date(),
+          completedAt: null,
+          failureReason:
+            error?.message ||
+            "Cashfree payout failed.",
+        },
+      }
+    );
+
+    throw error;
+  }
+
+  const referenceId =
+    cashfreeResponse?.data
+      ?.reference_id ||
+    cashfreeResponse?.reference_id ||
+    "";
+
+  // Cashfree accepted the transfer
+  const payoutStatus =
+    cashfreeResponse?.data
+      ?.status ||
+    cashfreeResponse?.status ||
+    "pending";
+
+  return agentEarningRepository.updateById(
+    earningId,
+    {
+      status:
+        payoutStatus === "SUCCESS"
+          ? "paid"
+          : "approved",
+
+      payout: {
+        provider: "cashfree",
+        beneficiaryId,
+        transferId,
+        referenceId,
+        status:
+          payoutStatus === "SUCCESS"
+            ? "success"
+            : "pending",
+        initiatedAt:
+          new Date(),
+        completedAt:
+          payoutStatus === "SUCCESS"
+            ? new Date()
+            : null,
+        failureReason: "",
+      },
+
+      ...(payoutStatus ===
+        "SUCCESS"
+        ? {
+            paidAt:
+              new Date(),
+            paidBy:
+              adminId,
+            paymentReference:
+              referenceId ||
+              transferId,
+          }
+        : {}),
+    }
+  );
+}
   // ADMIN - CANCEL EARNING
 
   async cancelEarning(

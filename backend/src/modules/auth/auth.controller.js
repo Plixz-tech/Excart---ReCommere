@@ -27,7 +27,6 @@ export const sendOtp = asyncHandler(async (req, res) => {
  * @access  Public
  */
 export const verifyOtp = asyncHandler(async (req, res) => {
-  console.log("Controller body:", req.body);
 
   const {
     phone,

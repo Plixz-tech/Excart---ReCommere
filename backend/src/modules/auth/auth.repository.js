@@ -8,6 +8,9 @@ export const findUserById = async (userId) => {
 export const findUserByPhone = async (phone) => {
   return User.findOne({ phone });
 };
+export const findUserByEmail = async (email) => {
+  return User.findOne({ email });
+};
 export const findUserByGoogleId = async (googleId) => {
   return User.findOne({ googleId });
 };
@@ -63,8 +66,11 @@ export const createRefreshToken = async (tokenData) => {
 export const findRefreshToken = async (token) => {
   return RefreshToken.findOne({ token });
 };
-export const deleteRefreshToken = async (token) => {
-  return RefreshToken.findOneAndDelete({ token });
+export const deleteRefreshToken = async (token, userId) => {
+  return RefreshToken.findOneAndDelete({
+    token,
+    user: userId,
+  });
 };
 export const deleteUserRefreshTokens = async (userId) => {
   return RefreshToken.deleteMany({
@@ -78,3 +84,4 @@ export const findAgentByPhone = async (phone) => {
     status: { $ne: "deleted" },
   });
 };
+

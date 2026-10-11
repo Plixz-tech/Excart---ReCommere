@@ -54,6 +54,15 @@ import agentTrackingRoutes from "./modules/agentTracking/agentTracking.routes.js
 
 import settingRoutes from "./modules/setting/setting.routes.js";
 
+import auditRoutes from "./modules/audit/audit.routes.js";
+import reviewRoutes from "./modules/review/review.routes.js";
+
+import faqRoutes from "./modules/faq/faq.routes.js";
+
+import supportRoutes from "./modules/support/support.routes.js";
+
+import issueRoutes from "./modules/issue/issue.routes.js";
+
 const app = express();
 
 app.use(helmet());
@@ -117,11 +126,22 @@ app.use("/api/v1/notifications", notificationRoutes);
 
 app.use("/api/v1/settings", settingRoutes);
 
+app.use("/api/v1/audit", auditRoutes);
+
 app.use("/api/v1/agent-earnings", agentEarningRoutes);
 
 app.use("/api/v1/agent-tracking", agentTrackingRoutes);
 
 app.use("/api/v1/admin/reports", reportRoutes);
+
+app.use("/api/v1/reviews", reviewRoutes);
+
+app.use("/api/v1/faqs", faqRoutes);
+
+app.use("/api/v1/support", supportRoutes);
+
+app.use("/api/v1/issues", issueRoutes);
+
 
 app.use(notFound);
 

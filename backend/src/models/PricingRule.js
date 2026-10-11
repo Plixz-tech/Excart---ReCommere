@@ -2,9 +2,7 @@ import mongoose from "mongoose";
 
 const pricingRuleSchema = new mongoose.Schema(
   {
-
     // DEVICE MATCHING
-
 
     brand: {
       type: String,
@@ -24,15 +22,14 @@ const pricingRuleSchema = new mongoose.Schema(
       default: "",
     },
 
-
     // CONDITION
-
 
     conditionType: {
       type: String,
       required: true,
       enum: [
         "screenCondition",
+        "displayIssues",
         "bodyCondition",
         "batteryHealth",
         "functionalTests",
@@ -55,6 +52,7 @@ const pricingRuleSchema = new mongoose.Schema(
       enum: [
         "equals",
         "not_equals",
+        "contains",
         "less_than",
         "less_than_or_equal",
         "greater_than",
@@ -69,9 +67,7 @@ const pricingRuleSchema = new mongoose.Schema(
       default: "",
     },
 
-
     // PRICE ADJUSTMENT
-
 
     adjustmentType: {
       type: String,
@@ -89,9 +85,7 @@ const pricingRuleSchema = new mongoose.Schema(
       min: 0,
     },
 
-
     // STATUS
-
 
     active: {
       type: Boolean,
@@ -99,9 +93,7 @@ const pricingRuleSchema = new mongoose.Schema(
       index: true,
     },
 
-
     // AUDIT
-
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

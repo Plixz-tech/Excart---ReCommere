@@ -2,9 +2,7 @@ import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema(
   {
-   
     // ORDER BASIC INFORMATION
-   
 
     orderNumber: {
       type: String,
@@ -26,9 +24,13 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
 
-   
+    agentCommission: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
     // ORDER STATUS
-   
 
     status: {
       type: String,
@@ -53,9 +55,7 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
 
-   
     // DEVICE
-   
 
     device: {
       type: mongoose.Schema.Types.ObjectId,
@@ -64,131 +64,127 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
 
-   
     // PAYMENT
-   
 
-payment: {
-  status: {
-    type: String,
-    enum: [
-      "pending",
-      "processing",
-      "completed",
-      "failed",
-      "cancelled",
-    ],
-    default: "pending",
-  },
+    payment: {
+      status: {
+        type: String,
+        enum: [
+          "pending",
+          "processing",
+          "completed",
+          "failed",
+          "cancelled",
+        ],
+        default: "pending",
+      },
 
-  estimatedAmount: {
-    type: Number,
-    default: 0,
-    min: 0,
-  },
+      estimatedAmount: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
 
-  finalAmount: {
-    type: Number,
-    default: 0,
-    min: 0,
-  },
+      finalAmount: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
 
-  paymentMethod: {
-    type: String,
-    enum: [
-      "bank_transfer",
-      "upi",
-      "cash",
-      "other",
-    ],
-    default: null,
-  },
+      paymentMethod: {
+        type: String,
+        enum: [
+          "bank_transfer",
+          "upi",
+          "cash",
+          "other",
+        ],
+        default: null,
+      },
 
-  transactionId: {
-    type: String,
-    default: "",
-    trim: true,
-  },
+      transactionId: {
+        type: String,
+        default: "",
+        trim: true,
+      },
 
-  paidAt: {
-    type: Date,
-    default: null,
-  },
+      paidAt: {
+        type: Date,
+        default: null,
+      },
 
-  notes: {
-    type: String,
-    default: "",
-    trim: true,
-  },
+      notes: {
+        type: String,
+        default: "",
+        trim: true,
+      },
 
- payout: {
-  provider: {
-    type: String,
-    enum: [
-      "cashfree",
-      "manual",
-    ],
-    default: null,
-  },
+      payout: {
+        provider: {
+          type: String,
+          enum: [
+            "cashfree",
+            "manual",
+          ],
+          default: null,
+        },
 
-  beneficiaryId: {
-    type: String,
-    default: "",
-    trim: true,
-  },
+        beneficiaryId: {
+          type: String,
+          default: "",
+          trim: true,
+        },
 
-  transferId: {
-    type: String,
-    default: "",
-    trim: true,
-  },
+        transferId: {
+          type: String,
+          default: "",
+          trim: true,
+        },
 
-  referenceId: {
-    type: String,
-    default: "",
-    trim: true,
-  },
+        referenceId: {
+          type: String,
+          default: "",
+          trim: true,
+        },
 
-  status: {
-    type: String,
-    enum: [
-      "not_started",
-      "pending",
-      "processing",
-      "success",
-      "failed",
-      "cancelled",
-    ],
-    default: "not_started",
-  },
+        status: {
+          type: String,
+          enum: [
+            "not_started",
+            "pending",
+            "processing",
+            "success",
+            "failed",
+            "cancelled",
+          ],
+          default: "not_started",
+        },
 
-  amount: {
-    type: Number,
-    default: 0,
-    min: 0,
-  },
+        amount: {
+          type: Number,
+          default: 0,
+          min: 0,
+        },
 
-  initiatedAt: {
-    type: Date,
-    default: null,
-  },
+        initiatedAt: {
+          type: Date,
+          default: null,
+        },
 
-  completedAt: {
-    type: Date,
-    default: null,
-  },
+        completedAt: {
+          type: Date,
+          default: null,
+        },
 
-  failureReason: {
-    type: String,
-    default: "",
-    trim: true,
-  },
-},
-},
+        failureReason: {
+          type: String,
+          default: "",
+          trim: true,
+        },
+      },
+    },
 
-   
     // PICKUP
-   
 
     pickup: {
       status: {
@@ -268,14 +264,10 @@ payment: {
         trim: true,
       },
 
-      // ===================================================
       // PICKUP VERIFICATION
-      // ===================================================
 
       verification: {
-        // -----------------------------------------------
         // CUSTOMER PHOTO
-        // -----------------------------------------------
 
         customerPhoto: {
           url: {
@@ -305,14 +297,10 @@ payment: {
           },
         },
 
-        // -----------------------------------------------
         // AADHAAR OFFLINE e-KYC
-        // -----------------------------------------------
 
         aadhaar: {
-          // ---------------------------------------------
           // Offline e-KYC XML upload metadata
-          // ---------------------------------------------
 
           xml: {
             url: {
@@ -342,9 +330,7 @@ payment: {
             },
           },
 
-          // ---------------------------------------------
           // Optional Aadhaar supporting document
-          // ---------------------------------------------
 
           document: {
             url: {
@@ -374,9 +360,7 @@ payment: {
             },
           },
 
-          // ---------------------------------------------
           // VERIFICATION RESULT
-          // ---------------------------------------------
 
           verification: {
             status: {
@@ -407,22 +391,12 @@ payment: {
               trim: true,
             },
 
-            /*
-             * Store only the last four digits if genuinely
-             * required by the business.
-             *
-             * Never store the complete Aadhaar number here.
-             */
             aadhaarLast4: {
               type: String,
               default: "",
               trim: true,
             },
 
-            /*
-             * Store only the minimum identity information
-             * actually required by the application.
-             */
             name: {
               type: String,
               default: "",
@@ -442,9 +416,8 @@ payment: {
             },
 
             address: {
-              type: String,
-              default: "",
-              trim: true,
+              type: mongoose.Schema.Types.Mixed,
+              default: null,
             },
 
             notes: {
@@ -455,9 +428,7 @@ payment: {
           },
         },
 
-        // -----------------------------------------------
         // OVERALL PICKUP VERIFICATION
-        // -----------------------------------------------
 
         status: {
           type: String,
@@ -482,22 +453,14 @@ payment: {
       },
 
       // Actual pickup completion time
+
       pickedUpAt: {
         type: Date,
         default: null,
       },
     },
 
-   
     // INSPECTION SUMMARY
-   
-
-    /*
-     * This is only a summary/reference on the Order.
-     *
-     * The complete inspection belongs to the Inspection
-     * collection.
-     */
 
     inspection: {
       status: {
@@ -577,9 +540,7 @@ payment: {
       },
     },
 
-   
     // DOCUMENTS
-   
 
     documents: [
       {
@@ -626,9 +587,7 @@ payment: {
       },
     ],
 
-   
     // INVENTORY / SALES
-   
 
     inventory: {
       status: {
@@ -666,9 +625,7 @@ payment: {
       },
     },
 
-   
     // TIMELINE
-   
 
     timeline: [
       {
@@ -696,9 +653,7 @@ payment: {
       },
     ],
 
-   
     // NOTES
-   
 
     notes: {
       type: String,
@@ -712,9 +667,7 @@ payment: {
       trim: true,
     },
 
-   
     // AUDIT
-   
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

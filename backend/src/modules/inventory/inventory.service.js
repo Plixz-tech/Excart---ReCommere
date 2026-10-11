@@ -1,18 +1,11 @@
 import inventoryRepository from "./inventory.repository.js";
-
 import Inventory from "../../models/Inventory.js";
-
 import Order from "../../models/Order.js";
-
 import Device from "../../models/Device.js";
-
 import Inspection from "../../models/Inspection.js";
 
 class InventoryService {
-
-
   // GET ALL INVENTORY
-
 
   async getInventory(query) {
     const {
@@ -80,7 +73,6 @@ class InventoryService {
 
   // GET INVENTORY BY ID
 
-
   async getInventoryById(
     inventoryId
   ) {
@@ -105,25 +97,19 @@ class InventoryService {
 
   // ADD DEVICE TO INVENTORY
 
-
-  async createInventory(
-    data,
-    adminId
-  ) {
+  async createInventory(data, adminId, session = null) {
     const {
       orderId,
-      listedPrice,
+      listedPrice = 0,
       notes,
     } = data;
 
     // 1. Find order
 
-    const order =
-      await Order.findById(
-        orderId
-      )
-        .populate("device")
-        .populate("customer");
+    const order = await Order.findById(orderId)
+      .populate("device")
+      .populate("customer")
+      .session(session);
 
     if (!order) {
       const error = new Error(
@@ -162,11 +148,12 @@ class InventoryService {
       throw error;
     }
 
-    // 4. Inspection must be completed
+    // 4. Inspection must be completed or approved
 
     if (
-      order.inspection?.status !==
-      "completed"
+      !["completed", "approved"].includes(
+        order.inspection?.status
+      )
     ) {
       const error = new Error(
         "Device cannot be added to inventory before inspection is completed."
@@ -181,7 +168,7 @@ class InventoryService {
       await Inspection.findOne({
         order: order._id,
         status: "completed",
-      });
+      }).session(session);
 
     if (!inspection) {
       const error = new Error(
@@ -199,7 +186,8 @@ class InventoryService {
       await inventoryRepository.findOne(
         {
           order: orderId,
-        }
+        },
+        session
       );
 
     if (existingInventory) {
@@ -231,7 +219,7 @@ class InventoryService {
 
       listedPrice,
 
-      status: "draft",
+      status: "in_inventory",
 
       notes:
         notes || "",
@@ -245,7 +233,8 @@ class InventoryService {
 
     const inventory =
       await inventoryRepository.create(
-        inventoryData
+        inventoryData,
+        session
       );
 
     // 7. Update device
@@ -253,15 +242,11 @@ class InventoryService {
     await Device.findByIdAndUpdate(
       order.device._id,
       {
-        expectedSellingPrice:
-          listedPrice,
-
-        status:
-          "inventory",
-
-        updatedBy:
-          adminId,
-      }
+        expectedSellingPrice: listedPrice,
+        status: "inventory",
+        updatedBy: adminId,
+      },
+      { session }
     );
 
     // 8. Update order
@@ -269,28 +254,22 @@ class InventoryService {
     await Order.findByIdAndUpdate(
       orderId,
       {
-        "inventory.status":
-          "draft",
-
-        "inventory.inventoryId":
-          inventory._id,
-
-        "inventory.listedPrice":
-          listedPrice,
-
-        updatedBy:
-          adminId,
-      }
+        "inventory.status": "in_inventory",
+        "inventory.inventoryId": inventory._id,
+        "inventory.listedPrice": listedPrice,
+        updatedBy: adminId,
+      },
+      { session }
     );
 
     return inventoryRepository.findById(
-      inventory._id
+      inventory._id,
+      session
     );
   }
 
 
   // UPDATE INVENTORY
-
 
   async updateInventory(
     inventoryId,
@@ -355,6 +334,8 @@ class InventoryService {
         }
       );
 
+  
+
       await Order.findByIdAndUpdate(
         inventory.order._id,
         {
@@ -372,7 +353,6 @@ class InventoryService {
 
 
   // LIST DEVICE
-
 
   async listInventory(
     inventoryId,
@@ -472,7 +452,6 @@ class InventoryService {
 
 
   // MARK AS SOLD
-
 
   async sellInventory(
     inventoryId,
@@ -580,7 +559,6 @@ class InventoryService {
 
   // REMOVE FROM INVENTORY
 
-
   async removeInventory(
     inventoryId,
     adminId
@@ -630,6 +608,19 @@ class InventoryService {
       {
         status:
           "returned",
+
+        updatedBy:
+          adminId,
+      }
+    );
+
+    // Update order status
+
+    await Order.findByIdAndUpdate(
+      inventory.order._id,
+      {
+        "inventory.status":
+          "removed",
 
         updatedBy:
           adminId,

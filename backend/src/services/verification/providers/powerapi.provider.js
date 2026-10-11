@@ -31,14 +31,27 @@ const powerApiRequest = async (
     throw error;
   }
 
-  const url = new URL(
-    `${POWERAPI_BASE_URL}${endpoint}`
-  );
+const url = new URL(
+  `${POWERAPI_BASE_URL}${endpoint}`
+);
 
-  const requestBody =
-    body !== undefined
-      ? JSON.stringify(body)
-      : undefined;
+if (method === "GET" && body) {
+  if (body.ifsc) {
+    url.searchParams.set("ifsc", body.ifsc);
+  }
+
+  if (body.account_number) {
+    url.searchParams.set(
+      "account_number",
+      body.account_number
+    );
+  }
+}
+
+const requestBody =
+  body !== undefined
+    ? JSON.stringify(body)
+    : undefined;
 
   const result =
     await new Promise(
@@ -233,40 +246,15 @@ export const verifyPan = async (
 /*
  * Bank Account Verification
  *
- * Penny Drop
+ * Penny Less
  */
 export const verifyBankAccount = async (
   accountNumber,
   ifsc
 ) => {
-  return powerApiRequest(
-    "/api/v1/bank/bank-account-details/penny-drop",
-    {
-      method: "GET",
-
-      body: {
-        ifsc,
-
-        account_number:
-          accountNumber,
-      },
-    }
-  );
-};
-
-
-/*
- * Bank Account Verification
- *
- * Penny Less
- */
-export const verifyBankAccountPennyLess =
-  async (
-    accountNumber,
-    ifsc
-  ) => {
-    return powerApiRequest(
-      "/api/v1/bank/bank-account-details/penny-less",
+  const response =
+    await powerApiRequest(
+      "/api/v1/bank/bank-account-pennyless-details/penny-less",
       {
         method: "GET",
 
@@ -278,16 +266,58 @@ export const verifyBankAccountPennyLess =
         },
       }
     );
+
+  return {
+    success: true,
+
+    message:
+      response?.data?.message ||
+      "Bank account verification successful.",
+
+    data:
+      response?.data || {},
+  };
+};
+
+/*
+ * Bank Account Verification
+ *
+ * Penny Less
+ */
+export const verifyBankAccountPennyLess =
+  async (
+    accountNumber,
+    ifsc
+  ) => {
+    const response =
+      await powerApiRequest(
+        "/api/v1/bank/bank-account-pennyless-details/penny-less",
+        {
+          method: "GET",
+
+          body: {
+            ifsc,
+
+            account_number:
+              accountNumber,
+          },
+        }
+      );
+
+    return {
+      success: true,
+
+      message:
+        response?.data?.message ||
+        "Bank account verification successful.",
+
+      data:
+        response?.data || {},
+    };
   };
 
 
 /*
- * =========================
- * IFSC
- * =========================
- */
-
-
 /*
  * Get Bank Details By IFSC
  */

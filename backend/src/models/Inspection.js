@@ -2,9 +2,7 @@ import mongoose from "mongoose";
 
 const inspectionSchema = new mongoose.Schema(
   {
-  
     // ORDER / DEVICE REFERENCE
-  
 
     order: {
       type: mongoose.Schema.Types.ObjectId,
@@ -29,9 +27,7 @@ const inspectionSchema = new mongoose.Schema(
       index: true,
     },
 
-  
     // SCREEN CONDITION
-  
 
     screenCondition: {
       type: String,
@@ -42,12 +38,10 @@ const inspectionSchema = new mongoose.Schema(
         "Poor",
         "Broken",
       ],
-      default: "Good",
+      default: null,
     },
 
-  
     // BODY CONDITION
-  
 
     bodyCondition: {
       type: String,
@@ -57,74 +51,68 @@ const inspectionSchema = new mongoose.Schema(
         "Average",
         "Poor",
       ],
-      default: "Good",
+      default: null,
     },
 
-  
     // BATTERY HEALTH
-  
 
     batteryHealth: {
       type: Number,
       min: 0,
       max: 100,
-      default: 100,
+      default: null,
     },
 
-  
     // FUNCTIONAL TESTS
-  
 
     functionalTests: {
       camera: {
         type: Boolean,
-        default: true,
+        default: null,
       },
 
       speaker: {
         type: Boolean,
-        default: true,
+        default: null,
       },
 
       microphone: {
         type: Boolean,
-        default: true,
+        default: null,
       },
 
       chargingPort: {
         type: Boolean,
-        default: true,
+        default: null,
       },
 
       wifi: {
         type: Boolean,
-        default: true,
+        default: null,
       },
 
       bluetooth: {
         type: Boolean,
-        default: true,
+        default: null,
       },
 
       network: {
         type: Boolean,
-        default: true,
+        default: null,
       },
 
       faceId: {
         type: Boolean,
-        default: true,
+        default: null,
       },
 
       fingerprint: {
         type: Boolean,
-        default: true,
+        default: null,
       },
     },
 
-  
     // ACCESSORIES
-  
 
     accessories: {
       charger: {
@@ -153,9 +141,7 @@ const inspectionSchema = new mongoose.Schema(
       },
     },
 
-  
     // REPAIR HISTORY
-  
 
     repairHistory: {
       repaired: {
@@ -170,9 +156,7 @@ const inspectionSchema = new mongoose.Schema(
       },
     },
 
-  
     // IMEI VERIFICATION
-  
 
     imeiVerification: {
       verified: {
@@ -198,9 +182,7 @@ const inspectionSchema = new mongoose.Schema(
       },
     },
 
-  
     // OVERALL GRADE
-  
 
     overallGrade: {
       type: String,
@@ -211,12 +193,10 @@ const inspectionSchema = new mongoose.Schema(
         "C",
         "D",
       ],
-      default: "B",
+      default: null,
     },
 
-  
     // ESTIMATED RESALE PRICE
-  
 
     estimatedPrice: {
       type: Number,
@@ -224,9 +204,7 @@ const inspectionSchema = new mongoose.Schema(
       default: 0,
     },
 
-  
     // INSPECTOR REMARKS
-  
 
     remarks: {
       type: String,
@@ -234,9 +212,7 @@ const inspectionSchema = new mongoose.Schema(
       trim: true,
     },
 
-  
     // INSPECTION PHOTOS
-  
 
     photos: [
       {
@@ -268,9 +244,7 @@ const inspectionSchema = new mongoose.Schema(
       },
     ],
 
-  
     // INSPECTION STATUS
-  
 
     status: {
       type: String,
@@ -301,9 +275,7 @@ const inspectionSchema = new mongoose.Schema(
       trim: true,
     },
 
-  
     // AUDIT
-  
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

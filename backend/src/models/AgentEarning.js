@@ -35,6 +35,61 @@ const agentEarningSchema = new mongoose.Schema(
       index: true,
     },
 
+    payout: {
+      provider: {
+        type: String,
+        enum: ["cashfree", "manual"],
+        default: null,
+      },
+
+      beneficiaryId: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+
+      transferId: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+
+      referenceId: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+
+      status: {
+        type: String,
+        enum: [
+          "not_started",
+          "pending",
+          "processing",
+          "success",
+          "failed",
+          "cancelled",
+        ],
+        default: "not_started",
+      },
+
+      initiatedAt: {
+        type: Date,
+        default: null,
+      },
+
+      completedAt: {
+        type: Date,
+        default: null,
+      },
+
+      failureReason: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+    },
+
     approvedAt: {
       type: Date,
       default: null,

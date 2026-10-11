@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-import Device from "../../models/Device.js";
+import DeviceCatalog from "../../models/DeviceCatalog.js";
 
 import ApiError from "../../utils/errors/ApiError.js";
 
@@ -309,29 +309,42 @@ const getConditionValue = (
     return undefined;
   }
 
-  // Example:
-  // conditionType = "screenCondition"
-  // conditionKey = ""
-  //
-  // evaluation.screenCondition
+  const conditionValue =
+    evaluation[conditionType];
 
-  if (!conditionKey) {
-    return evaluation[
-      conditionType
-    ];
+  if (
+    conditionValue === undefined ||
+    conditionValue === null
+  ) {
+    return undefined;
   }
 
+  // Direct condition value
   // Example:
-  // conditionType = "functionalTests"
-  // conditionKey = "camera"
-  //
-  // evaluation.functionalTests.camera
+  // evaluation.batteryHealth = 75
+  // evaluation.screenCondition = "Poor"
+  if (!conditionKey) {
+    return conditionValue;
+  }
 
-  return evaluation[
-    conditionType
-  ]?.[conditionKey];
+  // Nested condition value
+  // Example:
+  // evaluation.functionalTests.camera = true
+  // evaluation.accessories.charger = true
+  if (
+    typeof conditionValue === "object" &&
+    !Array.isArray(conditionValue)
+  ) {
+    return conditionValue[conditionKey];
+  }
+
+  // Primitive condition with a conditionKey
+  // Example:
+  // batteryHealth + batteryHealth
+  // screenCondition + screenCondition
+  // bodyCondition + bodyCondition
+  return conditionValue;
 };
-
 
 
 // CHECK RULE CONDITION
@@ -350,9 +363,56 @@ const matchesRule = (
     return false;
   }
 
-  // ---------------------------------------------
+
+  // ARRAY
+
+
+  if (Array.isArray(actualValue)) {
+    if (operator === "contains") {
+      const expectedString =
+        String(expectedValue)
+          .trim()
+          .toLowerCase();
+
+      return actualValue.some(
+        (item) =>
+          String(item)
+            .trim()
+            .toLowerCase() ===
+          expectedString
+      );
+    }
+
+    if (operator === "equals") {
+      return actualValue.some(
+        (item) =>
+          String(item)
+            .trim()
+            .toLowerCase() ===
+          String(expectedValue)
+            .trim()
+            .toLowerCase()
+      );
+    }
+
+    if (operator === "not_equals") {
+      return !actualValue.some(
+        (item) =>
+          String(item)
+            .trim()
+            .toLowerCase() ===
+          String(expectedValue)
+            .trim()
+            .toLowerCase()
+      );
+    }
+
+    return false;
+  }
+
+
   // BOOLEAN
-  // ---------------------------------------------
+
 
   if (
     expectedValue === "true" ||
@@ -387,9 +447,9 @@ const matchesRule = (
     }
   }
 
-  // ---------------------------------------------
+
   // NUMBER
-  // ---------------------------------------------
+
 
   const actualNumber =
     Number(actualValue);
@@ -448,9 +508,9 @@ const matchesRule = (
     }
   }
 
-  // ---------------------------------------------
+
   // STRING
-  // ---------------------------------------------
+
 
   const actualString =
     String(actualValue)
@@ -475,6 +535,11 @@ const matchesRule = (
         expectedString
       );
 
+    case "contains":
+      return actualString.includes(
+        expectedString
+      );
+
     default:
       return false;
   }
@@ -486,47 +551,45 @@ const matchesRule = (
 
 
 export const calculatePrice = async ({
-  deviceId,
+  deviceCatalogId,
   evaluation,
 }) => {
-  if (!deviceId) {
-    throw new ApiError(
-      400,
-      "Device ID is required."
-    );
-  }
+ if (!deviceCatalogId) {
+  throw new ApiError(
+    400,
+    "Device catalog ID is required."
+  );
+}
 
-  if (
-    !mongoose.Types.ObjectId.isValid(
-      deviceId
-    )
-  ) {
-    throw new ApiError(
-      400,
-      "Invalid device ID."
-    );
-  }
+if (
+  !mongoose.Types.ObjectId.isValid(
+    deviceCatalogId
+  )
+) {
+  throw new ApiError(
+    400,
+    "Invalid device catalog ID."
+  );
+}
 
   // Get the real device from the database.
   // Do not trust device pricing information
   // coming from the frontend.
-  const device =
-    await Device.findOne({
-      _id: deviceId,
-      status: {
-        $ne: "deleted",
-      },
-    });
+ const catalogDevice =
+  await DeviceCatalog.findOne({
+    _id: deviceCatalogId,
+    active: true,
+  });
 
-  if (!device) {
-    throw new ApiError(
-      404,
-      "Device not found."
-    );
-  }
+if (!catalogDevice) {
+  throw new ApiError(
+    404,
+    "Device catalog item not found."
+  );
+}
 
-  const numericBasePrice =
-    Number(device.valuationPrice);
+ const numericBasePrice =
+  Number(catalogDevice.valuationPrice);
 
   if (
     Number.isNaN(numericBasePrice) ||
@@ -550,26 +613,26 @@ export const calculatePrice = async ({
 
     // DEVICE MATCHING
 
-    if (
-      rule.brand &&
-      rule.brand !== device.brand
-    ) {
-      continue;
-    }
+if (
+  rule.brand &&
+  rule.brand !== catalogDevice.brand
+) {
+  continue;
+}
 
-    if (
-      rule.model &&
-      rule.model !== device.model
-    ) {
-      continue;
-    }
+if (
+  rule.model &&
+  rule.model !== catalogDevice.model
+) {
+  continue;
+}
 
-    if (
-      rule.variant &&
-      rule.variant !== device.variant
-    ) {
-      continue;
-    }
+if (
+  rule.variant &&
+  rule.variant !== catalogDevice.variant
+) {
+  continue;
+}
 
     // GET ACTUAL CONDITION
 
@@ -645,19 +708,23 @@ export const calculatePrice = async ({
       finalPrice
     );
 
-  return {
-    deviceId:
-      device._id,
 
-    basePrice:
-      numericBasePrice,
+return {
+  deviceCatalogId:
+    catalogDevice._id,
 
-    finalPrice,
+  basePrice:
+    numericBasePrice,
 
-    totalAdjustment:
-      finalPrice -
-      numericBasePrice,
+  finalPrice,
 
-    appliedRules,
-  };
+  totalAdjustment:
+    finalPrice -
+    numericBasePrice,
+
+  evaluationConfig:
+    catalogDevice.evaluationConfig,
+
+  appliedRules,
+};
 };

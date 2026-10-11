@@ -108,15 +108,31 @@ export const changePassword = async (
     );
   }
   const hashedPassword = await bcrypt.hash(newPassword, 10);
-  await updateAdminPassword(adminId, hashedPassword);
+
+await updateAdminPassword(adminId, hashedPassword);
+
+// Invalidate all existing refresh-token sessions.
+await deleteUserRefreshTokens(adminId);
 };
-export const logout = async (refreshToken) => {
-  const token = await deleteRefreshToken(refreshToken);
+export const logout = async (
+  refreshToken,
+  adminId
+) => {
+  const token = await deleteRefreshToken(
+    refreshToken,
+    adminId
+  );
+
   if (!token) {
-    throw new ApiError(404, "Refresh token not found.");
+    throw new ApiError(
+      404,
+      "Refresh token not found."
+    );
   }
+
   return;
 };
+
 export const logoutAll = async (adminId) => {
   await deleteUserRefreshTokens(adminId);
 };

@@ -100,3 +100,41 @@ export const updateAgentProfileSchema = z.object({
     )
     .optional(),
 });
+
+export const googleLoginSchema = z.object({
+  idToken: z
+    .string()
+    .trim()
+    .min(1, "Google ID token is required."),
+
+  deviceType: z.enum(
+    ["android", "ios", "web"],
+    {
+      message: "Invalid device type.",
+    }
+  ),
+
+  deviceId: z
+    .string()
+    .trim()
+    .min(1, "Device ID is required."),
+});
+
+export const facebookLoginSchema = z.object({
+  accessToken: z
+    .string()
+    .trim()
+    .min(1, "Facebook access token is required."),
+
+  deviceType: z.enum(
+    ["android", "ios", "web"],
+    {
+      message: "Invalid device type.",
+    }
+  ),
+
+  deviceId: z
+    .string()
+    .trim()
+    .min(1, "Device ID is required."),
+});

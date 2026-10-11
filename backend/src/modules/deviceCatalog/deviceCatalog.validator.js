@@ -8,7 +8,9 @@ const objectId = z
   );
 
 // CREATE DEVICE CATALOG
+
 // Validates req.body
+
 export const createDeviceCatalogSchema = z.object({
   brand: z
     .string()
@@ -62,13 +64,37 @@ export const createDeviceCatalogSchema = z.object({
     )
     .default(0),
 
+  evaluationConfig: z
+    .object({
+      battery: z
+        .enum([
+          "percentage",
+          "status",
+          "none",
+        ])
+        .optional(),
+
+      biometric: z
+        .enum([
+          "face_id",
+          "touch_id",
+          "fingerprint",
+          "fingerprint_face",
+          "none",
+        ])
+        .optional(),
+    })
+    .optional(),
+
   active: z
     .boolean()
     .optional(),
 });
 
 // UPDATE DEVICE CATALOG
+
 // Validates req.body
+
 export const updateDeviceCatalogSchema = z.object({
   brand: z
     .string()
@@ -125,19 +151,45 @@ export const updateDeviceCatalogSchema = z.object({
     )
     .optional(),
 
+  evaluationConfig: z
+    .object({
+      battery: z
+        .enum([
+          "percentage",
+          "status",
+          "none",
+        ])
+        .optional(),
+
+      biometric: z
+        .enum([
+          "face_id",
+          "touch_id",
+          "fingerprint",
+          "fingerprint_face",
+          "none",
+        ])
+        .optional(),
+    })
+    .optional(),
+
   active: z
     .boolean()
     .optional(),
 });
 
 // DEVICE CATALOG ID
+
 // Validates req.params
+
 export const deviceCatalogIdSchema = z.object({
   id: objectId,
 });
 
 // FIND MATCHING DEVICE
+
 // Validates req.query
+
 export const findMatchingDeviceCatalogSchema = z.object({
   brand: z
     .string()

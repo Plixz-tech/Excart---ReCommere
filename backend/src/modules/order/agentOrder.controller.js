@@ -62,6 +62,66 @@ class AgentOrderController {
     }
   }
 
+  async updateDeviceCondition(req, res, next) {
+  try {
+    const result =
+      await orderService.updateAgentDeviceCondition(
+        req.params.id,
+        req.user.userId,
+        req.body
+      );
+
+    return res.status(200).json({
+      success: true,
+      message: "Device condition updated successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// UPLOAD DEVICE PHOTOS
+
+async uploadDevicePhotos(req, res, next) {
+  try {
+    const result =
+      await orderService.uploadAgentDevicePhotos(
+        req.params.id,
+        req.user.userId,
+        req.files
+      );
+
+    return res.status(200).json({
+      success: true,
+      message: "Device photos uploaded successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// CALCULATE AGENT DEVICE VALUATION
+
+async calculateDeviceValuation(req, res, next) {
+  try {
+    const result =
+      await orderService.calculateAgentDeviceValuation(
+        req.params.id,
+        req.user.userId
+      );
+
+    return res.status(200).json({
+      success: true,
+      message: "Device valuation calculated successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
   // CUSTOMER AADHAAR - SEND OTP
 
   async sendCustomerAadhaarOtp(req, res, next) {
@@ -103,6 +163,26 @@ class AgentOrderController {
       next(error);
     }
   }
+// UPLOAD PICKUP DOCUMENTS
+
+async uploadPickupDocuments(req, res, next) {
+  try {
+    const result =
+      await orderService.uploadPickupDocuments(
+        req.params.id,
+        req.user.userId,
+        req.files
+      );
+
+    return res.status(200).json({
+      success: true,
+      message: "Pickup documents uploaded successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
   // PICKUP VERIFICATION
 

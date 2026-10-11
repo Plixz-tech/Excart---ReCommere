@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import orderRepository from "./order.repository.js";
 import Device from "../../models/Device.js";
 import DeviceCatalog from "../../models/DeviceCatalog.js";
@@ -7,6 +8,8 @@ import { generateGoogleMapsUrl } from "../../lib/googleMaps.js";
 import { uploadBufferToCloudinary } from "../../lib/uploadBuffer.js";
 import * as verificationService from "../../services/verification/verification.service.js";
 import notificationService from "../notification/notification.service.js";
+import auditLogger from "../../utils/audit/auditLogger.js";
+import { calculatePrice } from "../pricingRule/pricingRule.service.js";
 
 // ExCart currently operates in India.
 // Pickup date/time received from the frontend is treated as IST.
@@ -135,6 +138,7 @@ class OrderService {
 
   async createOrder(data, userId) {
     const {
+      deviceCatalogId,
       brand,
       model,
       variant,
@@ -223,18 +227,46 @@ class OrderService {
       throw error;
     }
 
+    if (!deviceCatalogId) {
+      throw new ApiError(
+        400,
+        "Device Catalog ID is required."
+      );
+    }
+
+    if (
+      !mongoose.Types.ObjectId.isValid(
+        deviceCatalogId
+      )
+    ) {
+      throw new ApiError(
+        400,
+        "Invalid Device Catalog ID."
+      );
+    }
+
     const catalogDevice =
       await DeviceCatalog.findOne({
-        brand,
-        model,
-        variant: variant || "",
-        storage: storage || "",
-        ram: ram || "",
+        _id: deviceCatalogId,
         active: true,
       });
 
+    if (!catalogDevice) {
+      throw new ApiError(
+        404,
+        "Device catalog item not found."
+      );
+    }
+
     const agentCommission =
-      catalogDevice?.agentCommission ?? 0;
+      catalogDevice.agentCommission;
+
+    const pricingResult =
+      await calculatePrice({
+        deviceCatalogId,
+        evaluation:
+          customerEvaluation || {},
+      });
 
     const device =
       await Device.create({
@@ -268,6 +300,11 @@ class OrderService {
 
         agentCommission,
 
+        deviceCatalogId,
+
+        valuationPrice:
+          catalogDevice.valuationPrice,
+
         purchasePrice:
           0,
 
@@ -294,6 +331,9 @@ class OrderService {
 
       agent:
         null,
+
+      agentCommission:
+        Number(agentCommission ?? 0),
 
       device:
         device._id,
@@ -324,7 +364,7 @@ class OrderService {
 
       payment: {
         estimatedAmount:
-          estimatedAmount ?? 0,
+          pricingResult.finalPrice,
 
         finalAmount:
           0,
@@ -347,6 +387,23 @@ class OrderService {
       await orderRepository.create(
         orderData
       );
+
+    await auditLogger({
+      actor: userId,
+      action: "ORDER_CREATED",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description:
+        `Order ${order.orderNumber} was created.`,
+      newValue: {
+        status:
+          order.status,
+
+        orderNumber:
+          order.orderNumber,
+      },
+    });
 
     try {
       await notificationService.createNotification({
@@ -378,7 +435,6 @@ class OrderService {
   }
 
 
-
   // CUSTOMER UPLOAD DEVICE INVOICE
 
 
@@ -405,7 +461,7 @@ class OrderService {
     if (
       !order.customer ||
       order.customer._id.toString() !==
-        userId.toString()
+      userId.toString()
     ) {
       const error = new Error(
         "You are not authorized to upload invoice for this order."
@@ -528,7 +584,7 @@ class OrderService {
     if (
       !order.customer ||
       order.customer._id.toString() !==
-        userId.toString()
+      userId.toString()
     ) {
       const error = new Error(
         "You are not authorized to view this order."
@@ -569,7 +625,7 @@ class OrderService {
     if (
       !order.customer ||
       order.customer._id.toString() !==
-        userId.toString()
+      userId.toString()
     ) {
       const error = new Error(
         "You are not authorized to cancel this order."
@@ -623,6 +679,22 @@ class OrderService {
           },
         }
       );
+
+    await auditLogger({
+      actor: userId,
+      action: "ORDER_CANCELLED",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description: `Order ${order.orderNumber} was cancelled by the customer.`,
+      oldValue: {
+        status: order.status,
+      },
+      newValue: {
+        status: updatedOrder.status,
+        cancellationReason: "Cancelled by customer",
+      },
+    });
 
     try {
       await notificationService.createNotification({
@@ -679,7 +751,7 @@ class OrderService {
     if (
       !order.customer ||
       order.customer._id.toString() !==
-        userId.toString()
+      userId.toString()
     ) {
       const error = new Error(
         "You are not authorized to reschedule this order."
@@ -762,6 +834,26 @@ class OrderService {
           },
         }
       );
+
+    await auditLogger({
+      actor: userId,
+      action: "PICKUP_RESCHEDULED",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description:
+        `Pickup for order ${order.orderNumber} was rescheduled.`,
+      oldValue: {
+        scheduledDate:
+          order.pickup?.scheduledDate,
+        scheduledTime:
+          order.pickup?.scheduledTime,
+      },
+      newValue: {
+        scheduledDate,
+        scheduledTime,
+      },
+    });
 
     try {
       await notificationService.createNotification({
@@ -900,9 +992,9 @@ class OrderService {
         userId,
     };
 
-   
+
     // DEVICE
-   
+
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -914,9 +1006,9 @@ class OrderService {
         data.device;
     }
 
-   
+
     // PICKUP
-   
+
 
     if (data.pickup) {
       if (
@@ -939,7 +1031,7 @@ class OrderService {
           buildPickupDateTime(
             data.pickup.scheduledDate,
             data.pickup.scheduledTime ||
-              order.pickup?.scheduledTime
+            order.pickup?.scheduledTime
           );
       }
 
@@ -1026,9 +1118,9 @@ class OrderService {
       }
     }
 
-   
+
     // PAYMENT
-   
+
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -1052,9 +1144,9 @@ class OrderService {
       ] = data.finalAmount;
     }
 
-   
+
     // NOTES
-   
+
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -1125,6 +1217,22 @@ class OrderService {
         }
       );
 
+    await auditLogger({
+      actor: userId,
+      action: "ORDER_STATUS_UPDATED",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description:
+        `Order ${order.orderNumber} status changed from ${order.status} to ${status}.`,
+      oldValue: {
+        status: order.status,
+      },
+      newValue: {
+        status,
+      },
+    });
+
     try {
       await notificationService.createNotification({
         recipient:
@@ -1152,7 +1260,6 @@ class OrderService {
 
     return updatedOrder;
   }
-
 
 
   // ADMIN ASSIGN ORDER
@@ -1263,7 +1370,7 @@ class OrderService {
             agentId,
 
           status:
-            "pickup_scheduled",
+            "assigned",
 
           "pickup.status":
             "scheduled",
@@ -1288,6 +1395,36 @@ class OrderService {
           },
         }
       );
+
+    await auditLogger({
+      actor: adminId,
+      action: "ORDER_AGENT_ASSIGNED",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description:
+        `Order ${order.orderNumber} was assigned to agent ${agent.fullName || agentId}.`,
+      oldValue: {
+        agent:
+          order.agent?._id ||
+          order.agent ||
+          null,
+        status:
+          order.status,
+      },
+      newValue: {
+        agent:
+          agentId,
+        status:
+          "assigned",
+      },
+      metadata: {
+        agentId:
+          agentId.toString(),
+        agentName:
+          agent.fullName || "",
+      },
+    });
 
     try {
       await notificationService.createNotification({
@@ -1354,8 +1491,6 @@ class OrderService {
     return updatedOrder;
   }
 
-
-
   // AGENT GET ASSIGNED ORDERS
 
 
@@ -1414,7 +1549,7 @@ class OrderService {
     if (
       !order.agent ||
       order.agent._id.toString() !==
-        agentId.toString()
+      agentId.toString()
     ) {
       const error = new Error(
         "You are not authorized to view this order."
@@ -1574,7 +1709,7 @@ class OrderService {
             "scheduled",
 
           status:
-            "pickup_scheduled",
+            "assigned",
 
           updatedBy:
             agentId,
@@ -1593,6 +1728,36 @@ class OrderService {
           },
         }
       );
+
+    await auditLogger({
+      actor: agentId,
+      action: "ORDER_SELF_ASSIGNED",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description:
+        `Agent ${agent.fullName || agentId} accepted pickup order ${order.orderNumber}.`,
+      oldValue: {
+        agent:
+          order.agent?._id ||
+          order.agent ||
+          null,
+        status:
+          order.status,
+      },
+      newValue: {
+        agent:
+          agentId,
+        status:
+          "assigned",
+      },
+      metadata: {
+        agentId:
+          agentId.toString(),
+        agentName:
+          agent.fullName || "",
+      },
+    });
 
     try {
       await notificationService.createNotification({
@@ -1654,10 +1819,647 @@ class OrderService {
     return updatedOrder;
   }
 
+  // UPDATE AGENT DEVICE CONDITION / PHYSICAL INSPECTION
 
+  async updateAgentDeviceCondition(
+    orderId,
+    agentId,
+    conditionData
+  ) {
+    const order =
+      await orderRepository.findById(
+        orderId
+      );
+
+    if (!order) {
+      const error = new Error(
+        "Order not found."
+      );
+
+      error.statusCode = 404;
+
+      throw error;
+    }
+
+    // Only the assigned agent can update
+    // the device condition.
+    if (
+      !order.agent ||
+      order.agent._id.toString() !==
+      agentId.toString()
+    ) {
+      const error = new Error(
+        "You are not authorized to update this device."
+      );
+
+      error.statusCode = 403;
+
+      throw error;
+    }
+
+    // Device condition can be recorded
+    // before the actual pickup.
+    if (
+      ![
+        "assigned",
+        "pickup_scheduled",
+      ].includes(order.status)
+    ) {
+      const error = new Error(
+        `Device condition cannot be updated because the order status is "${order.status}".`
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    if (!order.device) {
+      const error = new Error(
+        "Associated device not found."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const device =
+      await Device.findById(
+        order.device._id
+      );
+
+    if (!device) {
+      const error = new Error(
+        "Associated device not found."
+      );
+
+      error.statusCode = 404;
+
+      throw error;
+    }
+
+    // Update only the fields provided by the agent.
+    if (
+      conditionData.screenCondition !==
+      undefined
+    ) {
+      device.agentEvaluation.screenCondition =
+        conditionData.screenCondition;
+    }
+
+    if (
+      conditionData.displayIssues !==
+      undefined
+    ) {
+      device.agentEvaluation.displayIssues =
+        conditionData.displayIssues;
+    }
+
+    if (
+      conditionData.bodyCondition !==
+      undefined
+    ) {
+      device.agentEvaluation.bodyCondition =
+        conditionData.bodyCondition;
+    }
+
+    if (
+      conditionData.batteryHealth !==
+      undefined
+    ) {
+      device.agentEvaluation.batteryHealth =
+        conditionData.batteryHealth;
+    }
+
+    if (
+      conditionData.repairHistory !==
+      undefined
+    ) {
+      device.agentEvaluation.repairHistory =
+        conditionData.repairHistory;
+    }
+
+    if (
+      conditionData.accessories !==
+      undefined
+    ) {
+      device.agentEvaluation.accessories =
+        conditionData.accessories;
+    }
+
+    if (
+      conditionData.functionalIssues !==
+      undefined
+    ) {
+      device.agentEvaluation.functionalIssues =
+        conditionData.functionalIssues;
+    }
+
+    device.agentEvaluation.verifiedBy =
+      agentId;
+
+    device.agentEvaluation.verifiedAt =
+      new Date();
+
+    device.updatedBy =
+      agentId;
+
+    await device.save();
+
+    return orderRepository.findById(
+      orderId
+    );
+  }
+
+  // UPLOAD AGENT DEVICE PHOTOS
+
+  async uploadAgentDevicePhotos(
+    orderId,
+    agentId,
+    files
+  ) {
+    const order =
+      await orderRepository.findById(
+        orderId
+      );
+
+    if (!order) {
+      const error = new Error(
+        "Order not found."
+      );
+
+      error.statusCode = 404;
+
+      throw error;
+    }
+
+    // Only the assigned agent can upload
+    // photos for this device.
+    if (
+      !order.agent ||
+      order.agent._id.toString() !==
+      agentId.toString()
+    ) {
+      const error = new Error(
+        "You are not authorized to upload photos for this order."
+      );
+
+      error.statusCode = 403;
+
+      throw error;
+    }
+
+    // Photos can be uploaded while the
+    // agent is handling the pickup.
+    if (
+      ![
+        "assigned",
+        "pickup_scheduled",
+      ].includes(order.status)
+    ) {
+      const error = new Error(
+        `Device photos cannot be uploaded because the order status is "${order.status}".`
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    if (
+      !order.device ||
+      !order.device._id
+    ) {
+      const error = new Error(
+        "Associated device not found."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    if (
+      !files ||
+      !files.length
+    ) {
+      const error = new Error(
+        "At least one device photo is required."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    // Allow a maximum of 8 device photos
+    // in one upload request.
+    if (files.length > 8) {
+      const error = new Error(
+        "You can upload a maximum of 8 device photos at a time."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    // Device photos must be images only.
+    const allowedImageTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+    ];
+
+    for (const file of files) {
+      if (
+        !allowedImageTypes.includes(
+          file.mimetype
+        )
+      ) {
+        const error = new Error(
+          "Only JPG, JPEG and PNG images are allowed for device photos."
+        );
+
+        error.statusCode = 400;
+
+        throw error;
+      }
+    }
+
+    const device =
+      await Device.findById(
+        order.device._id
+      );
+
+    if (!device) {
+      const error = new Error(
+        "Associated device not found."
+      );
+
+      error.statusCode = 404;
+
+      throw error;
+    }
+
+    const uploadedPhotos = [];
+
+    for (const file of files) {
+      const uploadedFile =
+        await uploadBufferToCloudinary(
+          file.buffer,
+          {
+            folder:
+              `excart/orders/${orderId}/device-photos`,
+
+            resource_type:
+              "image",
+          }
+        );
+
+      uploadedPhotos.push({
+        url:
+          uploadedFile.secure_url ||
+          uploadedFile.url ||
+          "",
+
+        publicId:
+          uploadedFile.public_id ||
+          "",
+
+        uploadedAt:
+          new Date(),
+      });
+    }
+
+    device.photos.push(
+      ...uploadedPhotos
+    );
+
+    device.updatedBy =
+      agentId;
+
+    await device.save();
+
+    return orderRepository.findById(
+      orderId
+    );
+  }
+
+  // UPLOAD PICKUP DOCUMENTS
+
+  async uploadPickupDocuments(
+    orderId,
+    agentId,
+    files
+  ) {
+    const order =
+      await orderRepository.findById(
+        orderId
+      );
+
+    if (!order) {
+      const error = new Error(
+        "Order not found."
+      );
+
+      error.statusCode = 404;
+
+      throw error;
+    }
+
+    // Only the assigned agent can upload
+    if (
+      !order.agent ||
+      order.agent._id.toString() !==
+      agentId.toString()
+    ) {
+      const error = new Error(
+        "You are not authorized to upload pickup documents for this order."
+      );
+
+      error.statusCode = 403;
+
+      throw error;
+    }
+
+    // Documents can be uploaded during pickup handling
+    if (
+      ![
+        "assigned",
+        "pickup_scheduled",
+      ].includes(order.status)
+    ) {
+      const error = new Error(
+        `Pickup documents cannot be uploaded because the order status is "${order.status}".`
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const customerPhoto =
+      files?.customerPhoto?.[0];
+
+    const aadhaarDocument =
+      files?.aadhaarDocument?.[0];
+
+    if (!customerPhoto) {
+      const error = new Error(
+        "Customer live photo is required."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    if (!aadhaarDocument) {
+      const error = new Error(
+        "Aadhaar document photo is required."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    // Pickup documents must be images only
+    const allowedImageTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+    ];
+
+    if (
+      !allowedImageTypes.includes(
+        customerPhoto.mimetype
+      ) ||
+      !allowedImageTypes.includes(
+        aadhaarDocument.mimetype
+      )
+    ) {
+      const error = new Error(
+        "Only JPG, JPEG and PNG images are allowed."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const customerPhotoUpload =
+      await uploadBufferToCloudinary(
+        customerPhoto.buffer,
+        {
+          folder:
+            `excart/orders/${orderId}/pickup-documents/customer`,
+          resource_type: "image",
+        }
+      );
+
+    const aadhaarDocumentUpload =
+      await uploadBufferToCloudinary(
+        aadhaarDocument.buffer,
+        {
+          folder:
+            `excart/orders/${orderId}/pickup-documents/aadhaar`,
+          resource_type: "image",
+        }
+      );
+
+    order.pickup.verification.customerPhoto = {
+      url:
+        customerPhotoUpload.secure_url ||
+        customerPhotoUpload.url ||
+        "",
+
+      publicId:
+        customerPhotoUpload.public_id ||
+        "",
+
+      fileName:
+        customerPhoto.originalname ||
+        "",
+
+      uploadedBy:
+        agentId,
+
+      uploadedAt:
+        new Date(),
+    };
+
+    order.pickup.verification.aadhaar.document = {
+      url:
+        aadhaarDocumentUpload.secure_url ||
+        aadhaarDocumentUpload.url ||
+        "",
+
+      publicId:
+        aadhaarDocumentUpload.public_id ||
+        "",
+
+      fileName:
+        aadhaarDocument.originalname ||
+        "",
+
+      uploadedBy:
+        agentId,
+
+      uploadedAt:
+        new Date(),
+    };
+
+    await order.save();
+
+    return orderRepository.findById(
+      orderId
+    );
+  }
+
+  // CALCULATE AGENT DEVICE VALUATION
+
+  async calculateAgentDeviceValuation(
+    orderId,
+    agentId
+  ) {
+    const order =
+      await orderRepository.findById(
+        orderId
+      );
+
+    if (!order) {
+      const error = new Error(
+        "Order not found."
+      );
+
+      error.statusCode = 404;
+
+      throw error;
+    }
+
+    // Only the assigned agent can calculate
+    // the device valuation.
+    if (
+      !order.agent ||
+      order.agent._id.toString() !==
+      agentId.toString()
+    ) {
+      const error = new Error(
+        "You are not authorized to calculate the device valuation."
+      );
+
+      error.statusCode = 403;
+
+      throw error;
+    }
+
+    // Agent valuation is allowed during
+    // the physical pickup process.
+    if (
+      ![
+        "assigned",
+        "pickup_scheduled",
+      ].includes(order.status)
+    ) {
+      const error = new Error(
+        `Device valuation cannot be calculated because the order status is "${order.status}".`
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    if (!order.device) {
+      const error = new Error(
+        "Associated device not found."
+      );
+
+      error.statusCode = 400;
+
+      throw error;
+    }
+
+    const device =
+      await Device.findById(
+        order.device._id
+      );
+
+    if (!device) {
+      const error = new Error(
+        "Associated device not found."
+      );
+
+      error.statusCode = 404;
+
+      throw error;
+    }
+
+    // Use the agent's physical evaluation
+    // for the second pricing calculation.
+    const evaluation =
+      device.agentEvaluation?.toObject
+        ? device.agentEvaluation.toObject()
+        : device.agentEvaluation || {};
+
+    const pricingResult =
+      await calculatePrice({
+        deviceCatalogId:
+          order.deviceCatalogId ||
+          order.device.deviceCatalogId,
+
+        evaluation,
+      });
+
+    device.agentValuation = {
+      amount:
+        pricingResult.finalPrice,
+
+      totalAdjustment:
+        pricingResult.totalAdjustment,
+
+      appliedRules:
+        pricingResult.appliedRules.map(
+          (rule) => ({
+            ruleId:
+              rule.ruleId || "",
+
+            name:
+              rule.name || rule.conditionType || "",
+
+            adjustmentType:
+              rule.adjustmentType,
+
+            amount:
+              Math.abs(
+                Number(
+                  rule.adjustmentValue || 0
+                )
+              ),
+          })
+        ),
+
+      calculatedAt:
+        new Date(),
+
+      calculatedBy:
+        agentId,
+    };
+
+    device.updatedBy =
+      agentId;
+
+    await device.save();
+
+    return orderRepository.findById(
+      orderId
+    );
+  }
 
   // AGENT - CUSTOMER AADHAAR SEND OTP
-
 
   async sendCustomerAadhaarOtp(
     orderId,
@@ -1682,7 +2484,7 @@ class OrderService {
     if (
       !order.agent ||
       order.agent._id.toString() !==
-        agentId.toString()
+      agentId.toString()
     ) {
       const error = new Error(
         "You are not authorized to verify Aadhaar for this order."
@@ -1763,6 +2565,23 @@ class OrderService {
       }
     );
 
+    await auditLogger({
+      actor: agentId,
+      action: "AADHAAR_OTP_SENT",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description:
+        `Aadhaar OTP was sent for customer verification on order ${order.orderNumber}.`,
+      newValue: {
+        aadhaarLast4:
+          normalizedAadhaar.slice(-4),
+        verificationStatus:
+          "pending",
+        referenceId,
+      },
+    });
+
     return {
       referenceId,
 
@@ -1802,7 +2621,7 @@ class OrderService {
     if (
       !order.agent ||
       order.agent._id.toString() !==
-        agentId.toString()
+      agentId.toString()
     ) {
       const error = new Error(
         "You are not authorized to verify Aadhaar for this order."
@@ -1887,48 +2706,67 @@ class OrderService {
       verifiedAadhaar.length >= 4
         ? verifiedAadhaar.slice(-4)
         : order.pickup?.verification
-            ?.aadhaar?.verification
-            ?.aadhaarLast4 || "";
+          ?.aadhaar?.verification
+          ?.aadhaarLast4 || "";
 
-    return orderRepository.updateById(
-      orderId,
-      {
-        "pickup.verification.status":
-          "pending",
+    const updatedOrder =
+      await orderRepository.updateById(
+        orderId,
+        {
+          "pickup.verification.status":
+            "pending",
 
-        "pickup.verification.aadhaar.verification.status":
+          "pickup.verification.aadhaar.verification.status":
+            "verified",
+
+          "pickup.verification.aadhaar.verification.referenceId":
+            referenceId,
+
+          "pickup.verification.aadhaar.verification.aadhaarLast4":
+            aadhaarLast4,
+
+          "pickup.verification.aadhaar.verification.name":
+            aadhaarData.name || "",
+
+          "pickup.verification.aadhaar.verification.dateOfBirth":
+            aadhaarData.date_of_birth || "",
+
+          "pickup.verification.aadhaar.verification.gender":
+            aadhaarData.gender || "",
+
+          "pickup.verification.aadhaar.verification.address":
+            aadhaarData.address || "",
+
+          "pickup.verification.aadhaar.verification.verifiedAt":
+            new Date(),
+
+          "pickup.verification.aadhaar.verification.verifiedBy":
+            agentId,
+
+          updatedBy:
+            agentId,
+        }
+      );
+
+    await auditLogger({
+      actor: agentId,
+      action: "AADHAAR_VERIFIED",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description:
+        `Customer Aadhaar was successfully verified for order ${order.orderNumber}.`,
+      newValue: {
+        aadhaarLast4,
+        verificationStatus:
           "verified",
-
-        "pickup.verification.aadhaar.verification.referenceId":
-          referenceId,
-
-        "pickup.verification.aadhaar.verification.aadhaarLast4":
-          aadhaarLast4,
-
-        "pickup.verification.aadhaar.verification.name":
-          aadhaarData.name || "",
-
-        "pickup.verification.aadhaar.verification.dateOfBirth":
-          aadhaarData.date_of_birth || "",
-
-        "pickup.verification.aadhaar.verification.gender":
-          aadhaarData.gender || "",
-
-        "pickup.verification.aadhaar.verification.address":
-          aadhaarData.address || "",
-
-        "pickup.verification.aadhaar.verification.verifiedAt":
-          new Date(),
-
-        "pickup.verification.aadhaar.verification.verifiedBy":
+        verifiedBy:
           agentId,
+      },
+    });
 
-        updatedBy:
-          agentId,
-      }
-    );
+    return updatedOrder;
   }
-
 
 
   // AGENT PICKUP VERIFICATION
@@ -1957,7 +2795,7 @@ class OrderService {
     if (
       !order.agent ||
       order.agent._id.toString() !==
-        agentId.toString()
+      agentId.toString()
     ) {
       const error = new Error(
         "You are not authorized to verify this pickup."
@@ -2030,10 +2868,11 @@ class OrderService {
     const verifiedAt =
       new Date();
 
-    return orderRepository.updateById(
-      orderId,
-      {
-        "pickup.verification.customerPhoto":
+    const updatedOrder =
+      await orderRepository.updateById(
+        orderId,
+        {
+          "pickup.verification.customerPhoto":
           {
             url:
               customerPhotoUrl,
@@ -2049,7 +2888,7 @@ class OrderService {
               verifiedAt,
           },
 
-        "pickup.verification.aadhaar.document":
+          "pickup.verification.aadhaar.document":
           {
             url:
               aadhaarUrl,
@@ -2065,35 +2904,65 @@ class OrderService {
               verifiedAt,
           },
 
-        "pickup.verification.status":
-          "verified",
+          "pickup.verification.status":
+            "verified",
 
-        "pickup.verification.verifiedBy":
-          agentId,
+          "pickup.verification.verifiedBy":
+            agentId,
 
-        "pickup.verification.verifiedAt":
-          verifiedAt,
+          "pickup.verification.verifiedAt":
+            verifiedAt,
 
-        updatedBy:
-          agentId,
+          updatedBy:
+            agentId,
 
-        $push: {
-          timeline: {
-            status:
-              "pickup_verification_completed",
+          $push: {
+            timeline: {
+              status:
+                "pickup_verification_completed",
 
-            message:
-              "Customer photo, Aadhaar document, and Aadhaar verification completed.",
+              message:
+                "Customer photo, Aadhaar document, and Aadhaar verification completed.",
 
-            performedBy:
-              agentId,
+              performedBy:
+                agentId,
+            },
           },
-        },
-      }
-    );
+        }
+      );
+
+    await auditLogger({
+      actor: agentId,
+      action: "PICKUP_VERIFICATION_COMPLETED",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description:
+        `Pickup verification for order ${order.orderNumber} was completed by the assigned agent.`,
+      oldValue: {
+        verificationStatus:
+          order.pickup?.verification?.status ||
+          "pending",
+      },
+      newValue: {
+        verificationStatus:
+          "verified",
+        verifiedBy:
+          agentId,
+        verifiedAt,
+      },
+      metadata: {
+        customerPhotoUploaded:
+          true,
+        aadhaarDocumentUploaded:
+          true,
+        aadhaarVerificationStatus:
+          "verified",
+      },
+    });
+
+    return updatedOrder;
   }
-
-
 
   // AGENT PICKUP
 
@@ -2120,7 +2989,7 @@ class OrderService {
     if (
       !order.agent ||
       order.agent._id.toString() !==
-        agentId.toString()
+      agentId.toString()
     ) {
       const error = new Error(
         "You are not authorized to pick up this order."
@@ -2287,38 +3156,7 @@ class OrderService {
         }
       );
 
-    try {
-      await AgentEarning.create({
-        agent:
-          agentId,
-
-        order:
-          order._id,
-
-        amount:
-          Number(
-            order.device?.agentCommission ?? 0
-          ),
-
-        status:
-          "pending",
-      });
-    } catch (error) {
-      if (
-        error?.code ===
-        11000
-      ) {
-        console.warn(
-          `Agent earning already exists for order ${order.orderNumber}.`
-        );
-      } else {
-        console.error(
-          `Failed to create agent earning for order ${order.orderNumber}:`,
-          error
-        );
-      }
-    }
-
+  
     try {
       await notificationService.createNotification({
         recipient:
@@ -2344,9 +3182,45 @@ class OrderService {
       );
     }
 
+    await auditLogger({
+      actor: agentId,
+      action: "ORDER_PICKED_UP",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description:
+        `Device for order ${order.orderNumber} was picked up by the assigned agent.`,
+      oldValue: {
+        orderStatus:
+          order.status,
+        pickupStatus:
+          order.pickup?.status ||
+          "pending",
+        paymentStatus:
+          order.payment?.status ||
+          "pending",
+      },
+      newValue: {
+        orderStatus:
+          "payment_pending",
+        pickupStatus:
+          "completed",
+        paymentStatus:
+          "pending",
+        pickedUpAt,
+      },
+      metadata: {
+        agentId:
+          agentId.toString(),
+        deviceId:
+          order.device?._id ||
+          order.device ||
+          null,
+      },
+    });
+
     return updatedOrder;
   }
-
 
 
   // ADMIN RECEIVE DEVICE
@@ -2417,6 +3291,26 @@ class OrderService {
 
     await device.save();
 
+    // Create agent earning when the device is received at the store
+if (order.agent && Number(order.agentCommission || 0) > 0) {
+  try {
+    await AgentEarning.create({
+      agent: order.agent,
+      order: order._id,
+      amount: Number(order.agentCommission || 0),
+      status: "pending",
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      console.warn(
+        `Agent earning already exists for order ${order.orderNumber}.`
+      );
+    } else {
+      throw error;
+    }
+  }
+}
+
     const updatedOrder =
       await orderRepository.updateById(
         orderId,
@@ -2445,7 +3339,41 @@ class OrderService {
         }
       );
 
+    await auditLogger({
+      actor: adminId,
+      action: "DEVICE_RECEIVED",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description:
+        `Device for order ${order.orderNumber} was received at the store by the admin.`,
+      oldValue: {
+        orderStatus:
+          order.status,
+        deviceStatus:
+          "in_transit",
+        inspectionStatus:
+          order.inspection?.status ||
+          "pending",
+      },
+      newValue: {
+        orderStatus:
+          "inspection_pending",
+        deviceStatus:
+          "received_in_shop",
+        inspectionStatus:
+          "pending",
+      },
+      metadata: {
+        adminId:
+          adminId.toString(),
+        deviceId:
+          device._id.toString(),
+      },
+    });
+
     return updatedOrder;
+
   }
 
 
@@ -2540,7 +3468,8 @@ class OrderService {
 
 
   async deleteOrder(
-    orderId
+    orderId,
+    userId
   ) {
     const order =
       await orderRepository.findById(
@@ -2572,11 +3501,29 @@ class OrderService {
       throw error;
     }
 
-    return orderRepository.deleteById(
-      orderId
-    );
-  }
+    const deletedOrder =
+      await orderRepository.deleteById(
+        orderId
+      );
 
+    await auditLogger({
+      actor: userId,
+      action: "ORDER_DELETED",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description:
+        `Order ${order.orderNumber} was deleted.`,
+      oldValue: {
+        status:
+          order.status,
+        orderNumber:
+          order.orderNumber,
+      },
+    });
+
+    return deletedOrder;
+  }
 
 
   // GENERATE ORDER NUMBER

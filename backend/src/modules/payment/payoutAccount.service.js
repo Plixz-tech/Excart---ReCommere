@@ -221,7 +221,7 @@ export const verifyPayoutAccount = async (
     );
   }
 
-  // Call PowerAPI
+  // Call PowerAPI Penny Less verification
   const verificationResult =
     await verificationService.verifyBankAccount(
       payoutAccount.bankAccountNumber,
@@ -272,9 +272,6 @@ export const verifyPayoutAccount = async (
 
           nameAtBank:
             bankData.name_at_bank || "",
-
-          utr:
-            bankData.utr || "",
 
           verifiedAt,
         },

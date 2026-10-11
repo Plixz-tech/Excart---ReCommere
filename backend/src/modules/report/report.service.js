@@ -16,7 +16,8 @@ class ReportService {
   }
 
   async getDashboard() {
-    const { startOfDay, endOfDay } = this.getDayRange();
+    const { startOfDay, endOfDay } =
+      this.getDayRange();
 
     const [
       totalOrders,
@@ -30,6 +31,9 @@ class ReportService {
       paymentSummary,
       inventorySummary,
       agentEarningSummary,
+      agentPerformance,
+      inspectionSummary,
+      pickupManagement,
     ] = await Promise.all([
       reportRepository.getTotalOrders(),
 
@@ -55,6 +59,15 @@ class ReportService {
       reportRepository.getInventorySummary(),
 
       reportRepository.getAgentEarningSummary(),
+
+      reportRepository.getAgentPerformance(),
+
+      reportRepository.getInspectionSummary(),
+
+      reportRepository.getPickupManagement(
+        startOfDay,
+        endOfDay
+      ),
     ]);
 
     return {
@@ -72,16 +85,25 @@ class ReportService {
 
       pendingPayments,
 
-      payments: this.formatPaymentSummary(paymentSummary),
+      payments:
+        this.formatPaymentSummary(
+          paymentSummary
+        ),
 
-      inventory: this.formatInventorySummary(
-        inventorySummary
-      ),
+      inventory:
+        this.formatInventorySummary(
+          inventorySummary
+        ),
 
       agentEarnings:
         this.formatAgentEarningSummary(
           agentEarningSummary
         ),
+
+      agentPerformance,
+      inspectionSummary,
+
+      pickupManagement,
     };
   }
 
@@ -109,7 +131,7 @@ class ReportService {
 
   formatInventorySummary(summary) {
     const result = {
-      draft: {
+      in_inventory: {
         count: 0,
         purchaseAmount: 0,
         listedAmount: 0,
@@ -142,10 +164,13 @@ class ReportService {
       if (result[item._id]) {
         result[item._id] = {
           count: item.count || 0,
+
           purchaseAmount:
             item.purchaseAmount || 0,
+
           listedAmount:
             item.listedAmount || 0,
+
           soldAmount:
             item.soldAmount || 0,
         };
@@ -207,18 +232,27 @@ class ReportService {
 
     if (agent) {
       if (!mongoose.isValidObjectId(agent)) {
-        const error = new Error("Invalid agent ID.");
+        const error = new Error(
+          "Invalid agent ID."
+        );
+
         error.statusCode = 400;
+
         throw error;
       }
 
-      filter.agent = new mongoose.Types.ObjectId(agent);
+      filter.agent =
+        new mongoose.Types.ObjectId(agent);
     }
 
     if (customer) {
       if (!mongoose.isValidObjectId(customer)) {
-        const error = new Error("Invalid customer ID.");
+        const error = new Error(
+          "Invalid customer ID."
+        );
+
         error.statusCode = 400;
+
         throw error;
       }
 
@@ -239,21 +273,27 @@ class ReportService {
     const summary =
       await reportRepository.getPaymentSummary();
 
-    return this.formatPaymentSummary(summary);
+    return this.formatPaymentSummary(
+      summary
+    );
   }
 
   async getInventoryReport() {
     const summary =
       await reportRepository.getInventorySummary();
 
-    return this.formatInventorySummary(summary);
+    return this.formatInventorySummary(
+      summary
+    );
   }
 
   async getAgentEarningReport() {
     const summary =
       await reportRepository.getAgentEarningSummary();
 
-    return this.formatAgentEarningSummary(summary);
+    return this.formatAgentEarningSummary(
+      summary
+    );
   }
 
   async getDeviceReport() {
@@ -262,12 +302,17 @@ class ReportService {
 
     return result.map((item) => ({
       brand: item._id?.brand || "",
+
       model: item._id?.model || "",
+
       count: item.count || 0,
+
       totalValuation:
         item.totalValuation || 0,
+
       totalPurchasePrice:
         item.totalPurchasePrice || 0,
+
       totalExpectedSellingPrice:
         item.totalExpectedSellingPrice || 0,
     }));

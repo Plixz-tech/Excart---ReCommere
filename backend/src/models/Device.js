@@ -2,9 +2,9 @@ import mongoose from "mongoose";
 
 const deviceSchema = new mongoose.Schema(
   {
-    
+
     // DEVICE DETAILS
-    
+
 
     brand: {
       type: String,
@@ -42,9 +42,9 @@ const deviceSchema = new mongoose.Schema(
       trim: true,
     },
 
-    
+
     // DEVICE IDENTITY
-    
+
 
     imei1: {
       type: String,
@@ -66,9 +66,9 @@ const deviceSchema = new mongoose.Schema(
       trim: true,
     },
 
-    
+
     // CUSTOMER PROVIDED DEVICE CONDITION
-    
+
 
     customerEvaluation: {
       screenCondition: {
@@ -94,15 +94,44 @@ const deviceSchema = new mongoose.Schema(
       },
 
       repairHistory: {
-        type: String,
-        default: "",
+        repaired: {
+          type: Boolean,
+          default: false,
+        },
+
+        remarks: {
+          type: String,
+          default: "",
+          trim: true,
+        },
       },
 
       accessories: {
-        type: [String],
-        default: [],
-      },
+        charger: {
+          type: Boolean,
+          default: false,
+        },
 
+        cable: {
+          type: Boolean,
+          default: false,
+        },
+
+        box: {
+          type: Boolean,
+          default: false,
+        },
+
+        bill: {
+          type: Boolean,
+          default: false,
+        },
+
+        simEjector: {
+          type: Boolean,
+          default: false,
+        },
+      },
       functionalIssues: {
         type: [String],
         default: [],
@@ -145,9 +174,9 @@ const deviceSchema = new mongoose.Schema(
       },
     },
 
-    
+
     // AGENT PHYSICAL DEVICE INSPECTION
-    
+
 
     agentEvaluation: {
       screenCondition: {
@@ -235,21 +264,27 @@ const deviceSchema = new mongoose.Schema(
       },
     },
 
-    
+    deviceCatalogId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DeviceCatalog",
+      required: true,
+    },
+
+
     // PRICING
-    
 
-valuationPrice: {
-  type: Number,
-  default: 0,
-  min: 0,
-},
 
-agentCommission: {
-  type: Number,
-  default: 0,
-  min: 0,
-},
+    valuationPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    agentCommission: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
 
     purchasePrice: {
       type: Number,
@@ -263,9 +298,61 @@ agentCommission: {
       min: 0,
     },
 
-    
+    agentValuation: {
+      amount: {
+        type: Number,
+        default: 0,
+      },
+
+      totalAdjustment: {
+        type: Number,
+        default: 0,
+      },
+
+      appliedRules: {
+        type: [
+          {
+            ruleId: {
+              type: String,
+              default: "",
+            },
+
+            name: {
+              type: String,
+              default: "",
+            },
+
+            adjustmentType: {
+              type: String,
+              enum: [
+                "deduction",
+                "addition",
+              ],
+            },
+
+            amount: {
+              type: Number,
+              default: 0,
+            },
+          },
+        ],
+        default: [],
+      },
+
+      calculatedAt: {
+        type: Date,
+        default: null,
+      },
+
+      calculatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+    },
+
     // OWNERSHIP / AGENTS
-    
+
 
     customer: {
       type: mongoose.Schema.Types.ObjectId,
@@ -288,9 +375,9 @@ agentCommission: {
       index: true,
     },
 
-    
+
     // PHOTOS
-    
+
 
     photos: [
       {
@@ -311,9 +398,9 @@ agentCommission: {
       },
     ],
 
-    
+
     // DEVICE STATUS
-    
+
 
     status: {
       type: String,
@@ -337,9 +424,9 @@ agentCommission: {
       index: true,
     },
 
-    
+
     // AUDIT
-    
+
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

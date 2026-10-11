@@ -45,6 +45,7 @@ router.get(
   agentController.getAgents
 );
 
+/*
 
 /*
  * GET AGENT BY ID

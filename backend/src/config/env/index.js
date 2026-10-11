@@ -1,7 +1,12 @@
 import dotenv from "dotenv";
 
+const envFile =
+  process.env.NODE_ENV === "production"
+    ? ".env.production"
+    : ".env.development";
+
 dotenv.config({
-  path: ".env.development",
+  path: envFile,
 });
 
 const requiredEnv = [
@@ -9,11 +14,16 @@ const requiredEnv = [
   "PORT",
   "MONGO_URI",
   "JWT_SECRET",
+  "JWT_EXPIRES_IN",
   "REFRESH_TOKEN_SECRET",
+  "REFRESH_TOKEN_EXPIRES_IN",
   "GOOGLE_MAPS_API_KEY",
-   "IMEI_API_KEY",
+  "IMEI_API_KEY",
+  "GOOGLE_CLIENT_ID",
+  "FACEBOOK_APP_ID",
+  "FACEBOOK_APP_SECRET",
+  "FACEBOOK_GRAPH_API_VERSION",
 ];
-
 for (const key of requiredEnv) {
   if (!process.env[key]) {
     throw new Error(`Missing environment variable: ${key}`);
@@ -35,4 +45,15 @@ export const env = {
 
   GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
   IMEI_API_KEY: process.env.IMEI_API_KEY,
+
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+
+  FACEBOOK_APP_ID:
+    process.env.FACEBOOK_APP_ID,
+
+  FACEBOOK_APP_SECRET:
+    process.env.FACEBOOK_APP_SECRET,
+
+    FACEBOOK_GRAPH_API_VERSION:
+  process.env.FACEBOOK_GRAPH_API_VERSION,
 };

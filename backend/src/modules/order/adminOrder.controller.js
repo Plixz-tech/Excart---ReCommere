@@ -143,18 +143,21 @@ class AdminOrderController {
     }
   }
 
-  async deleteOrder(req, res, next) {
-    try {
-      await orderService.deleteOrder(req.params.id);
+async deleteOrder(req, res, next) {
+  try {
+    await orderService.deleteOrder(
+      req.params.id,
+      req.user.userId
+    );
 
-      return res.status(200).json({
-        success: true,
-        message: "Order deleted successfully.",
-      });
-    } catch (error) {
-      next(error);
-    }
+    return res.status(200).json({
+      success: true,
+      message: "Order deleted successfully.",
+    });
+  } catch (error) {
+    next(error);
   }
+}
 }
 
 export default new AdminOrderController();

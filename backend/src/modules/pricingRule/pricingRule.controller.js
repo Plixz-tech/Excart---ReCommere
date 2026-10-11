@@ -103,20 +103,20 @@ export const calculatePriceController =
   async (req, res, next) => {
     try {
       const {
-        deviceId,
+        deviceCatalogId,
         evaluation,
       } = req.body;
 
-      if (!deviceId) {
+      if (!deviceCatalogId) {
         throw new ApiError(
           400,
-          "Device ID is required."
+          "Device Catalog ID is required."
         );
       }
 
       const result =
         await calculatePrice({
-          deviceId,
+          deviceCatalogId,
           evaluation,
         });
 

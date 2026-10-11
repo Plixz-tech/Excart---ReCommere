@@ -55,13 +55,8 @@ const inventorySchema = new mongoose.Schema(
 
         status: {
             type: String,
-            enum: [
-                "draft",
-                "listed",
-                "sold",
-                "removed",
-            ],
-            default: "draft",
+            enum: ["in_inventory", "listed", "sold", "removed"],
+            default: "in_inventory",
             index: true,
         },
 

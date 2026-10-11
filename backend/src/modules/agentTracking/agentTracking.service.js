@@ -54,12 +54,19 @@ class AgentTrackingService {
       }
     }
 
+    const existingLocation =
+      await agentTrackingRepository.findByAgent(agentId);
+
     return agentTrackingRepository.upsertByAgent(
       agentId,
       {
         latitude,
         longitude,
-        order: order ? order._id : null,
+        order: order
+          ? order._id
+          : existingLocation?.order?._id ||
+            existingLocation?.order ||
+            null,
         status: "online",
       }
     );
@@ -139,11 +146,18 @@ class AgentTrackingService {
     return location;
   }
 
-  async getAllActiveLocations() {
-    return agentTrackingRepository.findAll({
-      status: "online",
-    });
-  }
+ async getAllActiveLocations() {
+  const staleThreshold = new Date(
+    Date.now() - 5 * 60 * 1000
+  );
+
+  return agentTrackingRepository.findAll({
+    status: "online",
+    lastUpdatedAt: {
+      $gte: staleThreshold,
+    },
+  });
+}
 
   async setAgentOffline(agentId) {
     const location =
