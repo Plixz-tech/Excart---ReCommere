@@ -7,6 +7,7 @@ import {
   orderIdSchema,
   orderStatusSchema,
   assignOrderSchema,
+  processPaymentSchema,
 } from "./order.validator.js";
 
 import validateRequest from "../../middlewares/validation/validateRequest.js";
@@ -61,6 +62,15 @@ router.patch(
   validateParams(orderIdSchema),
   validateRequest(assignOrderSchema),
   adminOrderController.assignOrder
+);
+
+// PROCESS PAYMENT
+
+router.patch(
+  "/:id/payment",
+  validateParams(orderIdSchema),
+  validateRequest(processPaymentSchema),
+  adminOrderController.processPayment
 );
 
 // GET PURCHASE INVOICE

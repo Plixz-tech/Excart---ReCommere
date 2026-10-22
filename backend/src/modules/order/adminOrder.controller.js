@@ -92,6 +92,25 @@ class AdminOrderController {
     }
   }
 
+    async processPayment(req, res, next) {
+    try {
+      const order = await orderService.processPayment(
+        req.params.id,
+        req.body,
+        req.user.userId
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Payment completed successfully.",
+        data: order,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+
   async receiveOrder(req, res, next) {
     try {
       const order = await orderService.receiveOrder(

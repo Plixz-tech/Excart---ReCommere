@@ -15,97 +15,168 @@ class ReportService {
     };
   }
 
-  async getDashboard() {
-    const { startOfDay, endOfDay } =
-      this.getDayRange();
+ 
+async getDashboard() {
+  const now = new Date();
 
-    const [
+  // Current month
+  const currentStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    1
+  );
+
+  const currentEnd = new Date(
+    now.getFullYear(),
+    now.getMonth() + 1,
+    1
+  );
+
+  // Previous month
+  const previousStart = new Date(
+    now.getFullYear(),
+    now.getMonth() - 1,
+    1
+  );
+
+  const previousEnd = currentStart;
+
+  // Today and yesterday
+  const { startOfDay, endOfDay } =
+    this.getDayRange(now);
+
+  const yesterdayStart = new Date(startOfDay);
+  yesterdayStart.setDate(
+    yesterdayStart.getDate() - 1
+  );
+
+  const [
+    totalOrders,
+    activeAgents,
+    pendingInspections,
+    inventoryDevices,
+    todayPickups,
+    orderPipeline,
+    recentOrders,
+    pendingPayments,
+    paymentSummary,
+    inventorySummary,
+    agentEarningSummary,
+    agentPerformance,
+    inspectionSummary,
+    pickupManagement,
+    comparisons,
+  ] = await Promise.all([
+    reportRepository.getTotalOrders(),
+
+    reportRepository.getActiveAgents(),
+
+    reportRepository.getPendingInspections(),
+
+    reportRepository.getInventoryDevices(),
+
+    reportRepository.getOrdersForToday(
+      startOfDay,
+      endOfDay
+    ),
+
+    reportRepository.getOrderPipeline(),
+
+    reportRepository.getRecentOrders(10),
+
+    reportRepository.getPendingPayments(10),
+
+    reportRepository.getPaymentSummary(),
+
+    reportRepository.getInventorySummary(),
+
+    reportRepository.getAgentEarningSummary(),
+
+    reportRepository.getAgentPerformance(),
+
+    reportRepository.getInspectionSummary(),
+
+    reportRepository.getPickupManagement(
+      startOfDay,
+      endOfDay
+    ),
+
+    reportRepository.getDashboardPeriodComparisons({
+      currentStart,
+      currentEnd,
+      previousStart,
+      previousEnd,
+      todayStart: startOfDay,
+      tomorrowStart: endOfDay,
+      yesterdayStart,
+    }),
+  ]);
+
+  const calculateChange = (current, previous) => {
+    if (previous === 0) {
+      return current === 0 ? 0 : null;
+    }
+
+    return Number(
+      (((current - previous) / previous) * 100).toFixed(1)
+    );
+  };
+
+  return {
+    overview: {
       totalOrders,
       activeAgents,
       pendingInspections,
       inventoryDevices,
       todayPickups,
-      orderPipeline,
-      recentOrders,
-      pendingPayments,
-      paymentSummary,
-      inventorySummary,
-      agentEarningSummary,
-      agentPerformance,
-      inspectionSummary,
-      pickupManagement,
-    ] = await Promise.all([
-      reportRepository.getTotalOrders(),
+    },
 
-      reportRepository.getActiveAgents(),
-
-      reportRepository.getPendingInspections(),
-
-      reportRepository.getInventoryDevices(),
-
-      reportRepository.getOrdersForToday(
-        startOfDay,
-        endOfDay
-      ),
-
-      reportRepository.getOrderPipeline(),
-
-      reportRepository.getRecentOrders(10),
-
-      reportRepository.getPendingPayments(10),
-
-      reportRepository.getPaymentSummary(),
-
-      reportRepository.getInventorySummary(),
-
-      reportRepository.getAgentEarningSummary(),
-
-      reportRepository.getAgentPerformance(),
-
-      reportRepository.getInspectionSummary(),
-
-      reportRepository.getPickupManagement(
-        startOfDay,
-        endOfDay
-      ),
-    ]);
-
-    return {
-      overview: {
-        totalOrders,
-        activeAgents,
-        pendingInspections,
-        inventoryDevices,
-        todayPickups,
+    comparisons: {
+      totalOrders: {
+        current: comparisons.orders.current,
+        previous: comparisons.orders.previous,
+        percentageChange: calculateChange(
+          comparisons.orders.current,
+          comparisons.orders.previous
+        ),
       },
 
-      orderPipeline,
-
-      recentOrders,
-
-      pendingPayments,
-
-      payments:
-        this.formatPaymentSummary(
-          paymentSummary
+      todayPickups: {
+        current: comparisons.pickups.today,
+        previous: comparisons.pickups.yesterday,
+        percentageChange: calculateChange(
+          comparisons.pickups.today,
+          comparisons.pickups.yesterday
         ),
+      },
+    },
 
-      inventory:
-        this.formatInventorySummary(
-          inventorySummary
-        ),
+    orderPipeline,
 
-      agentEarnings:
-        this.formatAgentEarningSummary(
-          agentEarningSummary
-        ),
+    pipelineChanges: comparisons.pipelineChanges,
 
-      agentPerformance,
-      inspectionSummary,
+    recentOrders,
 
-      pickupManagement,
-    };
-  }
+    pendingPayments,
+
+    payments: this.formatPaymentSummary(
+      paymentSummary
+    ),
+
+    inventory: this.formatInventorySummary(
+      inventorySummary
+    ),
+
+    agentEarnings: this.formatAgentEarningSummary(
+      agentEarningSummary
+    ),
+
+    agentPerformance,
+    inspectionSummary,
+    pickupManagement,
+  };
+}
+
 
   formatPaymentSummary(summary) {
     return {

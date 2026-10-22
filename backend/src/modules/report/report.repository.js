@@ -655,6 +655,88 @@ async getAgentPerformance() {
       },
     ]);
   }
+
+  // DASHBOARD PERIOD COMPARISONS
+
+  async getDashboardPeriodComparisons({
+    currentStart,
+    currentEnd,
+    previousStart,
+    previousEnd,
+    todayStart,
+    tomorrowStart,
+    yesterdayStart,
+  }) {
+    const [
+      currentOrders,
+      previousOrders,
+      todayPickups,
+      yesterdayPickups,
+      todayPipelineChanges,
+    ] = await Promise.all([
+      Order.countDocuments({
+        createdAt: {
+          $gte: currentStart,
+          $lt: currentEnd,
+        },
+      }),
+
+      Order.countDocuments({
+        createdAt: {
+          $gte: previousStart,
+          $lt: previousEnd,
+        },
+      }),
+
+      Order.countDocuments({
+        "pickup.scheduledDate": {
+          $gte: todayStart,
+          $lt: tomorrowStart,
+        },
+      }),
+
+      Order.countDocuments({
+        "pickup.scheduledDate": {
+          $gte: yesterdayStart,
+          $lt: todayStart,
+        },
+      }),
+
+      Order.aggregate([
+        {
+          $unwind: "$timeline",
+        },
+        {
+          $match: {
+            "timeline.createdAt": {
+              $gte: todayStart,
+              $lt: tomorrowStart,
+            },
+          },
+        },
+        {
+          $group: {
+            _id: "$timeline.status",
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+
+    return {
+      orders: {
+        current: currentOrders,
+        previous: previousOrders,
+      },
+      pickups: {
+        today: todayPickups,
+        yesterday: yesterdayPickups,
+      },
+      pipelineChanges: todayPipelineChanges,
+    };
+  }
+
 }
+
 
 export default new ReportRepository();
