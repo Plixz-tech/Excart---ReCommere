@@ -1,17 +1,11 @@
 import { useMemo, useState } from "react";
 import {
  ArrowLeft,
- Search,
  SlidersHorizontal,
- ChevronDown,
  ChevronLeft,
  ChevronRight,
- Eye,
  Smartphone,
  UserRound,
- MapPin,
- CalendarDays,
- IndianRupee,
  ClipboardCheck,
  Wallet,
  FileText,
@@ -22,7 +16,6 @@ import {
  CheckCircle2,
  XCircle,
  Truck,
- X,
 } from "lucide-react";
 
 type OrderStatus =
@@ -248,26 +241,6 @@ function StatusBadge({ status }: { status: OrderStatus }) {
  );
 }
 
-function InfoCard({
- label,
- value,
- icon: Icon,
-}: {
- label: string;
- value: string;
- icon: typeof Smartphone;
-}) {
- return (
- <div className="rounded-xl border border-stone-200 bg-white p-4">
- <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
- <Icon size={18} />
- </div>
- <p className="text-xs font-medium text-stone-500">{label}</p>
- <p className="mt-1 break-words text-sm font-semibold text-stone-900">{value}</p>
- </div>
- );
-}
-
 function DetailSection({
  title,
  children,
@@ -296,9 +269,9 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 export default function Orders() {
  const [orders, setOrders] = useState(initialOrders);
- const [search, setSearch] = useState("");
+ const [search] = useState("");
  const [statusFilter, setStatusFilter] = useState("All");
- const [dateFilter, setDateFilter] = useState("All time");
+ const [dateFilter] = useState("All time");
  const [page, setPage] = useState(1);
  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
  const [activeTab, setActiveTab] = useState("Overview");

@@ -36,14 +36,6 @@ type Order = {
  amount: string;
 };
 
-const initialOrders: Order[] = [
- { id: "PICK-2026-010", customer: "Rizwan K", phone: "iPhone 15 Pro", storage: "256 GB", status: "Ready for stock", agent: "SHIBIN", date: "21 May 2026", transitStatus: "Delivered to store", amount: "58,500" },
- { id: "PICK-2026-011", customer: "Vishnu", phone: "Samsung S24 Ultra", storage: "512 GB", status: "Pickup scheduled", agent: "FAZIL KP", date: "20 May 2026", transitStatus: "Pickup scheduled", amount: "45,200" },
- { id: "PICK-2026-009", customer: "Praveen", phone: "OnePlus 13", storage: "512 GB", status: "Under inspection", agent: "NIZAM P", date: "22 May 2026", transitStatus: "In transit to store", amount: "35,100" },
- { id: "PICK-2026-007", customer: "Muzammil", phone: "iPhone 14 Pro", storage: "128 GB", status: "Ready for stock", agent: "VYSHAK", date: "22 May 2026", transitStatus: "Delivered to store", amount: "32,000" },
- { id: "PICK-2026-002", customer: "Shyam P", phone: "Google Pixel 9 Pro", storage: "256 GB", status: "Pickup scheduled", agent: "SUJITH C", date: "21 May 2026", transitStatus: "Pickup scheduled", amount: "40,000" },
-];
-
 const payments = [
  { id: "PAY-2026-010", orderId: "PICK-2026-010", phone: "iPhone 15 Pro (256 GB)", amount: "58,500", status: "Pending approval", time: "40 min ago" },
  { id: "PAY-2026-009", orderId: "PICK-2026-009", phone: "iPhone 14 (128 GB)", amount: "45,200", status: "Pending approval", time: "30 min ago" },
