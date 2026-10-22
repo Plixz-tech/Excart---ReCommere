@@ -47,159 +47,379 @@ type Order = {
 };
 
 const initialOrders: Order[] = [
- {
- id: "EXC-2026-1048",
- customer: "Arjun Kumar",
- phone: "+91 98765 43210",
- device: "Apple iPhone 14",
- variant: "128GB · Midnight",
- amount: 28500,
- status: "Completed",
- agent: "Muhammed Shamil",
- date: "16 Oct 2026",
- location: "Manjeri, Malappuram",
- imei: "356789102345671",
- paymentMethod: "Bank Transfer",
- paymentStatus: "Paid",
- inspectionStatus: "Passed",
- condition: "Excellent",
- timeline: [
- { title: "Order created", date: "14 Oct 2026, 10:30 AM", completed: true },
- { title: "Pickup completed", date: "14 Oct 2026, 2:15 PM", completed: true },
- { title: "Inspection completed", date: "15 Oct 2026, 11:00 AM", completed: true },
- { title: "Payment completed", date: "16 Oct 2026, 9:45 AM", completed: true },
- ],
- },
- {
- id: "EXC-2026-1047",
- customer: "Nisha Rahman",
- phone: "+91 98470 12345",
- device: "Samsung Galaxy S23",
- variant: "256GB · Phantom Black",
- amount: 32000,
- status: "Payment Pending",
- agent: "Shahid Ali",
- date: "16 Oct 2026",
- location: "Kottakkal, Malappuram",
- imei: "358123456789012",
- paymentMethod: "UPI",
- paymentStatus: "Pending",
- inspectionStatus: "Passed",
- condition: "Good",
- timeline: [
- { title: "Order created", date: "14 Oct 2026, 9:00 AM", completed: true },
- { title: "Pickup completed", date: "15 Oct 2026, 10:30 AM", completed: true },
- { title: "Inspection completed", date: "16 Oct 2026, 11:15 AM", completed: true },
- { title: "Payment pending", date: "Awaiting payment", completed: false },
- ],
- },
- {
- id: "EXC-2026-1046",
- customer: "Fahad P",
- phone: "+91 98950 67890",
- device: "Apple iPhone 13",
- variant: "128GB · Blue",
- amount: 21500,
- status: "Inspection",
- agent: "Abdul Basith",
- date: "15 Oct 2026",
- location: "Perinthalmanna, Malappuram",
- imei: "359456789012345",
- paymentMethod: "Bank Transfer",
- paymentStatus: "Not Initiated",
- inspectionStatus: "In Progress",
- condition: "Pending",
- timeline: [
- { title: "Order created", date: "15 Oct 2026, 9:15 AM", completed: true },
- { title: "Pickup completed", date: "15 Oct 2026, 1:00 PM", completed: true },
- { title: "Inspection in progress", date: "16 Oct 2026, 10:00 AM", completed: false },
- ],
- },
- {
- id: "EXC-2026-1045",
- customer: "Amina Shereef",
- phone: "+91 97460 24680",
- device: "OnePlus 11",
- variant: "256GB · Titan Black",
- amount: 19000,
- status: "Picked Up",
- agent: "Rashid K",
- date: "15 Oct 2026",
- location: "Tirur, Malappuram",
- imei: "351234567890123",
- paymentMethod: "UPI",
- paymentStatus: "Not Initiated",
- inspectionStatus: "Pending",
- condition: "Pending",
- timeline: [
- { title: "Order created", date: "15 Oct 2026, 8:00 AM", completed: true },
- { title: "Pickup completed", date: "15 Oct 2026, 3:30 PM", completed: true },
- { title: "Inspection pending", date: "Waiting for inspection", completed: false },
- ],
- },
- {
- id: "EXC-2026-1044",
- customer: "Riyas Mohammed",
- phone: "+91 99610 54321",
- device: "Apple iPhone 12",
- variant: "64GB · White",
- amount: 14500,
- status: "Scheduled",
- agent: "Nihal T",
- date: "14 Oct 2026",
- location: "Manjeri, Malappuram",
- imei: "352345678901234",
- paymentMethod: "Bank Transfer",
- paymentStatus: "Not Initiated",
- inspectionStatus: "Pending",
- condition: "Pending",
- timeline: [
- { title: "Order created", date: "14 Oct 2026, 4:00 PM", completed: true },
- { title: "Pickup scheduled", date: "17 Oct 2026, 11:00 AM", completed: false },
- ],
- },
- {
- id: "EXC-2026-1043",
- customer: "Shahana K",
- phone: "+91 96330 98765",
- device: "Samsung Galaxy A54",
- variant: "128GB · Awesome Violet",
- amount: 11500,
- status: "New",
- agent: "Not assigned",
- date: "14 Oct 2026",
- location: "Kondotty, Malappuram",
- imei: "353456789012345",
- paymentMethod: "Not selected",
- paymentStatus: "Not Initiated",
- inspectionStatus: "Pending",
- condition: "Pending",
- timeline: [
- { title: "Order created", date: "14 Oct 2026, 2:30 PM", completed: true },
- { title: "Agent assignment", date: "Awaiting assignment", completed: false },
- ],
- },
- {
- id: "EXC-2026-1042",
- customer: "Salman V",
- phone: "+91 98951 11223",
- device: "Redmi Note 12 Pro",
- variant: "128GB · Glacier Blue",
- amount: 8500,
- status: "Cancelled",
- agent: "Not assigned",
- date: "13 Oct 2026",
- location: "Wandoor, Malappuram",
- imei: "354567890123456",
- paymentMethod: "Not selected",
- paymentStatus: "Not Initiated",
- inspectionStatus: "Not Started",
- condition: "Pending",
- timeline: [
- { title: "Order created", date: "13 Oct 2026, 12:00 PM", completed: true },
- { title: "Order cancelled", date: "13 Oct 2026, 1:30 PM", completed: true },
- ],
- },
+  {
+    id: "EXC-2026-1041",
+    customer: "Hafiz Rahman",
+    phone: "+91 98471 23456",
+    device: "Apple iPhone 14 Pro",
+    variant: "256GB · Deep Purple",
+    amount: 42000,
+    status: "Completed",
+    agent: "Muhammed Shamil",
+    date: "13 Oct 2026",
+    location: "Manjeri, Malappuram",
+    imei: "356789102345672",
+    paymentMethod: "Bank Transfer",
+    paymentStatus: "Paid",
+    inspectionStatus: "Passed",
+    condition: "Excellent",
+    timeline: [
+      { title: "Order created", date: "12 Oct 2026, 10:00 AM", completed: true },
+      { title: "Pickup completed", date: "12 Oct 2026, 2:00 PM", completed: true },
+      { title: "Inspection completed", date: "13 Oct 2026, 10:00 AM", completed: true },
+      { title: "Payment completed", date: "13 Oct 2026, 1:00 PM", completed: true },
+    ],
+  },
+  {
+    id: "EXC-2026-1040",
+    customer: "Fathima N",
+    phone: "+91 97450 12345",
+    device: "Samsung Galaxy S22",
+    variant: "128GB · Green",
+    amount: 24500,
+    status: "Payment Pending",
+    agent: "Shahid Ali",
+    date: "12 Oct 2026",
+    location: "Kottakkal, Malappuram",
+    imei: "358123456789013",
+    paymentMethod: "UPI",
+    paymentStatus: "Pending",
+    inspectionStatus: "Passed",
+    condition: "Good",
+    timeline: [
+      { title: "Order created", date: "11 Oct 2026, 9:00 AM", completed: true },
+      { title: "Pickup completed", date: "11 Oct 2026, 1:00 PM", completed: true },
+      { title: "Inspection completed", date: "12 Oct 2026, 10:00 AM", completed: true },
+      { title: "Payment pending", date: "Awaiting payment", completed: false },
+    ],
+  },
+  {
+    id: "EXC-2026-1039",
+    customer: "Ashraf K",
+    phone: "+91 98950 11223",
+    device: "OnePlus 10 Pro",
+    variant: "256GB · Emerald Forest",
+    amount: 18000,
+    status: "Inspection",
+    agent: "Abdul Basith",
+    date: "12 Oct 2026",
+    location: "Perinthalmanna, Malappuram",
+    imei: "351234567890124",
+    paymentMethod: "Bank Transfer",
+    paymentStatus: "Not Initiated",
+    inspectionStatus: "In Progress",
+    condition: "Pending",
+    timeline: [
+      { title: "Order created", date: "11 Oct 2026, 9:30 AM", completed: true },
+      { title: "Pickup completed", date: "11 Oct 2026, 3:00 PM", completed: true },
+      { title: "Inspection in progress", date: "12 Oct 2026, 11:00 AM", completed: false },
+    ],
+  },
+  {
+    id: "EXC-2026-1038",
+    customer: "Naseema P",
+    phone: "+91 96330 45678",
+    device: "Apple iPhone 13 Pro",
+    variant: "128GB · Sierra Blue",
+    amount: 29000,
+    status: "Picked Up",
+    agent: "Rashid K",
+    date: "11 Oct 2026",
+    location: "Tirur, Malappuram",
+    imei: "352345678901235",
+    paymentMethod: "UPI",
+    paymentStatus: "Not Initiated",
+    inspectionStatus: "Pending",
+    condition: "Pending",
+    timeline: [
+      { title: "Order created", date: "11 Oct 2026, 8:00 AM", completed: true },
+      { title: "Pickup completed", date: "11 Oct 2026, 2:00 PM", completed: true },
+      { title: "Inspection pending", date: "Waiting for inspection", completed: false },
+    ],
+  },
+  {
+    id: "EXC-2026-1037",
+    customer: "Junaid M",
+    phone: "+91 99610 67890",
+    device: "Google Pixel 7",
+    variant: "128GB · Obsidian",
+    amount: 16500,
+    status: "Scheduled",
+    agent: "Nihal T",
+    date: "10 Oct 2026",
+    location: "Manjeri, Malappuram",
+    imei: "353456789012346",
+    paymentMethod: "Bank Transfer",
+    paymentStatus: "Not Initiated",
+    inspectionStatus: "Pending",
+    condition: "Pending",
+    timeline: [
+      { title: "Order created", date: "10 Oct 2026, 11:00 AM", completed: true },
+      { title: "Pickup scheduled", date: "13 Oct 2026, 10:00 AM", completed: false },
+    ],
+  },
+  {
+    id: "EXC-2026-1036",
+    customer: "Rifana T",
+    phone: "+91 98470 67891",
+    device: "Samsung Galaxy A54",
+    variant: "128GB · Awesome Graphite",
+    amount: 10500,
+    status: "New",
+    agent: "Not assigned",
+    date: "10 Oct 2026",
+    location: "Kondotty, Malappuram",
+    imei: "354567890123457",
+    paymentMethod: "Not selected",
+    paymentStatus: "Not Initiated",
+    inspectionStatus: "Pending",
+    condition: "Pending",
+    timeline: [
+      { title: "Order created", date: "10 Oct 2026, 2:30 PM", completed: true },
+      { title: "Agent assignment", date: "Awaiting assignment", completed: false },
+    ],
+  },
+  {
+    id: "EXC-2026-1035",
+    customer: "Basheer V",
+    phone: "+91 98951 22334",
+    device: "Redmi Note 13 Pro",
+    variant: "256GB · Midnight Black",
+    amount: 12500,
+    status: "Cancelled",
+    agent: "Not assigned",
+    date: "9 Oct 2026",
+    location: "Wandoor, Malappuram",
+    imei: "355678901234568",
+    paymentMethod: "Not selected",
+    paymentStatus: "Not Initiated",
+    inspectionStatus: "Not Started",
+    condition: "Pending",
+    timeline: [
+      { title: "Order created", date: "9 Oct 2026, 12:00 PM", completed: true },
+      { title: "Order cancelled", date: "9 Oct 2026, 1:30 PM", completed: true },
+    ],
+  },
+  {
+    id: "EXC-2026-1034",
+    customer: "Shameer A",
+    phone: "+91 97460 11223",
+    device: "Apple iPhone 12 Pro",
+    variant: "128GB · Pacific Blue",
+    amount: 19500,
+    status: "Completed",
+    agent: "Muhammed Shamil",
+    date: "9 Oct 2026",
+    location: "Manjeri, Malappuram",
+    imei: "356789102345673",
+    paymentMethod: "Bank Transfer",
+    paymentStatus: "Paid",
+    inspectionStatus: "Passed",
+    condition: "Good",
+    timeline: [
+      { title: "Order created", date: "8 Oct 2026, 10:00 AM", completed: true },
+      { title: "Pickup completed", date: "8 Oct 2026, 2:00 PM", completed: true },
+      { title: "Inspection completed", date: "9 Oct 2026, 10:00 AM", completed: true },
+      { title: "Payment completed", date: "9 Oct 2026, 12:00 PM", completed: true },
+    ],
+  },
+  {
+    id: "EXC-2026-1033",
+    customer: "Muneer P",
+    phone: "+91 96330 12345",
+    device: "Samsung Galaxy S21 FE",
+    variant: "128GB · Olive",
+    amount: 14500,
+    status: "Payment Pending",
+    agent: "Shahid Ali",
+    date: "8 Oct 2026",
+    location: "Kottakkal, Malappuram",
+    imei: "357890123456781",
+    paymentMethod: "UPI",
+    paymentStatus: "Pending",
+    inspectionStatus: "Passed",
+    condition: "Good",
+    timeline: [
+      { title: "Order created", date: "7 Oct 2026, 9:00 AM", completed: true },
+      { title: "Pickup completed", date: "7 Oct 2026, 1:00 PM", completed: true },
+      { title: "Inspection completed", date: "8 Oct 2026, 10:00 AM", completed: true },
+      { title: "Payment pending", date: "Awaiting payment", completed: false },
+    ],
+  },
+  {
+    id: "EXC-2026-1032",
+    customer: "Haseena K",
+    phone: "+91 99610 98765",
+    device: "OnePlus Nord 3",
+    variant: "128GB · Misty Green",
+    amount: 13500,
+    status: "Inspection",
+    agent: "Abdul Basith",
+    date: "8 Oct 2026",
+    location: "Perinthalmanna, Malappuram",
+    imei: "358901234567892",
+    paymentMethod: "Bank Transfer",
+    paymentStatus: "Not Initiated",
+    inspectionStatus: "In Progress",
+    condition: "Pending",
+    timeline: [
+      { title: "Order created", date: "7 Oct 2026, 10:00 AM", completed: true },
+      { title: "Pickup completed", date: "7 Oct 2026, 3:00 PM", completed: true },
+      { title: "Inspection in progress", date: "8 Oct 2026, 11:00 AM", completed: false },
+    ],
+  },
+  {
+    id: "EXC-2026-1031",
+    customer: "Adil Rahman",
+    phone: "+91 98471 56789",
+    device: "Apple iPhone 11",
+    variant: "128GB · Black",
+    amount: 12000,
+    status: "Picked Up",
+    agent: "Rashid K",
+    date: "7 Oct 2026",
+    location: "Tirur, Malappuram",
+    imei: "359012345678903",
+    paymentMethod: "UPI",
+    paymentStatus: "Not Initiated",
+    inspectionStatus: "Pending",
+    condition: "Pending",
+    timeline: [
+      { title: "Order created", date: "7 Oct 2026, 8:00 AM", completed: true },
+      { title: "Pickup completed", date: "7 Oct 2026, 2:00 PM", completed: true },
+      { title: "Inspection pending", date: "Waiting for inspection", completed: false },
+    ],
+  },
+  {
+    id: "EXC-2026-1030",
+    customer: "Faseela C",
+    phone: "+91 98950 33445",
+    device: "Google Pixel 6",
+    variant: "128GB · Stormy Black",
+    amount: 11000,
+    status: "Scheduled",
+    agent: "Nihal T",
+    date: "7 Oct 2026",
+    location: "Manjeri, Malappuram",
+    imei: "350123456789014",
+    paymentMethod: "Bank Transfer",
+    paymentStatus: "Not Initiated",
+    inspectionStatus: "Pending",
+    condition: "Pending",
+    timeline: [
+      { title: "Order created", date: "7 Oct 2026, 9:30 AM", completed: true },
+      { title: "Pickup scheduled", date: "10 Oct 2026, 11:00 AM", completed: false },
+    ],
+  },
+  {
+    id: "EXC-2026-1029",
+    customer: "Suhail T",
+    phone: "+91 97450 99887",
+    device: "Samsung Galaxy A34",
+    variant: "128GB · Awesome Silver",
+    amount: 9000,
+    status: "New",
+    agent: "Not assigned",
+    date: "6 Oct 2026",
+    location: "Kondotty, Malappuram",
+    imei: "351234567890125",
+    paymentMethod: "Not selected",
+    paymentStatus: "Not Initiated",
+    inspectionStatus: "Pending",
+    condition: "Pending",
+    timeline: [
+      { title: "Order created", date: "6 Oct 2026, 1:00 PM", completed: true },
+      { title: "Agent assignment", date: "Awaiting assignment", completed: false },
+    ],
+  },
+  {
+    id: "EXC-2026-1028",
+    customer: "Nabeel P",
+    phone: "+91 96330 44556",
+    device: "Redmi Note 11",
+    variant: "128GB · Star Blue",
+    amount: 6500,
+    status: "Cancelled",
+    agent: "Not assigned",
+    date: "6 Oct 2026",
+    location: "Wandoor, Malappuram",
+    imei: "352345678901236",
+    paymentMethod: "Not selected",
+    paymentStatus: "Not Initiated",
+    inspectionStatus: "Not Started",
+    condition: "Pending",
+    timeline: [
+      { title: "Order created", date: "6 Oct 2026, 10:00 AM", completed: true },
+      { title: "Order cancelled", date: "6 Oct 2026, 11:00 AM", completed: true },
+    ],
+  },
+  {
+    id: "EXC-2026-1027",
+    customer: "Afsal M",
+    phone: "+91 99610 44556",
+    device: "Apple iPhone XR",
+    variant: "64GB · Coral",
+    amount: 8000,
+    status: "Completed",
+    agent: "Muhammed Shamil",
+    date: "5 Oct 2026",
+    location: "Manjeri, Malappuram",
+    imei: "353456789012347",
+    paymentMethod: "Bank Transfer",
+    paymentStatus: "Paid",
+    inspectionStatus: "Passed",
+    condition: "Fair",
+    timeline: [
+      { title: "Order created", date: "4 Oct 2026, 10:00 AM", completed: true },
+      { title: "Pickup completed", date: "4 Oct 2026, 2:00 PM", completed: true },
+      { title: "Inspection completed", date: "5 Oct 2026, 10:00 AM", completed: true },
+      { title: "Payment completed", date: "5 Oct 2026, 12:00 PM", completed: true },
+    ],
+  },
+  {
+    id: "EXC-2026-1026",
+    customer: "Ramees K",
+    phone: "+91 98470 99887",
+    device: "Samsung Galaxy M34",
+    variant: "128GB · Midnight Blue",
+    amount: 7500,
+    status: "Payment Pending",
+    agent: "Shahid Ali",
+    date: "5 Oct 2026",
+    location: "Kottakkal, Malappuram",
+    imei: "354567890123458",
+    paymentMethod: "UPI",
+    paymentStatus: "Pending",
+    inspectionStatus: "Passed",
+    condition: "Good",
+    timeline: [
+      { title: "Order created", date: "4 Oct 2026, 9:00 AM", completed: true },
+      { title: "Pickup completed", date: "4 Oct 2026, 1:00 PM", completed: true },
+      { title: "Inspection completed", date: "5 Oct 2026, 10:00 AM", completed: true },
+      { title: "Payment pending", date: "Awaiting payment", completed: false },
+    ],
+  },
+  {
+    id: "EXC-2026-1025",
+    customer: "Shifana A",
+    phone: "+91 98951 55667",
+    device: "OnePlus Nord CE 3",
+    variant: "256GB · Aqua Surge",
+    amount: 9500,
+    status: "New",
+    agent: "Not assigned",
+    date: "4 Oct 2026",
+    location: "Perinthalmanna, Malappuram",
+    imei: "355678901234569",
+    paymentMethod: "Not selected",
+    paymentStatus: "Not Initiated",
+    inspectionStatus: "Pending",
+    condition: "Pending",
+    timeline: [
+      { title: "Order created", date: "4 Oct 2026, 2:00 PM", completed: true },
+      { title: "Agent assignment", date: "Awaiting assignment", completed: false },
+    ],
+  },
 ];
 
 const tabs = [
@@ -302,7 +522,7 @@ export default function Orders() {
  });
  }, [orders, search, statusFilter, dateFilter]);
 
- const pageSize = 7;
+ const pageSize = 8;
  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
  const visibleOrders = filteredOrders.slice(
  (page - 1) * pageSize,
@@ -539,82 +759,293 @@ export default function Orders() {
  return (
   <div className="space-y-2">
    {/* Summary cards */}
-   <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-5">
-    {[
-     { label: "Total Orders", value: "2,845", change: "↑ 12.5%", note: "from last month", icon: PackageCheck, box: "bg-purple-50 text-purple-500", positive: true },
-     { label: "Pending", value: "54", change: "↑ 9.1%", note: "from last month", icon: Clock3, box: "bg-red-50 text-red-400", positive: true },
-     { label: "In Progress", value: "54", change: "↑ 12.4%", note: "from last month", icon: Truck, box: "bg-amber-50 text-amber-500", positive: true },
-     { label: "Completed", value: "328", change: "↓ 6.3%", note: "vs last week", icon: PackageCheck, box: "bg-green-50 text-green-600", positive: false },
-     { label: "Cancelled", value: "11", change: "↑ 11.7%", note: "vs yesterday", icon: XCircle, box: "bg-red-50 text-red-500", positive: true },
-    ].map(({ label, value, change, note, icon: Icon, box, positive }) => (
-     <div key={label} className="flex h-[64px] min-w-0 items-center gap-2.5 rounded-md border border-stone-200 bg-white px-3">
-      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${box}`}><Icon size={18} strokeWidth={1.6} /></div>
-      <div className="min-w-0">
-       <p className="text-[11px] leading-3 text-stone-600">{label}</p>
-       <p className="text-[15px] font-semibold leading-[18px] text-stone-700">{value}</p>
-       <p className="mt-0.5 whitespace-nowrap text-xs"><span className={positive ? "text-emerald-600" : "text-red-500"}>{change}</span><span className="ml-1 text-stone-400">{note}</span></p>
+  
+
+<div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+  {[
+    { label: "Total Orders", value: "2,845", change: "↑ 12.5%", note: "from last month", icon: PackageCheck, box: "bg-purple-50 text-purple-500", positive: true },
+    { label: "Pending", value: "54", change: "↑ 9.1%", note: "from last month", icon: Clock3, box: "bg-red-50 text-red-400", positive: true },
+    { label: "In Progress", value: "54", change: "↑ 12.4%", note: "from last month", icon: Truck, box: "bg-amber-50 text-amber-500", positive: true },
+    { label: "Completed", value: "328", change: "↓ 6.3%", note: "vs last week", icon: PackageCheck, box: "bg-green-50 text-green-600", positive: false },
+    { label: "Cancelled", value: "11", change: "↑ 11.7%", note: "vs yesterday", icon: XCircle, box: "bg-red-50 text-red-500", positive: true },
+  ].map(({ label, value, change, note, icon: Icon, box, positive }) => (
+    <div
+      key={label}
+      className="flex h-[91px] min-w-0 items-center gap-4 rounded-lg border border-stone-200 bg-white px-6"
+    >
+      <div
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${box}`}
+      >
+        <Icon size={24} strokeWidth={1.7} />
       </div>
-     </div>
-    ))}
-   </div>
+
+      <div className="min-w-0">
+        <p className="text-sm font-medium leading-5 text-stone-600">
+          {label}
+        </p>
+
+        <p className="text-2xl font-semibold leading-7 text-stone-700">
+          {value}
+        </p>
+
+        <p className="mt-0.5 whitespace-nowrap text-xs">
+          <span className={positive ? "text-emerald-600" : "text-red-500"}>
+            {change}
+          </span>
+          <span className="ml-1 text-stone-500">{note}</span>
+        </p>
+      </div>
+    </div>
+  ))}
+</div>
+
+
 
    {/* Orders table */}
    <section className="overflow-hidden rounded-lg border border-stone-200 bg-white">
-    <div className="flex h-[36px] items-center justify-between px-3">
-     <h2 className="text-sm font-medium text-stone-900">All Orders</h2>
-     <div className="flex items-center gap-2">
-      <label className="flex h-[25px] items-center gap-1 rounded border border-stone-200 px-2">
-       <SlidersHorizontal size={11} className="text-stone-500" />
-       <select value={statusFilter} onChange={(event) => selectFilter(event.target.value)} aria-label="Filter orders" className="w-[42px] bg-transparent text-[11px] text-stone-600 outline-none">
-        <option value="All">Filter</option>
-        {Object.keys(statusStyles).map((status) => <option key={status} value={status}>{status}</option>)}
-       </select>
-      </label>
-      <button type="button" onClick={() => {
-       const rows = [["ORDER ID", "USER NAME", "AGENT", "PHONE MODEL", "STATUS", "PRICE", "DATE"], ...filteredOrders.map((order) => [order.id, order.customer, order.agent, order.device, order.status, String(order.amount), order.date])];
-       const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
-       const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-       const link = document.createElement("a"); link.href = url; link.download = "excart-orders.csv"; link.click(); URL.revokeObjectURL(url);
-      }} className="flex h-[25px] items-center gap-1 rounded border border-stone-200 px-2 text-[11px] text-stone-600 hover:bg-stone-50"><FileText size={11} />Export</button>
-     </div>
-    </div>
+    
 
-    <div className="mx-2 overflow-x-auto rounded-lg border border-stone-200">
-     <table className="w-full min-w-[900px] table-fixed border-collapse text-left">
-      <colgroup><col style={{ width: "13%" }} /><col style={{ width: "14%" }} /><col style={{ width: "11%" }} /><col style={{ width: "19%" }} /><col style={{ width: "15%" }} /><col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "8%" }} /></colgroup>
-      <thead><tr className="h-[32px] bg-stone-100">{["ORDER ID", "USER NAME", "AGENT", "PHONE MODEL", "STATUS", "PRICE", "DATE", "ACTION"].map((heading) => <th key={heading} className="whitespace-nowrap px-2.5 text-[11px] font-bold text-stone-600">{heading}</th>)}</tr></thead>
-      <tbody className="divide-y divide-stone-100">
-       {visibleOrders.map((order, index) => {
-        const initials = order.customer.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
-        const displayStatus = order.status === "Completed" ? "Ready for stock" : order.status === "Scheduled" ? "Pickup Scheduled" : order.status === "Inspection" ? "Under Inspection" : order.status;
-        const badgeColor = order.status === "Completed" ? "bg-emerald-50 text-emerald-600" : order.status === "Scheduled" ? "bg-blue-50 text-blue-600" : order.status === "Inspection" ? "bg-orange-50 text-orange-600" : order.status === "Cancelled" ? "bg-red-50 text-red-600" : order.status === "Picked Up" ? "bg-cyan-50 text-cyan-600" : "bg-orange-50 text-orange-600";
-        const deviceImage = order.device.toLowerCase().includes("samsung") ? "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=100&h=150&fit=crop" : order.device.toLowerCase().includes("oneplus") ? "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=100&h=150&fit=crop" : order.device.toLowerCase().includes("xiaomi") ? "https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=100&h=150&fit=crop" : order.device.toLowerCase().includes("google") ? "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=150&fit=crop" : "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=100&h=150&fit=crop";
-        const invoiceNumber = order.id.match(/(\d+)$/)?.[1] ?? String(1089 - index);
-        return (
-         <tr key={order.id} className="h-[51px] hover:bg-orange-50/20">
-          <td className="px-2.5 py-1"><button type="button" onClick={() => openOrder(order)} className="text-left"><span className="block whitespace-nowrap text-xs font-semibold text-stone-700">{order.id}</span><span className="mt-0.5 block text-xs font-medium text-orange-600">#INV-{invoiceNumber}</span></button></td>
-          <td className="px-2.5 py-1"><div className="flex items-center gap-1.5"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-semibold text-stone-600">{initials}</span><span className="truncate text-xs font-semibold text-stone-700">{order.customer.toUpperCase()}</span></div></td>
-          <td className="truncate px-2.5 py-1 text-xs font-semibold text-stone-600">{order.agent === "Not assigned" ? "—" : order.agent.toUpperCase()}</td>
-          <td className="px-2.5 py-1"><div className="flex items-center gap-1.5"><img src={deviceImage} alt={order.device} className="h-[35px] w-[27px] shrink-0 rounded-sm border border-stone-200 bg-stone-100 object-cover" loading="lazy" /><div className="min-w-0"><p className="truncate text-xs font-semibold text-stone-700">{order.device}</p><p className="mt-0.5 text-[11px] text-orange-600">{order.variant.split(" · ")[0]}</p></div></div></td>
-          <td className="px-2.5 py-1"><span className={`inline-block whitespace-nowrap rounded px-1.5 py-1 text-[11px] font-medium ${badgeColor}`}>{displayStatus}</span></td>
-          <td className="px-2.5 py-1 text-center"><p className="whitespace-nowrap text-xs font-semibold text-stone-700">{formatAmount(order.amount)}</p><p className={`mt-0.5 text-[11px] ${order.paymentStatus === "Paid" ? "text-emerald-600" : "text-orange-600"}`}>{order.paymentStatus}</p></td>
-          <td className="whitespace-nowrap px-2.5 py-1 text-xs text-stone-600">{order.date.replace(" Oct ", "-")}</td>
-          <td className="px-2.5 py-1"><button type="button" onClick={() => openOrder(order)} aria-label={`View ${order.id}`} className="flex items-center justify-center gap-1 text-stone-400 hover:text-orange-600"><span className="h-1 w-1 rounded-full bg-current" /><span className="h-1 w-1 rounded-full bg-current" /><span className="h-1 w-1 rounded-full bg-current" /></button></td>
-         </tr>
+<div className="flex min-h-[52px] items-center justify-between gap-4 px-5 py-3">
+  <h2 className="text-lg font-medium text-stone-900">
+    All Orders
+  </h2>
+
+  <div className="flex items-center gap-3">
+    {/* Premium Filter */}
+    <label className="flex h-[38px] cursor-pointer items-center gap-2 rounded-lg border border-stone-200 bg-white px-3.5 text-stone-600 shadow-sm transition-all duration-200 hover:border-orange-300 hover:bg-orange-50/50 hover:text-orange-600 focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-100">
+      <SlidersHorizontal
+        size={16}
+        strokeWidth={1.8}
+        className="shrink-0"
+      />
+
+      <select
+        value={statusFilter}
+        onChange={(event) => selectFilter(event.target.value)}
+        aria-label="Filter orders"
+        className="cursor-pointer bg-transparent text-sm font-medium outline-none"
+      >
+        <option value="All">Filter</option>
+        {Object.keys(statusStyles).map((status) => (
+          <option key={status} value={status}>
+            {status}
+          </option>
+        ))}
+      </select>
+    </label>
+
+    {/* Premium Export */}
+    <button
+      type="button"
+      onClick={() => {
+        const rows = [
+          ["ORDER ID", "USER NAME", "AGENT", "PHONE MODEL", "STATUS", "PRICE", "DATE"],
+          ...filteredOrders.map((order) => [
+            order.id,
+            order.customer,
+            order.agent,
+            order.device,
+            order.status,
+            String(order.amount),
+            order.date,
+          ]),
+        ];
+
+        const csv = rows
+          .map((row) =>
+            row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")
+          )
+          .join("\n");
+
+        const url = URL.createObjectURL(
+          new Blob([csv], { type: "text/csv;charset=utf-8;" })
         );
-       })}
-       {visibleOrders.length === 0 && <tr><td colSpan={8} className="py-10 text-center text-sm text-stone-500">No orders found.</td></tr>}
-      </tbody>
-     </table>
-    </div>
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "excart-orders.csv";
+        link.click();
+        URL.revokeObjectURL(url);
+      }}
+      className="group flex h-[38px] items-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-medium text-stone-700 shadow-sm transition-all duration-200 hover:border-orange-300 hover:bg-orange-500 hover:text-white hover:shadow-md active:scale-[0.98]"
+    >
+      <FileText
+        size={16}
+        strokeWidth={1.8}
+      />
+      Export
+    </button>
+  </div>
+</div>
+
+
+
+    
+<div className="mx-2 overflow-x-auto rounded-lg border border-stone-200">
+  <table className="w-full min-w-[1100px] table-fixed border-collapse text-left">
+    <colgroup>
+      <col style={{ width: "14%" }} />
+      <col style={{ width: "14%" }} />
+      <col style={{ width: "12%" }} />
+      <col style={{ width: "20%" }} />
+      <col style={{ width: "14%" }} />
+      <col style={{ width: "10%" }} />
+      <col style={{ width: "9%" }} />
+      <col style={{ width: "7%" }} />
+    </colgroup>
+
+    <thead>
+      <tr className="h-[40px] bg-stone-100">
+        {["ORDER ID", "USER NAME", "AGENT", "PHONE MODEL", "STATUS", "PRICE", "DATE", "ACTION"].map((heading) => (
+          <th
+            key={heading}
+            className={`whitespace-nowrap px-4 text-xs font-bold tracking-wide text-stone-600 ${
+              heading === "PRICE" || heading === "ACTION" ? "text-center" : ""
+            }`}
+          >
+            {heading}
+          </th>
+        ))}
+      </tr>
+    </thead>
+
+    <tbody className="divide-y divide-stone-100">
+      {visibleOrders.map((order, index) => {
+        const initials = order.customer
+          .split(" ")
+          .map((part) => part[0])
+          .slice(0, 2)
+          .join("")
+          .toUpperCase();
+
+        const displayStatus =
+          order.status === "Completed" ? "Ready for stock" :
+          order.status === "Scheduled" ? "Pickup Scheduled" :
+          order.status === "Inspection" ? "Under Inspection" :
+          order.status;
+
+        const badgeColor =
+          order.status === "Completed" ? "bg-emerald-50 text-emerald-600" :
+          order.status === "Scheduled" ? "bg-blue-50 text-blue-600" :
+          order.status === "Inspection" ? "bg-orange-50 text-orange-600" :
+          order.status === "Cancelled" ? "bg-red-50 text-red-600" :
+          order.status === "Picked Up" ? "bg-cyan-50 text-cyan-600" :
+          "bg-orange-50 text-orange-600";
+
+        const deviceImage =
+          order.device.toLowerCase().includes("samsung")
+            ? "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=100&h=150&fit=crop"
+            : order.device.toLowerCase().includes("oneplus")
+            ? "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=100&h=150&fit=crop"
+            : order.device.toLowerCase().includes("xiaomi")
+            ? "https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=100&h=150&fit=crop"
+            : order.device.toLowerCase().includes("google")
+            ? "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=150&fit=crop"
+            : "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=100&h=150&fit=crop";
+
+        const invoiceNumber = order.id.match(/(\d+)$/)?.[1] ?? String(1089 - index);
+
+        return (
+          <tr key={order.id} className="h-[58px] transition-colors hover:bg-orange-50/30">
+            <td className="px-4 py-2">
+              <button type="button" onClick={() => openOrder(order)} className="text-left">
+                <span className="block whitespace-nowrap text-sm font-semibold text-stone-700">
+                  {order.id}
+                </span>
+                <span className="mt-1 block text-xs font-medium text-orange-600">
+                  #INV-{invoiceNumber}
+                </span>
+              </button>
+            </td>
+
+            <td className="px-4 py-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-semibold text-stone-600">
+                  {initials}
+                </span>
+                <span className="truncate text-sm font-semibold text-stone-700">
+                  {order.customer.toUpperCase()}
+                </span>
+              </div>
+            </td>
+
+            <td className="truncate px-4 py-2 text-sm font-medium text-stone-600">
+              {order.agent === "Not assigned" ? "—" : order.agent.toUpperCase()}
+            </td>
+
+            <td className="px-4 py-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <img
+                  src={deviceImage}
+                  alt={order.device}
+                  className="h-[42px] w-[32px] shrink-0 rounded-md border border-stone-200 bg-stone-100 object-cover"
+                  loading="lazy"
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-stone-700">
+                    {order.device}
+                  </p>
+                  <p className="mt-1 text-xs text-orange-600">
+                    {order.variant.split(" · ")[0]}
+                  </p>
+                </div>
+              </div>
+            </td>
+
+            <td className="px-4 py-2">
+              <span className={`inline-flex whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium ${badgeColor}`}>
+                {displayStatus}
+              </span>
+            </td>
+
+            <td className="px-4 py-2 text-center">
+              <p className="whitespace-nowrap text-sm font-semibold text-stone-700">
+                {formatAmount(order.amount)}
+              </p>
+              <p className={`mt-1 text-xs ${order.paymentStatus === "Paid" ? "text-emerald-600" : "text-orange-600"}`}>
+                {order.paymentStatus}
+              </p>
+            </td>
+
+            <td className="whitespace-nowrap px-3 py-2 text-sm text-stone-600">
+              {order.date.replace(" Oct ", "-")}
+            </td>
+
+            <td className="px-3 py-2">
+              <button
+                type="button"
+                onClick={() => openOrder(order)}
+                aria-label={`View ${order.id}`}
+                className="mx-auto flex items-center justify-center gap-1 rounded-md p-2 text-stone-400 transition hover:bg-orange-50 hover:text-orange-600"
+              >
+                <span className="h-1 w-1 rounded-full bg-current" />
+                <span className="h-1 w-1 rounded-full bg-current" />
+                <span className="h-1 w-1 rounded-full bg-current" />
+              </button>
+            </td>
+          </tr>
+        );
+      })}
+
+      {visibleOrders.length === 0 && (
+        <tr>
+          <td colSpan={8} className="py-10 text-center text-base text-stone-500">
+            No orders found.
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</div>
+
 
     <div className="flex min-h-[37px] flex-wrap items-center justify-between gap-2 px-3 py-2">
-     <p className="text-xs text-stone-500">Showing {filteredOrders.length === 0 ? 0 : (page - 1) * pageSize + 1} to {Math.min(page * pageSize, filteredOrders.length)} of {filteredOrders.length} orders</p>
+     <p className="text-sm text-stone-500">Showing {filteredOrders.length === 0 ? 0 : (page - 1) * pageSize + 1} to {Math.min(page * pageSize, filteredOrders.length)} of {filteredOrders.length} orders</p>
      <div className="flex items-center gap-1.5">
       <button type="button" disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded border border-stone-200 p-1 text-stone-500 disabled:opacity-40" aria-label="Previous page"><ChevronLeft size={13} /></button>
-      {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => <button key={pageNumber} type="button" onClick={() => setPage(pageNumber)} className={`h-6 min-w-6 rounded px-1.5 text-xs ${page === pageNumber ? "bg-orange-500 font-semibold text-white" : "border border-stone-200 text-stone-600 hover:bg-stone-50"}`}>{pageNumber}</button>)}
+      {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => <button key={pageNumber} type="button" onClick={() => setPage(pageNumber)} className={`h-7 min-w-7 rounded px-2 text-sm ${page === pageNumber ? "bg-orange-500 font-semibold text-white" : "border border-stone-200 text-stone-600 hover:bg-stone-50"}`}>{pageNumber}</button>)}
       <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="rounded border border-stone-200 p-1 text-stone-500 disabled:opacity-40" aria-label="Next page"><ChevronRight size={13} /></button>
-      <span className="ml-2 whitespace-nowrap text-[11px] text-stone-500">Rows per page</span><span className="rounded border border-stone-200 px-2 py-1 text-xs text-stone-600">{pageSize}</span>
+      <span className="ml-2 whitespace-nowrap text-xs text-stone-500">Rows per page</span><span className="rounded border border-stone-200 px-2 py-1 text-sm text-stone-600">{pageSize}</span>
      </div>
     </div>
    </section>
