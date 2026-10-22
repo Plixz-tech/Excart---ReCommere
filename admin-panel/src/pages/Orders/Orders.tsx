@@ -550,9 +550,9 @@ export default function Orders() {
      <div key={label} className="flex h-[64px] min-w-0 items-center gap-2.5 rounded-md border border-stone-200 bg-white px-3">
       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${box}`}><Icon size={18} strokeWidth={1.6} /></div>
       <div className="min-w-0">
-       <p className="text-[9px] leading-3 text-stone-600">{label}</p>
+       <p className="text-[11px] leading-3 text-stone-600">{label}</p>
        <p className="text-[15px] font-semibold leading-[18px] text-stone-700">{value}</p>
-       <p className="mt-0.5 whitespace-nowrap text-[8px]"><span className={positive ? "text-emerald-600" : "text-red-500"}>{change}</span><span className="ml-1 text-stone-400">{note}</span></p>
+       <p className="mt-0.5 whitespace-nowrap text-xs"><span className={positive ? "text-emerald-600" : "text-red-500"}>{change}</span><span className="ml-1 text-stone-400">{note}</span></p>
       </div>
      </div>
     ))}
@@ -561,11 +561,11 @@ export default function Orders() {
    {/* Orders table */}
    <section className="overflow-hidden rounded-lg border border-stone-200 bg-white">
     <div className="flex h-[36px] items-center justify-between px-3">
-     <h2 className="text-[13px] font-medium text-stone-900">All Orders</h2>
+     <h2 className="text-sm font-medium text-stone-900">All Orders</h2>
      <div className="flex items-center gap-2">
       <label className="flex h-[25px] items-center gap-1 rounded border border-stone-200 px-2">
        <SlidersHorizontal size={11} className="text-stone-500" />
-       <select value={statusFilter} onChange={(event) => selectFilter(event.target.value)} aria-label="Filter orders" className="w-[42px] bg-transparent text-[9px] text-stone-600 outline-none">
+       <select value={statusFilter} onChange={(event) => selectFilter(event.target.value)} aria-label="Filter orders" className="w-[42px] bg-transparent text-[11px] text-stone-600 outline-none">
         <option value="All">Filter</option>
         {Object.keys(statusStyles).map((status) => <option key={status} value={status}>{status}</option>)}
        </select>
@@ -575,14 +575,14 @@ export default function Orders() {
        const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
        const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
        const link = document.createElement("a"); link.href = url; link.download = "excart-orders.csv"; link.click(); URL.revokeObjectURL(url);
-      }} className="flex h-[25px] items-center gap-1 rounded border border-stone-200 px-2 text-[9px] text-stone-600 hover:bg-stone-50"><FileText size={11} />Export</button>
+      }} className="flex h-[25px] items-center gap-1 rounded border border-stone-200 px-2 text-[11px] text-stone-600 hover:bg-stone-50"><FileText size={11} />Export</button>
      </div>
     </div>
 
     <div className="mx-2 overflow-x-auto rounded-lg border border-stone-200">
      <table className="w-full min-w-[900px] table-fixed border-collapse text-left">
       <colgroup><col style={{ width: "13%" }} /><col style={{ width: "14%" }} /><col style={{ width: "11%" }} /><col style={{ width: "19%" }} /><col style={{ width: "15%" }} /><col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "8%" }} /></colgroup>
-      <thead><tr className="h-[32px] bg-stone-100">{["ORDER ID", "USER NAME", "AGENT", "PHONE MODEL", "STATUS", "PRICE", "DATE", "ACTION"].map((heading) => <th key={heading} className="whitespace-nowrap px-2.5 text-[9px] font-bold text-stone-600">{heading}</th>)}</tr></thead>
+      <thead><tr className="h-[32px] bg-stone-100">{["ORDER ID", "USER NAME", "AGENT", "PHONE MODEL", "STATUS", "PRICE", "DATE", "ACTION"].map((heading) => <th key={heading} className="whitespace-nowrap px-2.5 text-[11px] font-bold text-stone-600">{heading}</th>)}</tr></thead>
       <tbody className="divide-y divide-stone-100">
        {visibleOrders.map((order, index) => {
         const initials = order.customer.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
@@ -592,13 +592,13 @@ export default function Orders() {
         const invoiceNumber = order.id.match(/(\d+)$/)?.[1] ?? String(1089 - index);
         return (
          <tr key={order.id} className="h-[51px] hover:bg-orange-50/20">
-          <td className="px-2.5 py-1"><button type="button" onClick={() => openOrder(order)} className="text-left"><span className="block whitespace-nowrap text-[10px] font-semibold text-stone-700">{order.id}</span><span className="mt-0.5 block text-[10px] font-medium text-orange-600">#INV-{invoiceNumber}</span></button></td>
-          <td className="px-2.5 py-1"><div className="flex items-center gap-1.5"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[8px] font-semibold text-stone-600">{initials}</span><span className="truncate text-[10px] font-semibold text-stone-700">{order.customer.toUpperCase()}</span></div></td>
-          <td className="truncate px-2.5 py-1 text-[10px] font-semibold text-stone-600">{order.agent === "Not assigned" ? "—" : order.agent.toUpperCase()}</td>
-          <td className="px-2.5 py-1"><div className="flex items-center gap-1.5"><img src={deviceImage} alt={order.device} className="h-[35px] w-[27px] shrink-0 rounded-sm border border-stone-200 bg-stone-100 object-cover" loading="lazy" /><div className="min-w-0"><p className="truncate text-[10px] font-semibold text-stone-700">{order.device}</p><p className="mt-0.5 text-[9px] text-orange-600">{order.variant.split(" · ")[0]}</p></div></div></td>
-          <td className="px-2.5 py-1"><span className={`inline-block whitespace-nowrap rounded px-1.5 py-1 text-[9px] font-medium ${badgeColor}`}>{displayStatus}</span></td>
-          <td className="px-2.5 py-1 text-center"><p className="whitespace-nowrap text-[10px] font-semibold text-stone-700">{formatAmount(order.amount)}</p><p className={`mt-0.5 text-[9px] ${order.paymentStatus === "Paid" ? "text-emerald-600" : "text-orange-600"}`}>{order.paymentStatus}</p></td>
-          <td className="whitespace-nowrap px-2.5 py-1 text-[10px] text-stone-600">{order.date.replace(" Oct ", "-")}</td>
+          <td className="px-2.5 py-1"><button type="button" onClick={() => openOrder(order)} className="text-left"><span className="block whitespace-nowrap text-xs font-semibold text-stone-700">{order.id}</span><span className="mt-0.5 block text-xs font-medium text-orange-600">#INV-{invoiceNumber}</span></button></td>
+          <td className="px-2.5 py-1"><div className="flex items-center gap-1.5"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-semibold text-stone-600">{initials}</span><span className="truncate text-xs font-semibold text-stone-700">{order.customer.toUpperCase()}</span></div></td>
+          <td className="truncate px-2.5 py-1 text-xs font-semibold text-stone-600">{order.agent === "Not assigned" ? "—" : order.agent.toUpperCase()}</td>
+          <td className="px-2.5 py-1"><div className="flex items-center gap-1.5"><img src={deviceImage} alt={order.device} className="h-[35px] w-[27px] shrink-0 rounded-sm border border-stone-200 bg-stone-100 object-cover" loading="lazy" /><div className="min-w-0"><p className="truncate text-xs font-semibold text-stone-700">{order.device}</p><p className="mt-0.5 text-[11px] text-orange-600">{order.variant.split(" · ")[0]}</p></div></div></td>
+          <td className="px-2.5 py-1"><span className={`inline-block whitespace-nowrap rounded px-1.5 py-1 text-[11px] font-medium ${badgeColor}`}>{displayStatus}</span></td>
+          <td className="px-2.5 py-1 text-center"><p className="whitespace-nowrap text-xs font-semibold text-stone-700">{formatAmount(order.amount)}</p><p className={`mt-0.5 text-[11px] ${order.paymentStatus === "Paid" ? "text-emerald-600" : "text-orange-600"}`}>{order.paymentStatus}</p></td>
+          <td className="whitespace-nowrap px-2.5 py-1 text-xs text-stone-600">{order.date.replace(" Oct ", "-")}</td>
           <td className="px-2.5 py-1"><button type="button" onClick={() => openOrder(order)} aria-label={`View ${order.id}`} className="flex items-center justify-center gap-1 text-stone-400 hover:text-orange-600"><span className="h-1 w-1 rounded-full bg-current" /><span className="h-1 w-1 rounded-full bg-current" /><span className="h-1 w-1 rounded-full bg-current" /></button></td>
          </tr>
         );
@@ -609,12 +609,12 @@ export default function Orders() {
     </div>
 
     <div className="flex min-h-[37px] flex-wrap items-center justify-between gap-2 px-3 py-2">
-     <p className="text-[10px] text-stone-500">Showing {filteredOrders.length === 0 ? 0 : (page - 1) * pageSize + 1} to {Math.min(page * pageSize, filteredOrders.length)} of {filteredOrders.length} orders</p>
+     <p className="text-xs text-stone-500">Showing {filteredOrders.length === 0 ? 0 : (page - 1) * pageSize + 1} to {Math.min(page * pageSize, filteredOrders.length)} of {filteredOrders.length} orders</p>
      <div className="flex items-center gap-1.5">
       <button type="button" disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded border border-stone-200 p-1 text-stone-500 disabled:opacity-40" aria-label="Previous page"><ChevronLeft size={13} /></button>
-      {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => <button key={pageNumber} type="button" onClick={() => setPage(pageNumber)} className={`h-6 min-w-6 rounded px-1.5 text-[10px] ${page === pageNumber ? "bg-orange-500 font-semibold text-white" : "border border-stone-200 text-stone-600 hover:bg-stone-50"}`}>{pageNumber}</button>)}
+      {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => <button key={pageNumber} type="button" onClick={() => setPage(pageNumber)} className={`h-6 min-w-6 rounded px-1.5 text-xs ${page === pageNumber ? "bg-orange-500 font-semibold text-white" : "border border-stone-200 text-stone-600 hover:bg-stone-50"}`}>{pageNumber}</button>)}
       <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="rounded border border-stone-200 p-1 text-stone-500 disabled:opacity-40" aria-label="Next page"><ChevronRight size={13} /></button>
-      <span className="ml-2 whitespace-nowrap text-[9px] text-stone-500">Rows per page</span><span className="rounded border border-stone-200 px-2 py-1 text-[10px] text-stone-600">{pageSize}</span>
+      <span className="ml-2 whitespace-nowrap text-[11px] text-stone-500">Rows per page</span><span className="rounded border border-stone-200 px-2 py-1 text-xs text-stone-600">{pageSize}</span>
      </div>
     </div>
    </section>
