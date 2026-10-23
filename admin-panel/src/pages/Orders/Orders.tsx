@@ -5,7 +5,6 @@ import {
  ChevronLeft,
  ChevronRight,
  Smartphone,
- UserRound,
  ClipboardCheck,
  Wallet,
  FileText,
@@ -815,9 +814,22 @@ export default function Orders() {
 
    if (selectedOrder) {
     return (
-      <div className="space-y-3">
-        {/* Sticky header, summary and navigation */}
-        <div className="sticky top-0 z-40 space-y-2 bg-stone-50 pb-1">
+      <div className="space-y-2">
+        {/* Keep the order controls, summary and tabs together while scrolling */}
+        <div className="                                              top-0 z-40 space-y-2 bg-stone-50 pb-1">
+          <div className="border-b border-stone-200 bg-white px-5 py-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedOrderId(null);
+                setActiveTab("Overview");
+              }}
+              className="inline-flex items-center gap-2 rounded-md py-1 text-sm font-semibold text-stone-600 transition hover:text-orange-600"
+            >
+              <ArrowLeft size={16} />
+              Back to Orders
+            </button>
+          </div>
           <div className="flex min-h-[76px] flex-col justify-between gap-3 border-b border-stone-200 bg-white px-5 py-3 sm:flex-row sm:items-center">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
