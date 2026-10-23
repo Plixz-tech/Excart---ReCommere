@@ -552,49 +552,130 @@ export default function Orders() {
  const renderTabContent = (order: Order) => {
  switch (activeTab) {
  case "Overview":
- return (
- <div className="space-y-4 pb-20">
-   <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
-     <DetailSection title="Order Information">
-       <DetailRow label="Order ID" value={order.id} />
-       <DetailRow label="Invoice ID" value={`INV-${order.id.replace("EXC-", "")}`} />
-       <DetailRow label="Order Date" value={`${order.date} · 10:30 AM`} />
-       <DetailRow label="Order Type" value="Device Trade-in" />
-       <DetailRow label="Payment Status" value={order.paymentStatus} />
-     </DetailSection>
-     <DetailSection title="Agent & Pickup Details">
-       <DetailRow label="Assigned Agent" value={order.agent} />
-       <DetailRow label="Agent Contact" value="+91 98765 10000" />
-       <DetailRow label="Pickup Address" value={order.location} />
-       <DetailRow label="Pickup Date" value={order.date} />
-       <DetailRow label="Pickup Slot" value="10:00 AM – 12:00 PM" />
-     </DetailSection>
-   </div>
-   <div className="grid gap-4 xl:grid-cols-2">
-     <DetailSection title="Status & Progress">
-       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-stone-50 p-3">
-         <div><p className="text-xs text-stone-500">Current order status</p><div className="mt-2"><StatusBadge status={order.status} /></div></div>
-         <label className="text-xs font-medium text-stone-600">Update status<select value={order.status} onChange={(event) => updateOrderStatus(event.target.value as OrderStatus)} className="mt-1 block rounded-lg border border-stone-200 bg-white px-2.5 py-2 text-sm outline-none focus:border-orange-400">{Object.keys(statusStyles).map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
-       </div>
-       <div className="space-y-4">
-         {["Order Created", "Agent Assigned", "Device Picked Up", "Inspection", "Payment"].map((step, index) => {
-           const done = index === 0 || (index === 1 && order.agent !== "Not assigned") || (index === 2 && ["Picked Up", "Inspection", "Payment Pending", "Completed"].includes(order.status)) || (index === 3 && ["Inspection", "Payment Pending", "Completed"].includes(order.status)) || (index === 4 && order.status === "Completed");
-           return <div key={step} className="flex items-center gap-3"><span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${done ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-400"}`}>{done ? <CheckCircle2 size={15}/> : <Clock3 size={15}/>}</span><div className="flex-1"><p className="text-sm font-medium text-stone-800">{step}</p><p className="mt-0.5 text-xs text-stone-500">{done ? "Completed" : "Pending"}</p></div><span className={`text-xs font-medium ${done ? "text-emerald-600" : "text-stone-400"}`}>{done ? "Done" : "Waiting"}</span></div>;
-         })}
-       </div>
-     </DetailSection>
-     <DetailSection title="Activity Timeline">
-       <div className="space-y-0">{order.timeline.map((item, index) => <div key={`${item.title}-${index}`} className="relative flex gap-3 pb-5 last:pb-0">{index !== order.timeline.length - 1 && <span className="absolute left-[10px] top-6 h-full w-px bg-stone-200"/>}<span className={`relative z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${item.completed ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600"}`}>{item.completed ? <CheckCircle2 size={13}/> : <Clock3 size={13}/>}</span><div className="min-w-0 flex-1"><p className="text-sm font-medium text-stone-800">{item.title}</p><p className="mt-1 text-xs text-stone-500">{item.date}</p></div></div>)}</div>
-     </DetailSection>
-   </div>
-   <div className="grid gap-4 xl:grid-cols-2">
-     <DetailSection title="Internal Notes"><textarea defaultValue="Customer requested careful handling of the device during pickup." rows={3} className="w-full resize-y rounded-lg border border-stone-200 px-3 py-2.5 text-sm text-stone-700 outline-none focus:border-orange-400" placeholder="Add internal notes..."/><p className="mt-2 text-xs text-stone-400">Notes are for internal admin use only.</p></DetailSection>
-     <DetailSection title="Cancel Order"><div className="flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600"><XCircle size={18}/></span><div className="flex-1"><p className="text-sm font-semibold text-stone-800">Cancel this order</p><p className="mt-1 text-xs leading-5 text-stone-500">Cancel this order only if it should no longer proceed. This demo action updates local sample data only.</p><button type="button" onClick={() => updateOrderStatus("Cancelled")} className="mt-3 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50">Cancel Order</button></div></div></DetailSection>
-   </div>
- </div>
- );
+  return (
+    <div className="space-y-2 pb-24">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.35fr_0.95fr_1.1fr_0.9fr]">
+        <DetailSection title="Order Information">
+          <DetailRow label="Order ID" value={order.id} />
+          <DetailRow label="Invoice ID" value={`#INV-${order.id.match(/(\\d+)$/)?.[1] ?? ""}`} />
+          <DetailRow label="Created On" value={`${order.date} · 10:30 AM`} />
+          <DetailRow label="Pickup Address" value={order.location} />
+          <DetailRow label="User Address" value={order.location} />
+        </DetailSection>
 
- case "Device Details":
+        <DetailSection title="Agent & Pickup Details">
+          <p className="mb-2 text-xs font-medium text-stone-500">Assigned Agent</p>
+          <div className="flex items-center gap-2 rounded-lg border border-stone-200 p-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">
+              {order.agent === "Not assigned" ? "—" : order.agent.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-stone-700">{order.agent}</p>
+              <p className="text-xs text-stone-500">+91 98765 10000</p>
+            </div>
+            <ChevronRight size={15} className="text-stone-400" />
+          </div>
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-medium text-stone-500">Pickup Date</p>
+            <div className="flex items-center justify-between rounded-lg border border-stone-200 px-3 py-2.5 text-sm text-stone-700">
+              <span>{order.date}</span><History size={15} className="text-stone-400" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="mb-2 text-xs font-medium text-stone-500">Pickup Time</p>
+            <div className="flex items-center justify-between rounded-lg border border-stone-200 px-3 py-2.5 text-sm text-stone-700">
+              <span>10:30 AM – 12:00 PM</span><Clock3 size={15} className="text-stone-400" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="text-xs font-medium text-stone-500">Pickup Status</p>
+            <div className="mt-2"><StatusBadge status={order.status} /></div>
+          </div>
+          <p className="mt-2 text-xs text-stone-500">On {order.date}, 11:00 AM</p>
+        </DetailSection>
+
+        <DetailSection title="Status & Progress">
+          <div className="space-y-4">
+            {([
+              ["Order Status", "Order Confirmed", true],
+              ["Order Status", order.status, ["Picked Up", "Inspection", "Payment Pending", "Completed"].includes(order.status)],
+              ["Payment Status", order.paymentStatus, order.paymentStatus === "Paid"],
+              ["Inspection Status", order.inspectionStatus, order.inspectionStatus === "Passed"],
+              ["Inventory Status", order.status === "Completed" ? "Confirmed" : "Not Confirmed", order.status === "Completed"],
+            ] as [string, string, boolean][]).map(([label, value, done], index) => (
+              <div key={`${label}-${index}`} className="flex items-start justify-between gap-2">
+                <span className="text-xs font-medium text-stone-500">{label}</span>
+                <span className={`flex max-w-[65%] items-center gap-1.5 text-xs font-medium ${done ? "text-stone-600" : "text-orange-600"}`}>
+                  {done ? <CheckCircle2 size={13} className="shrink-0 text-emerald-500" /> : <span className="h-3 w-3 shrink-0 rounded-full border border-orange-500" />}
+                  <span>{String(value)}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6">
+            <div className="flex items-center">
+              {["Order Created", "Picked Up", "Payment Pending", "Inspection Pending", "Inventory"].map((step, index) => {
+                const done = index === 0 || (index === 1 && ["Picked Up", "Inspection", "Payment Pending", "Completed"].includes(order.status)) || (index === 2 && order.paymentStatus === "Paid") || (index === 3 && order.inspectionStatus === "Passed") || (index === 4 && order.status === "Completed");
+                return (
+                  <div key={step} className="relative flex min-w-0 flex-1 flex-col items-center">
+                    {index > 0 && <span className={`absolute right-1/2 top-3 h-0.5 w-full ${done ? "bg-emerald-500" : "bg-stone-200"}`} />}
+                    <span className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full ${done ? "bg-emerald-500 text-white" : "bg-orange-500 text-white"}`}>
+                      {done ? <CheckCircle2 size={13} /> : index === 4 ? <PackageCheck size={13} /> : <Clock3 size={13} />}
+                    </span>
+                    <span className="mt-1 text-center text-[9px] leading-3 text-stone-500">{step}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </DetailSection>
+
+        <DetailSection title="Activity Timeline">
+          <div className="space-y-0">
+            {order.timeline.map((item, index) => (
+              <div key={`${item.title}-${index}`} className="relative flex gap-2.5 pb-4 last:pb-0">
+                {index !== order.timeline.length - 1 && <span className="absolute bottom-0 left-[10px] top-5 w-px bg-stone-200" />}
+                <span className={`relative z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${item.completed ? "bg-emerald-500 text-white" : "bg-orange-500 text-white"}`}>
+                  {item.completed ? <CheckCircle2 size={12} /> : <Clock3 size={12} />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-medium leading-4 text-stone-700">{item.title}</p>
+                  <p className="mt-1 text-[10px] leading-4 text-stone-500">{item.date}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </DetailSection>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <DetailSection title="Internal Notes">
+          <p className="mb-3 text-xs text-stone-500">Add notes about inspection, customer request, pickup issue, price revision reason, etc.</p>
+          <textarea defaultValue="Customer requested careful handling of the device during pickup." rows={4} maxLength={1000} className="w-full resize-y rounded-lg border border-stone-200 px-3 py-2.5 text-sm text-stone-700 outline-none focus:border-orange-400" placeholder="Write your notes here..." />
+          <p className="mt-2 text-xs text-blue-600">ⓘ These notes will not be visible to the user</p>
+        </DetailSection>
+        <DetailSection title="Cancel Order">
+          <p className="mb-3 text-xs text-stone-500">If you want to cancel this order, please select a reason and add comments.</p>
+          <label className="mb-2 block text-xs text-stone-500">Reason for cancellation<span className="text-red-500">*</span></label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.5fr)]">
+            <select defaultValue="" className="h-10 rounded-lg border border-stone-200 bg-white px-3 text-xs text-stone-600 outline-none focus:border-orange-400">
+              <option value="" disabled>Select reason</option>
+              <option>Customer requested cancellation</option>
+              <option>Device not available</option>
+              <option>Pickup failed</option>
+              <option>Other</option>
+            </select>
+            <textarea rows={3} maxLength={1000} className="min-h-20 resize-y rounded-lg border border-stone-200 px-3 py-2.5 text-xs text-stone-600 outline-none focus:border-orange-400" placeholder="Provide more details (optional)..." />
+          </div>
+          <button type="button" onClick={() => updateOrderStatus("Cancelled")} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50">
+            <XCircle size={15} /> Cancel Order
+          </button>
+        </DetailSection>
+      </div>
+    </div>
+  );
+
+  case "Device Details":
  return (
  <div className="grid gap-5 xl:grid-cols-2">
  <DetailSection title="Device Information">
@@ -734,23 +815,80 @@ export default function Orders() {
 
    if (selectedOrder) {
     return (
-      <div className="space-y-4">
-        <button type="button" onClick={() => setSelectedOrderId(null)} className="inline-flex items-center gap-2 text-sm font-medium text-stone-500 hover:text-orange-600"><ArrowLeft size={16}/> Back to Orders</button>
-        <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
-          <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-start">
-            <div><div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-bold text-stone-900">{selectedOrder.id}</h1><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Trade-in Order</span><StatusBadge status={selectedOrder.status}/></div><p className="mt-1.5 text-sm text-stone-500">Order details and fulfillment management</p></div>
-            <div className="flex flex-wrap gap-2"><button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"><FileText size={15}/> Print</button><button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"><FileText size={15}/> Download Invoice</button></div>
+      <div className="space-y-3">
+        {/* Sticky header, summary and navigation */}
+        <div className="sticky top-0 z-40 space-y-2 bg-stone-50 pb-1">
+          <div className="flex min-h-[76px] flex-col justify-between gap-3 border-b border-stone-200 bg-white px-5 py-3 sm:flex-row sm:items-center">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-xl font-bold tracking-tight text-stone-700 sm:text-2xl">{selectedOrder.id}</h1>
+                <button type="button" onClick={() => navigator.clipboard?.writeText(selectedOrder.id)} aria-label="Copy order ID" title="Copy order ID" className="rounded p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700"><FileText size={15} /></button>
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-100 px-3 py-2 text-xs font-medium text-orange-600"><ClipboardCheck size={14} />{selectedOrder.inspectionStatus === "Passed" ? "Inspection Completed" : selectedOrder.inspectionStatus === "In Progress" ? "Inspection In Progress" : "Inspection Pending"}</span>
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-100 px-3 py-2 text-xs font-medium text-orange-600"><Wallet size={14} />{selectedOrder.paymentStatus === "Paid" ? "Payment Completed" : "Payment Pending"}</span>
+              </div>
+              <p className="mt-1 text-sm font-medium text-orange-600">#INV-{selectedOrder.id.match(/(\d+)$/)?.[1] ?? ""}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button type="button" onClick={() => window.print()} className="inline-flex h-9 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 text-sm font-medium text-stone-600 hover:bg-stone-50"><FileText size={15} /> Print</button>
+              <button type="button" onClick={() => window.print()} className="inline-flex h-9 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 text-sm font-medium text-stone-600 hover:border-orange-300 hover:bg-orange-50"><FileText size={15} /> Download Invoice</button>
+            </div>
           </div>
-          <div className="mt-5 grid gap-4 border-t border-stone-100 pt-5 sm:grid-cols-2 xl:grid-cols-[1.3fr_1fr_1fr_1fr]">
-            <div className="flex items-center gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-500"><Smartphone size={32}/></div><div><p className="text-xs text-stone-500">Device</p><p className="mt-1 font-semibold text-stone-900">{selectedOrder.device}</p><p className="mt-1 text-xs text-stone-500">{selectedOrder.variant}</p></div></div>
-            <div className="flex items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 text-orange-600"><UserRound size={19}/></div><div><p className="text-xs text-stone-500">Customer</p><p className="mt-1 text-sm font-semibold text-stone-900">{selectedOrder.customer}</p><p className="mt-1 text-xs text-stone-500">{selectedOrder.phone}</p></div></div>
-            <div className="flex items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><Truck size={19}/></div><div><p className="text-xs text-stone-500">Assigned Agent</p><p className="mt-1 text-sm font-semibold text-stone-900">{selectedOrder.agent}</p><p className="mt-1 text-xs text-stone-500">Pickup: {selectedOrder.location}</p></div></div>
-            <div><p className="text-xs text-stone-500">Order Date</p><p className="mt-1 text-sm font-semibold text-stone-900">{selectedOrder.date}</p><p className="mt-3 text-xs text-stone-500">Final Amount</p><p className="mt-1 text-xl font-bold text-stone-900">{formatAmount(selectedOrder.amount)}</p></div>
-          </div>
+
+          <section className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+            <div className="grid grid-cols-1 divide-y divide-stone-200 md:grid-cols-2 md:divide-y-0 xl:grid-cols-[1.55fr_0.9fr_0.9fr_1fr] xl:divide-x">
+              <div className="flex min-w-0 items-center gap-4 p-4">
+                <div className="flex h-[88px] w-[68px] shrink-0 items-center justify-center rounded-md border border-stone-200 bg-stone-50 text-stone-500"><Smartphone size={36} strokeWidth={1.5} /></div>
+                <div className="min-w-0">
+                  <p className="truncate text-base font-bold text-stone-700">{selectedOrder.device}</p>
+                  <p className="mt-1 text-sm text-stone-600"><span className="font-semibold text-orange-600">{selectedOrder.variant.split(" · ")[0]}</span>{selectedOrder.variant.includes(" · ") ? ` | ${selectedOrder.variant.split(" · ").slice(1).join(" · ")}` : ""}</p>
+                  <div className="mt-3"><StatusBadge status={selectedOrder.status} /></div>
+                </div>
+              </div>
+              <div className="flex min-w-0 items-center gap-3 p-4">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone-100 text-xs font-bold text-stone-600">{selectedOrder.customer.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</div>
+                <div className="min-w-0">
+                  <p className="text-sm text-stone-500">User</p><p className="mt-1 truncate text-sm font-bold text-stone-700">{selectedOrder.customer}</p><p className="mt-1 text-sm text-stone-600">{selectedOrder.phone}</p>
+                  <button type="button" onClick={() => setActiveTab("Overview")} className="mt-2 text-xs font-semibold text-blue-600 hover:underline">View User</button>
+                </div>
+              </div>
+              <div className="flex min-w-0 items-center gap-3 p-4">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">{selectedOrder.agent === "Not assigned" ? "—" : selectedOrder.agent.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</div>
+                <div className="min-w-0">
+                  <p className="text-sm text-stone-500">Agent</p><p className="mt-1 truncate text-sm font-bold text-stone-700">{selectedOrder.agent}</p><p className="mt-1 truncate text-sm text-stone-600">{selectedOrder.location}</p>
+                  <button type="button" onClick={() => setActiveTab("Overview")} className="mt-2 text-xs font-semibold text-blue-600 hover:underline">View Agent</button>
+                </div>
+              </div>
+              <div className="p-4">
+                <p className="text-sm text-stone-500">Order Date</p><p className="mt-3 text-sm font-semibold text-stone-700">{selectedOrder.date}</p><p className="mt-1 text-sm text-stone-500">10:30 AM</p>
+                <p className="mt-3 text-sm text-stone-500">Order Amount (Final)</p><p className="mt-1 text-2xl font-bold text-stone-700">{formatAmount(selectedOrder.amount)}</p>
+              </div>
+            </div>
+          </section>
+
+          <nav className="overflow-x-auto rounded-t-xl border border-stone-200 bg-white">
+           <div className="flex min-w-[1100px] items-center justify-between px-3">
+              {tabs.map(({ label, icon: Icon }) => (
+                <button type="button" key={label} onClick={() => setActiveTab(label)} className={`inline-flex min-h-[52px] items-center justify-center gap-2 border-b-[3px] px-4 text-sm font-semibold transition sm:px-5 ${activeTab === label ? "border-orange-500 text-orange-600" : "border-transparent text-stone-600 hover:bg-stone-50 hover:text-orange-600"}`}>
+                  <Icon size={17} strokeWidth={1.7} />{label}
+                </button>
+              ))}
+            </div>
+          </nav>
         </div>
-        <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white"><div className="flex min-w-max">{tabs.map(({ label, icon: Icon }) => <button type="button" key={label} onClick={() => setActiveTab(label)} className={`inline-flex items-center gap-2 border-b-2 px-4 py-3.5 text-sm font-medium transition ${activeTab === label ? "border-orange-500 bg-orange-50/40 text-orange-600" : "border-transparent text-stone-500 hover:bg-stone-50 hover:text-stone-900"}`}><Icon size={16}/>{label}</button>)}</div></div>
+
         {renderTabContent(selectedOrder)}
-        {activeTab === "Overview" && <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-stone-200 bg-white/95 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] backdrop-blur lg:left-[240px] sm:px-6"><div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-3"><p className="hidden text-xs text-stone-500 sm:block">Changes are local to this static preview.</p><div className="ml-auto flex gap-2"><button type="button" onClick={() => updateOrderStatus("Cancelled")} className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">Cancel Order</button><button type="button" onClick={() => window.alert("Changes saved in this static preview.")} className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600">Save Changes</button></div></div></div>}
+
+        {activeTab === "Overview" && (
+          <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-stone-200 bg-white/95 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] backdrop-blur lg:left-[240px] sm:px-6">
+            <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-3">
+              <p className="hidden text-xs text-stone-500 sm:block">Review all details before saving changes.</p>
+              <div className="ml-auto flex gap-2">
+                <button type="button" onClick={() => updateOrderStatus("Cancelled")} className="rounded-lg border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-600 hover:bg-stone-50">Cancel</button>
+                <button type="button" onClick={() => window.alert("Changes saved in this static preview.")} className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600"><CheckCircle2 size={14} className="mr-1.5 inline" />Save Changes</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
