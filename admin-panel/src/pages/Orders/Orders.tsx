@@ -18,6 +18,12 @@ import {
     CheckCircle2,
     XCircle,
     Truck,
+    ContactRound,
+    ScanFace,
+    ReceiptText,
+    Receipt,
+    Download,
+    Info,
 } from "lucide-react";
 
 type OrderStatus =
@@ -937,267 +943,264 @@ export default function Orders() {
                 );
 
             case "Payments":
-  return (
-    <div className="grid grid-cols-1 items-stretch gap-2 xl:grid-cols-[1fr_1fr_1.2fr]">
-      {/* Payment Conditions */}
-      <section className="flex min-w-0 flex-col rounded-xl border border-stone-200 bg-white">
-        <div className="border-b border-stone-100 px-5 py-4">
-          <h3 className="text-base font-bold text-stone-900">
-            Payment Conditions
-          </h3>
-        </div>
+                return (
+                    <div className="grid grid-cols-1 items-stretch gap-2 xl:grid-cols-[1fr_1fr_1.2fr]">
+                        {/* Payment Conditions */}
+                        <section className="flex min-w-0 flex-col rounded-xl border border-stone-200 bg-white">
+                            <div className="border-b border-stone-100 px-5 py-4">
+                                <h3 className="text-base font-bold text-stone-900">
+                                    Payment Conditions
+                                </h3>
+                            </div>
 
-        <div className="flex flex-1 flex-col items-center justify-center px-5 py-4">
-          <div className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-emerald-100">
-            <CheckCircle2
-              size={43}
-              strokeWidth={1.8}
-              className="text-emerald-700"
-            />
-          </div>
+                            <div className="flex flex-1 flex-col items-center justify-center px-5 py-4">
+                                <div className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-emerald-100">
+                                    <CheckCircle2
+                                        size={43}
+                                        strokeWidth={1.8}
+                                        className="text-emerald-700"
+                                    />
+                                </div>
 
-          <p className="mt-4 text-center text-xs leading-5 text-stone-600">
-            Complete user payment to proceed
-            <br />
-            with device inspection.
-          </p>
+                                <p className="mt-4 text-center text-xs leading-5 text-stone-600">
+                                    Complete user payment to proceed
+                                    <br />
+                                    with device inspection.
+                                </p>
 
-          <div className="mt-5 w-full max-w-[240px] rounded-lg border border-stone-200 px-4 py-3">
-            {[
-              { label: "Offer Approved", state: "done" },
-              { label: "Pickup Completed", state: "done" },
-              {
-                label: "Payment Pending",
-                state: order.paymentStatus === "Paid" ? "done" : "pending",
-              },
-              {
-                label: "Inspection Pending",
-                state: order.inspectionStatus === "Passed" ? "done" : "pending",
-              },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="flex items-center gap-2.5 py-1.5"
-              >
-                <span
-                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${
-                    item.state === "done"
-                      ? "bg-emerald-100 text-emerald-600"
-                      : "border border-stone-300 text-stone-400"
-                  }`}
-                >
-                  {item.state === "done" ? (
-                    <CheckCircle2 size={12} />
-                  ) : (
-                    <span className="text-[10px]">−</span>
-                  )}
-                </span>
-                <span
-                  className={`text-xs ${
-                    item.state === "done"
-                      ? "text-stone-600"
-                      : "text-stone-400"
-                  }`}
-                >
-                  {item.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+                                <div className="mt-5 w-full max-w-[240px] rounded-lg border border-stone-200 px-4 py-3">
+                                    {[
+                                        { label: "Offer Approved", state: "done" },
+                                        { label: "Pickup Completed", state: "done" },
+                                        {
+                                            label: "Payment Pending",
+                                            state: order.paymentStatus === "Paid" ? "done" : "pending",
+                                        },
+                                        {
+                                            label: "Inspection Pending",
+                                            state: order.inspectionStatus === "Passed" ? "done" : "pending",
+                                        },
+                                    ].map((item) => (
+                                        <div
+                                            key={item.label}
+                                            className="flex items-center gap-2.5 py-1.5"
+                                        >
+                                            <span
+                                                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${item.state === "done"
+                                                    ? "bg-emerald-100 text-emerald-600"
+                                                    : "border border-stone-300 text-stone-400"
+                                                    }`}
+                                            >
+                                                {item.state === "done" ? (
+                                                    <CheckCircle2 size={12} />
+                                                ) : (
+                                                    <span className="text-[10px]">−</span>
+                                                )}
+                                            </span>
+                                            <span
+                                                className={`text-xs ${item.state === "done"
+                                                    ? "text-stone-600"
+                                                    : "text-stone-400"
+                                                    }`}
+                                            >
+                                                {item.label}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
 
-      {/* Offer and Payment Summary */}
-      <div className="flex min-w-0 flex-col gap-2">
-        <section className="rounded-xl border border-stone-200 bg-white">
-          <div className="border-b border-stone-100 px-5 py-4">
-            <h3 className="text-base font-bold text-stone-900">
-              Offer Summary
-            </h3>
-          </div>
+                        {/* Offer and Payment Summary */}
+                        <div className="flex min-w-0 flex-col gap-2">
+                            <section className="rounded-xl border border-stone-200 bg-white">
+                                <div className="border-b border-stone-100 px-5 py-4">
+                                    <h3 className="text-base font-bold text-stone-900">
+                                        Offer Summary
+                                    </h3>
+                                </div>
 
-          <div className="space-y-4 px-5 py-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-stone-600">Estimated Offer:</span>
-              <span className="text-sm font-semibold text-stone-700">
-                {formatAmount(order.amount + 2500)}
-              </span>
-            </div>
+                                <div className="space-y-4 px-5 py-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-xs text-stone-600">Estimated Offer:</span>
+                                        <span className="text-sm font-semibold text-stone-700">
+                                            {formatAmount(order.amount + 2500)}
+                                        </span>
+                                    </div>
 
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-stone-600">Deductions:</span>
-              <span className="text-sm font-semibold text-red-600">
-                -{formatAmount(2500)}
-              </span>
-            </div>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-xs text-stone-600">Deductions:</span>
+                                        <span className="text-sm font-semibold text-red-600">
+                                            -{formatAmount(2500)}
+                                        </span>
+                                    </div>
 
-            <div className="flex items-center justify-between gap-3 border-t border-stone-100 pt-3">
-              <span className="text-xs font-medium text-stone-700">
-                Final Offer (Approved):
-              </span>
-              <span className="text-sm font-bold text-emerald-600">
-                {formatAmount(order.amount)}
-              </span>
-            </div>
+                                    <div className="flex items-center justify-between gap-3 border-t border-stone-100 pt-3">
+                                        <span className="text-xs font-medium text-stone-700">
+                                            Final Offer (Approved):
+                                        </span>
+                                        <span className="text-sm font-bold text-emerald-600">
+                                            {formatAmount(order.amount)}
+                                        </span>
+                                    </div>
 
-            <div className="flex items-center justify-between gap-3 pt-1">
-              <span className="text-xs text-stone-600">Customer Approval:</span>
-              <span className="rounded-md bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                Approved
-              </span>
-            </div>
-          </div>
-        </section>
+                                    <div className="flex items-center justify-between gap-3 pt-1">
+                                        <span className="text-xs text-stone-600">Customer Approval:</span>
+                                        <span className="rounded-md bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                                            Approved
+                                        </span>
+                                    </div>
+                                </div>
+                            </section>
 
-        <section className="flex-1 rounded-xl border border-stone-200 bg-white">
-          <div className="border-b border-stone-100 px-5 py-4">
-            <h3 className="text-base font-bold text-stone-900">
-              Payment Summary
-            </h3>
-          </div>
+                            <section className="flex-1 rounded-xl border border-stone-200 bg-white">
+                                <div className="border-b border-stone-100 px-5 py-4">
+                                    <h3 className="text-base font-bold text-stone-900">
+                                        Payment Summary
+                                    </h3>
+                                </div>
 
-          <div className="space-y-4 px-5 py-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-stone-600">Amount to Pay:</span>
-              <span className="text-sm font-semibold text-stone-700">
-                {formatAmount(order.amount)}
-              </span>
-            </div>
+                                <div className="space-y-4 px-5 py-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-xs text-stone-600">Amount to Pay:</span>
+                                        <span className="text-sm font-semibold text-stone-700">
+                                            {formatAmount(order.amount)}
+                                        </span>
+                                    </div>
 
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-stone-600">Payment Status:</span>
-              <span
-                className={`rounded-md px-3 py-1 text-xs font-semibold ${
-                  order.paymentStatus === "Paid"
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "bg-orange-100 text-orange-600"
-                }`}
-              >
-                {order.paymentStatus === "Paid" ? "Paid" : "To Pay"}
-              </span>
-            </div>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-xs text-stone-600">Payment Status:</span>
+                                        <span
+                                            className={`rounded-md px-3 py-1 text-xs font-semibold ${order.paymentStatus === "Paid"
+                                                ? "bg-emerald-50 text-emerald-700"
+                                                : "bg-orange-100 text-orange-600"
+                                                }`}
+                                        >
+                                            {order.paymentStatus === "Paid" ? "Paid" : "To Pay"}
+                                        </span>
+                                    </div>
 
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-stone-600">Transaction ID:</span>
-              <span className="text-xs text-stone-500">-</span>
-            </div>
-          </div>
-        </section>
-      </div>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-xs text-stone-600">Transaction ID:</span>
+                                        <span className="text-xs text-stone-500">-</span>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
 
-      {/* Payment Actions */}
-      <section className="flex min-w-0 flex-col rounded-xl border border-stone-200 bg-white">
-        <div className="border-b border-stone-100 px-5 py-4">
-          <h3 className="text-base font-bold text-stone-900">
-            Payment Actions
-          </h3>
-          <p className="mt-1 text-xs text-stone-500">
-            Review details and initiate payment
-          </p>
-        </div>
+                        {/* Payment Actions */}
+                        <section className="flex min-w-0 flex-col rounded-xl border border-stone-200 bg-white">
+                            <div className="border-b border-stone-100 px-5 py-4">
+                                <h3 className="text-base font-bold text-stone-900">
+                                    Payment Actions
+                                </h3>
+                                <p className="mt-1 text-xs text-stone-500">
+                                    Review details and initiate payment
+                                </p>
+                            </div>
 
-        <div className="flex flex-1 flex-col gap-3 p-4">
-          {/* Beneficiary details */}
-          <div className="rounded-lg border border-orange-100 bg-orange-50/60 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone-100 text-xs font-bold text-stone-600">
-                  {order.customer
-                    .split(" ")
-                    .map((part) => part[0])
-                    .slice(0, 2)
-                    .join("")
-                    .toUpperCase()}
-                </span>
+                            <div className="flex flex-1 flex-col gap-3 p-4">
+                                {/* Beneficiary details */}
+                                <div className="rounded-lg border border-orange-100 bg-orange-50/60 p-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex min-w-0 items-center gap-2.5">
+                                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone-100 text-xs font-bold text-stone-600">
+                                                {order.customer
+                                                    .split(" ")
+                                                    .map((part) => part[0])
+                                                    .slice(0, 2)
+                                                    .join("")
+                                                    .toUpperCase()}
+                                            </span>
 
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-semibold text-stone-800">
-                    {order.customer}
-                  </p>
-                  <span className="mt-1 inline-flex rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
-                    <CheckCircle2 size={11} className="mr-1" />
-                    Verified Account
-                  </span>
-                </div>
-              </div>
+                                            <div className="min-w-0">
+                                                <p className="truncate text-xs font-semibold text-stone-800">
+                                                    {order.customer}
+                                                </p>
+                                                <span className="mt-1 inline-flex rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                                                    <CheckCircle2 size={11} className="mr-1" />
+                                                    Verified Account
+                                                </span>
+                                            </div>
+                                        </div>
 
-              <div className="shrink-0 text-right">
-                <p className="text-[10px] text-stone-500">Amount to Pay</p>
-                <p className="text-base font-bold text-orange-600">
-                  {formatAmount(order.amount)}
-                </p>
-              </div>
-            </div>
+                                        <div className="shrink-0 text-right">
+                                            <p className="text-[10px] text-stone-500">Amount to Pay</p>
+                                            <p className="text-base font-bold text-orange-600">
+                                                {formatAmount(order.amount)}
+                                            </p>
+                                        </div>
+                                    </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-orange-100 pt-3 sm:grid-cols-4">
-              {[
-                ["Bank Name", "HDFC Bank"],
-                ["Account Number", "XXXXXXXX3214"],
-                ["IFSC Code", "HDFC0001234"],
-                ["Account Type", "Savings Account"],
-              ].map(([label, value]) => (
-                <div key={label} className="min-w-0">
-                  <p className="text-[10px] text-stone-500">{label}</p>
-                  <p className="mt-1 break-words text-[10px] font-medium text-stone-700">
-                    {value}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
+                                    <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-orange-100 pt-3 sm:grid-cols-4">
+                                        {[
+                                            ["Bank Name", "HDFC Bank"],
+                                            ["Account Number", "XXXXXXXX3214"],
+                                            ["IFSC Code", "HDFC0001234"],
+                                            ["Account Type", "Savings Account"],
+                                        ].map(([label, value]) => (
+                                            <div key={label} className="min-w-0">
+                                                <p className="text-[10px] text-stone-500">{label}</p>
+                                                <p className="mt-1 break-words text-[10px] font-medium text-stone-700">
+                                                    {value}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
 
-          {/* Account selection and remarks */}
-          <div className="flex flex-1 flex-col gap-3 rounded-lg border border-stone-200 p-3">
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-stone-700">
-                Pay From Account <span className="text-red-500">*</span>
-              </span>
+                                {/* Account selection and remarks */}
+                                <div className="flex flex-1 flex-col gap-3 rounded-lg border border-stone-200 p-3">
+                                    <label className="block">
+                                        <span className="mb-1.5 block text-xs font-medium text-stone-700">
+                                            Pay From Account <span className="text-red-500">*</span>
+                                        </span>
 
-              <select
-                defaultValue="excart"
-                className="h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-xs text-stone-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-              >
-                <option value="excart">
-                  Excart Main Account — ICICI Bank (A/C XXXX1234)
-                </option>
-                <option value="hdfc">
-                  HDFC Bank — Account ending 3214
-                </option>
-              </select>
-            </label>
+                                        <select
+                                            defaultValue="excart"
+                                            className="h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-xs text-stone-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                                        >
+                                            <option value="excart">
+                                                Excart Main Account — ICICI Bank (A/C XXXX1234)
+                                            </option>
+                                            <option value="hdfc">
+                                                HDFC Bank — Account ending 3214
+                                            </option>
+                                        </select>
+                                    </label>
 
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-stone-700">
-                Remarks (Optional)
-              </span>
+                                    <label className="block">
+                                        <span className="mb-1.5 block text-xs font-medium text-stone-700">
+                                            Remarks (Optional)
+                                        </span>
 
-              <input
-                type="text"
-                defaultValue={`Payout for order ${order.id}`}
-                className="h-10 w-full rounded-md border border-stone-200 px-3 text-xs text-stone-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-              />
-            </label>
-          </div>
+                                        <input
+                                            type="text"
+                                            defaultValue={`Payout for order ${order.id}`}
+                                            className="h-10 w-full rounded-md border border-stone-200 px-3 text-xs text-stone-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                                        />
+                                    </label>
+                                </div>
 
-          <button
-            type="button"
-            disabled={order.paymentStatus === "Paid"}
-            onClick={() =>
-              window.alert(
-                "Payment processing is not connected yet. No payment has been initiated."
-              )
-            }
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-orange-500 px-4 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-emerald-600"
-          >
-            <Wallet size={16} />
-            {order.paymentStatus === "Paid"
-              ? "Payment Completed"
-              : `Pay Now ${formatAmount(order.amount)}`}
-          </button>
-        </div>
-      </section>
-    </div>
-  );
+                                <button
+                                    type="button"
+                                    disabled={order.paymentStatus === "Paid"}
+                                    onClick={() =>
+                                        window.alert(
+                                            "Payment processing is not connected yet. No payment has been initiated."
+                                        )
+                                    }
+                                    className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-orange-500 px-4 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-emerald-600"
+                                >
+                                    <Wallet size={16} />
+                                    {order.paymentStatus === "Paid"
+                                        ? "Payment Completed"
+                                        : `Pay Now ${formatAmount(order.amount)}`}
+                                </button>
+                            </div>
+                        </section>
+                    </div>
+                );
                 return (
                     <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[1.05fr_1.05fr_1.25fr]">
                         {/* Payment conditions */}
@@ -1320,6 +1323,206 @@ export default function Orders() {
 
             case "Inspection":
                 return (
+                    <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[0.8fr_2fr_1fr]">
+                        {/* Inspection Progress */}
+                        <DetailSection title="Inspection Progress">
+                            <p className="mb-4 text-xs text-stone-500">
+                                Complete all checks before adding to inventory.
+                            </p>
+
+                            <div className="relative space-y-1">
+                                {[
+                                    { label: "Basic Information", state: "done" },
+                                    { label: "Physical Condition", state: "done" },
+                                    { label: "Display", state: "done" },
+                                    { label: "Functional Check", state: "current" },
+                                    { label: "Accessories", state: "pending" },
+                                    { label: "Warranty Status", state: "pending" },
+                                    { label: "Overall Condition", state: "pending" },
+                                    { label: "Add to Inventory", state: "pending" },
+                                ].map((step, index, steps) => (
+                                    <div
+                                        key={step.label}
+                                        className="relative flex min-h-[39px] items-start gap-3"
+                                    >
+                                        {index !== steps.length - 1 && (
+                                            <span className="absolute left-[7px] top-4 h-full w-px bg-stone-200" />
+                                        )}
+
+                                        <span
+                                            className={`relative z-10 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full border ${step.state === "done"
+                                                ? "border-emerald-500 bg-emerald-500 text-white"
+                                                : step.state === "current"
+                                                    ? "border-orange-500 bg-orange-500 text-white"
+                                                    : "border-stone-300 bg-white text-stone-400"
+                                                }`}
+                                        >
+                                            {step.state === "done" ? (
+                                                <CheckCircle2 size={12} />
+                                            ) : step.state === "current" ? (
+                                                <span className="text-[10px] font-bold">−</span>
+                                            ) : null}
+                                        </span>
+
+                                        <span
+                                            className={`text-xs leading-4 ${step.state === "current"
+                                                ? "font-semibold text-stone-800"
+                                                : step.state === "done"
+                                                    ? "text-stone-600"
+                                                    : "text-stone-400"
+                                                }`}
+                                        >
+                                            {step.label}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </DetailSection>
+
+                        {/* Functional Checks */}
+                        <DetailSection title="Functional Checks">
+                            <p className="mb-4 text-xs text-stone-500">
+                                Test all key features to ensure the device is fully operational.
+                            </p>
+
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                {[
+                                    { label: "Camera", detail: "Front & Back", Icon: Smartphone },
+                                    { label: "Speaker", detail: "Sound Output", Icon: Monitor },
+                                    { label: "Microphone", detail: "Mic Input", Icon: Smartphone },
+                                    { label: "Buttons", detail: "All Physical Buttons", Icon: CheckCircle2 },
+                                    { label: "Touch Screen", detail: "Touch Response", Icon: Smartphone },
+                                    { label: "Wi-Fi", detail: "Wi-Fi Connection", Icon: Clock3 },
+                                    { label: "Bluetooth", detail: "Connection", Icon: Smartphone },
+                                    { label: "Fingerprint/FaceID", detail: "Biometric Function", Icon: CheckCircle2 },
+                                    { label: "Charging Port", detail: "Charging Function", Icon: BatteryCharging },
+                                    { label: "SIM & Network", detail: "Network & SIM", Icon: Smartphone },
+                                    { label: "Vibration", detail: "Vibration Feedback", Icon: Smartphone },
+                                    { label: "GPS", detail: "Location Accuracy", Icon: Clock3 },
+                                ].map(({ label, detail, Icon }) => (
+                                    <div
+                                        key={label}
+                                        className="flex min-w-0 items-center gap-2 rounded-md border border-stone-200 bg-white p-2"
+                                    >
+                                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone-50 text-stone-600">
+                                            <Icon size={15} strokeWidth={1.8} />
+                                        </span>
+
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-[11px] font-semibold text-stone-700">
+                                                {label}
+                                            </p>
+                                            <p className="truncate text-[10px] text-stone-400">
+                                                {detail}
+                                            </p>
+                                        </div>
+
+                                        <select
+                                            defaultValue="Good"
+                                            aria-label={`${label} status`}
+                                            className="h-6 max-w-[76px] rounded-md border border-emerald-100 bg-emerald-50 px-1 text-[10px] font-medium text-emerald-700 outline-none focus:border-orange-400"
+                                        >
+                                            <option value="Good">Good</option>
+                                            <option value="Fair">Fair</option>
+                                            <option value="Faulty">Faulty</option>
+                                            <option value="Not Tested">Not Tested</option>
+                                        </select>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <label className="mt-4 block">
+                                <span className="mb-2 block text-xs font-medium text-stone-600">
+                                    Remarks (Optional)
+                                </span>
+                                <textarea
+                                    rows={3}
+                                    defaultValue=""
+                                    placeholder="Add any notes about functional checks..."
+                                    className="w-full resize-y rounded-lg border border-stone-200 px-3 py-3 text-xs text-stone-700 outline-none placeholder:text-stone-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                                />
+                            </label>
+                        </DetailSection>
+
+                        {/* Accessories and Warranty */}
+                        <div className="flex flex-col gap-3">
+                            <DetailSection title="Accessories Check">
+                                <p className="mb-3 text-xs text-stone-500">
+                                    Verify all accessories received with the device.
+                                </p>
+
+                                <div className="space-y-2">
+                                    {[
+                                        { label: "Original Charger / Cable", detail: "Charging cable and adapter", checked: true },
+                                        { label: "Earphones", detail: "Original earphones", checked: true },
+                                        { label: "Original Box", detail: "Device box", checked: false },
+                                        { label: "Bill / Invoice", detail: "Purchase invoice", checked: false },
+                                    ].map((item) => (
+                                        <label
+                                            key={item.label}
+                                            className="flex cursor-pointer items-center gap-2 rounded-md border border-stone-200 px-2.5 py-2 transition hover:border-orange-200"
+                                        >
+                                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone-50 text-stone-600">
+                                                <PackageCheck size={15} />
+                                            </span>
+
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block text-[11px] font-semibold text-stone-700">
+                                                    {item.label}
+                                                </span>
+                                                <span className="block text-[10px] text-stone-400">
+                                                    {item.detail}
+                                                </span>
+                                            </span>
+
+                                            <input
+                                                type="checkbox"
+                                                defaultChecked={item.checked}
+                                                className="h-3.5 w-3.5 shrink-0 accent-orange-500"
+                                            />
+                                        </label>
+                                    ))}
+                                </div>
+                            </DetailSection>
+
+                            <DetailSection title="Warranty Status">
+                                <p className="mb-3 text-xs text-stone-500">
+                                    Check device warranty information.
+                                </p>
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs text-stone-500">
+                                            Warranty Status
+                                        </span>
+                                        <span className="rounded bg-orange-50 px-2 py-1 text-[10px] font-medium text-orange-600">
+                                            In Warranty
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs text-stone-500">
+                                            Warranty Type
+                                        </span>
+                                        <span className="text-right text-xs font-medium text-stone-700">
+                                            Manufacturer Warranty
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs text-stone-500">
+                                            Valid Until
+                                        </span>
+                                        <span className="text-xs font-medium text-stone-700">
+                                            15-02-2027
+                                        </span>
+                                    </div>
+                                </div>
+                            </DetailSection>
+                        </div>
+                    </div>
+                );
+                return (
                     <div className="grid gap-5 xl:grid-cols-2">
                         <DetailSection title="Inspection Summary">
                             <DetailRow label="Inspection Status" value={order.inspectionStatus} />
@@ -1344,6 +1547,124 @@ export default function Orders() {
 
             case "Documents":
                 return (
+                    <DetailSection title="Documents">
+                        <p className="mb-3 text-xs text-stone-500">
+                            View all mandatory documents related to this order.
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                            {[
+                                {
+                                    title: "Aadhaar Card",
+                                    description: "User Aadhaar card for identity verification",
+                                    status: "Verified",
+                                    icon: ContactRound,
+                                    color: "orange",
+                                },
+                                {
+                                    title: "Live Photo",
+                                    description: "Live photo of the user at the time of pickup",
+                                    status: "Verified",
+                                    icon: ScanFace,
+                                    color: "purple",
+                                },
+                                {
+                                    title: "Device Invoice",
+                                    description: "User Aadhaar card for identity verification",
+                                    status: "Verified",
+                                    icon: ReceiptText,
+                                    color: "blue",
+                                },
+                                {
+                                    title: "Purchase Invoice",
+                                    description: "Invoice generated for this order",
+                                    status: "Generated",
+                                    icon: FileText,
+                                    color: "red",
+                                },
+                                {
+                                    title: "Payment Slip",
+                                    description: "Payment confirmation slip for this order",
+                                    status: "Verified",
+                                    icon: Receipt,
+                                    color: "green",
+                                },
+                            ].map((document) => {
+                                const Icon = document.icon;
+
+                                const iconColors: Record<string, string> = {
+                                    orange: "bg-orange-100 text-orange-500",
+                                    purple: "bg-purple-100 text-purple-500",
+                                    blue: "bg-blue-100 text-blue-500",
+                                    red: "bg-red-100 text-red-500",
+                                    green: "bg-emerald-100 text-emerald-600",
+                                };
+
+                                return (
+                                    <div
+                                        key={document.title}
+                                        className="flex min-h-[164px] flex-col items-center rounded-lg border border-stone-200 bg-white px-3 py-3 text-center"
+                                    >
+                                        <div
+                                            className={`mb-2 flex h-11 w-11 items-center justify-center rounded-md ${iconColors[document.color]}`}
+                                        >
+                                            <Icon size={25} strokeWidth={1.8} />
+                                        </div>
+
+                                        <h3 className="text-xs font-semibold text-stone-900">
+                                            {document.title}
+                                        </h3>
+
+                                        <p className="mt-1 min-h-[27px] max-w-[125px] text-[9px] leading-3 text-stone-500">
+                                            {document.description}
+                                        </p>
+
+                                        <span
+                                            className={`mt-2 inline-flex items-center gap-1 rounded px-2 py-0.5 text-[9px] font-medium ${document.status === "Verified"
+                                                ? "bg-emerald-50 text-emerald-600"
+                                                : "bg-blue-50 text-blue-600"
+                                                }`}
+                                        >
+                                            <CheckCircle2 size={10} />
+                                            {document.status}
+                                        </span>
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                window.alert(
+                                                    `${document.title} download is not connected yet.`
+                                                )
+                                            }
+                                            className="mt-3 flex h-8 w-full items-center justify-center gap-1 rounded-md border border-stone-200 bg-white text-[10px] font-medium text-stone-600 shadow-sm transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600"
+                                        >
+                                            <Download size={12} />
+                                            Download
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="mt-4 flex items-start gap-3 rounded-lg border border-blue-100 bg-indigo-50 px-4 py-3">
+                            <Info
+                                size={18}
+                                className="mt-0.5 shrink-0 text-blue-500"
+                            />
+
+                            <div>
+                                <p className="text-xs font-semibold text-stone-700">
+                                    Note:
+                                </p>
+                                <p className="text-[10px] leading-4 text-stone-500">
+                                    These documents are mandatory and must be verified
+                                    before completing the inspection.
+                                </p>
+                            </div>
+                        </div>
+                    </DetailSection>
+                );
+                return (
                     <DetailSection title="Order Documents">
                         <div className="flex flex-col items-center py-10 text-center">
                             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50 text-orange-500">
@@ -1359,41 +1680,277 @@ export default function Orders() {
 
             case "Timeline":
                 return (
-                    <DetailSection title="Order Activity">
-                        <div className="space-y-0">
-                            {order.timeline.map((item, index) => (
-                                <div key={`${item.title}-${index}`} className="relative flex gap-4 pb-7 last:pb-0">
-                                    {index !== order.timeline.length - 1 && (
-                                        <span className="absolute left-[11px] top-7 h-full w-px bg-stone-200" />
-                                    )}
-                                    <div className={`relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${item.completed ? "bg-emerald-100 text-emerald-600" : "bg-stone-100 text-stone-400"}`}>
-                                        {item.completed ? <CheckCircle2 size={15} /> : <Clock3 size={15} />}
+                    <DetailSection title="Timeline">
+                        <p className="mb-4 text-sm text-stone-500">
+                            Track the progress of this order
+                        </p>
+
+                        <div className="relative">
+                            {[
+                                {
+                                    title: "Created Order",
+                                    description: "Order has been created by the user.",
+                                    date: "18-06-2026",
+                                    time: "10:30 AM",
+                                    actor: "System",
+                                    role: "",
+                                    icon: FileText,
+                                    color: "emerald",
+                                },
+                                {
+                                    title: "Order Picked Up",
+                                    description: "The device has been picked up from the customer.",
+                                    date: "20-06-2026",
+                                    time: "12:30 PM",
+                                    actor: order.agent === "Not assigned" ? "Agent" : order.agent,
+                                    role: "Agent",
+                                    icon: PackageCheck,
+                                    color: "emerald",
+                                },
+                                {
+                                    title: "Payment Completed",
+                                    description: "Payment has been completed to the customer at the time of pickup.",
+                                    date: "20-06-2026",
+                                    time: "01:30 PM",
+                                    actor: "System",
+                                    role: "Admin",
+                                    icon: Wallet,
+                                    color: "emerald",
+                                },
+                                {
+                                    title: "Device Received at Store",
+                                    description: "The device has been received at the store.",
+                                    date: "20-06-2026",
+                                    time: "02:30 PM",
+                                    actor: "Store Team",
+                                    role: "",
+                                    icon: PackageCheck,
+                                    color: "blue",
+                                },
+                                {
+                                    title: "Inspection Completed",
+                                    description: "All quality checks and inspection have been completed.",
+                                    date: "21-06-2026",
+                                    time: "10:30 AM",
+                                    actor: order.agent === "Not assigned" ? "Agent" : order.agent,
+                                    role: "Agent",
+                                    icon: ClipboardCheck,
+                                    color: "orange",
+                                },
+                                {
+                                    title: "Added to Stock",
+                                    description: "The device has been added to inventory and is ready for sale.",
+                                    date: "21-06-2026",
+                                    time: "11:30 AM",
+                                    actor: "Inventory",
+                                    role: "Team",
+                                    icon: PackageCheck,
+                                    color: "purple",
+                                },
+                            ].map((item, index) => {
+                                const TimelineIcon = item.icon;
+
+                                const colors: Record<string, string> = {
+                                    emerald: "border-emerald-400 bg-emerald-50 text-emerald-600",
+                                    blue: "border-blue-400 bg-blue-50 text-blue-600",
+                                    orange: "border-orange-400 bg-orange-50 text-orange-600",
+                                    purple: "border-purple-400 bg-purple-50 text-purple-600",
+                                };
+
+                                const actorColors: Record<string, string> = {
+                                    emerald: "bg-emerald-50 text-emerald-700",
+                                    blue: "bg-blue-50 text-blue-700",
+                                    orange: "bg-orange-50 text-orange-700",
+                                    purple: "bg-purple-50 text-purple-700",
+                                };
+
+                                return (
+                                    <div
+                                        key={item.title}
+                                        className="relative grid grid-cols-[36px_minmax(0,1fr)] gap-x-3 lg:grid-cols-[36px_minmax(0,1.8fr)_minmax(160px,0.65fr)_minmax(145px,0.55fr)] lg:gap-x-4"
+                                    >
+                                        {/* Timeline connector */}
+                                        {index !== 5 && (
+                                            <span className="absolute bottom-0 left-[17px] top-9 w-px bg-stone-200" />
+                                        )}
+
+                                        {/* Event icon */}
+                                        <div className="relative z-10 flex justify-center pt-3">
+                                            <span
+                                                className={`flex h-8 w-8 items-center justify-center rounded-full border ${colors[item.color]}`}
+                                            >
+                                                <TimelineIcon size={16} strokeWidth={1.8} />
+                                            </span>
+                                        </div>
+
+                                        {/* Event details */}
+                                        <div className="min-w-0 border-b border-stone-100 py-3 sm:py-3.5">
+                                            <p className="text-sm font-semibold leading-5 text-stone-800">
+                                                {item.title}
+                                            </p>
+                                            <p className="mt-1 text-xs leading-5 text-stone-500 sm:text-sm">
+                                                {item.description}
+                                            </p>
+                                        </div>
+
+                                        {/* Date and time: positioned closer to the event details */}
+                                        <div className="col-start-2 flex flex-wrap gap-x-3 gap-y-1 pb-3 text-xs text-stone-600 lg:col-start-3 lg:flex-col lg:justify-center lg:gap-1 lg:border-b lg:border-stone-100 lg:py-3">
+                                            <span className="flex items-center gap-1.5 whitespace-nowrap">
+                                                <History size={13} className="shrink-0 text-stone-400" />
+                                                {item.date}
+                                            </span>
+                                            <span className="flex items-center gap-1.5 whitespace-nowrap">
+                                                <Clock3 size={13} className="shrink-0 text-stone-400" />
+                                                {item.time}
+                                            </span>
+                                        </div>
+
+                                        {/* Actor/status badge: consistent width and alignment */}
+                                        <div className="col-start-2 flex items-center pb-3 lg:col-start-4 lg:justify-center lg:border-b lg:border-stone-100 lg:py-3">
+                                            <span
+                                                className={`inline-flex min-h-[36px] w-full max-w-[180px] flex-col items-center justify-center rounded-lg px-3 py-2 text-xs font-medium leading-4 ${actorColors[item.color]}`}
+                                                title={`${item.actor}${item.role ? ` - ${item.role}` : ""}`}
+                                            >
+                                                <span className="w-full whitespace-normal break-words text-center">
+                                                    {item.actor}
+                                                </span>
+                                                {item.role && (
+                                                    <span className="mt-0.5 text-[10px] font-normal leading-3">
+                                                        {item.role}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-sm font-semibold text-stone-900">{item.title}</p>
-                                        <p className="mt-1 text-xs text-stone-500">{item.date}</p>
-                                    </div>
-                                    <span className={`text-xs font-medium ${item.completed ? "text-emerald-600" : "text-stone-400"}`}>
-                                        {item.completed ? "Completed" : "Pending"}
-                                    </span>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </DetailSection>
                 );
 
             case "Inventory & Sales":
                 return (
-                    <div className="grid gap-5 xl:grid-cols-2">
-                        <DetailSection title="Inventory Status">
-                            <DetailRow label="Inventory Record" value="Not created in sample data" />
-                            <DetailRow label="Listing Status" value="Not listed" />
-                            <DetailRow label="Sale Status" value="Not sold" />
-                        </DetailSection>
-                        <DetailSection title="Pricing">
-                            <DetailRow label="Customer Purchase Amount" value={formatAmount(order.amount)} />
-                            <DetailRow label="Listing Price" value="Not set" />
-                            <DetailRow label="Sale Price" value="Not sold" />
+                    <div className="space-y-3">
+                        {/* Inventory, Zoho Books sync, and sales overview */}
+                        <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3">
+                            <DetailSection title="Inventory Information" className="h-full">
+                                <div className="space-y-0">
+                                    <div className="flex items-center justify-between gap-3 border-b border-stone-100 py-2">
+                                        <span className="text-xs text-stone-500">Inventory ID (SKU)</span>
+                                        <span className="inline-flex items-center gap-1 text-xs font-medium text-stone-700">
+                                            INV-{order.id.replace(/[^0-9]/g, "").slice(-4)}-00125
+                                            <PackageCheck size={13} className="text-blue-500" />
+                                        </span>
+                                    </div>
+                                    <DetailRow label="Availability" value={order.status === "Completed" ? "In Stock" : "Pending" } />
+                                    <DetailRow label="Added to Inventory" value={order.status === "Completed" ? "21-06-2026 11:30 AM" : "Not added yet"} />
+                                    <DetailRow label="IMEI Number" value={order.imei} />
+                                    <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-purple-50/70 px-3 py-3">
+                                        <span className="text-sm font-semibold text-stone-700">Purchase Price</span>
+                                        <span className="text-sm font-bold text-stone-700">{formatAmount(order.amount)}</span>
+                                    </div>
+                                </div>
+                            </DetailSection>
+
+                            <DetailSection title="Zoho Books Sync" className="h-full">
+                                <div className="space-y-0">
+                                    <div className="flex items-center justify-between gap-3 border-b border-stone-100 py-2">
+                                        <span className="text-xs text-stone-500">Zoho Item ID</span>
+                                        <span className="text-xs font-medium text-stone-700">ZB-{order.id.replace(/[^0-9]/g, "").slice(-4)}896</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3 border-b border-stone-100 py-2">
+                                        <span className="shrink-0 text-xs text-stone-500">Item Name in Zoho</span>
+                                        <span className="max-w-[65%] text-right text-xs font-medium text-stone-700">{order.device} {order.variant}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-3 border-b border-stone-100 py-2">
+                                        <span className="text-xs text-stone-500">Last Synced</span>
+                                        <span className="text-xs text-stone-700">{order.status === "Completed" ? "21-06-2026 11:35 AM" : "Not synced"}</span>
+                                    </div>
+                                    <div className={`mt-3 rounded-lg px-3 py-2.5 ${order.status === "Completed" ? "bg-emerald-50" : "bg-blue-50"}`}>
+                                        <div className={`flex items-center gap-1.5 text-xs font-semibold ${order.status === "Completed" ? "text-emerald-700" : "text-blue-700"}`}>
+                                            <CheckCircle2 size={13} />
+                                            {order.status === "Completed" ? "Successfully synced to Zoho Books" : "Awaiting inventory confirmation"}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => window.alert("Zoho Books integration is not connected in this sample view.")}
+                                            className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-blue-700 hover:underline"
+                                        >
+                                            View Item in Zoho Books <ChevronRight size={11} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </DetailSection>
+
+                            <DetailSection title="Sales in Zoho Books" className="h-full">
+                                <div className="space-y-0">
+                                    <div className="flex items-center justify-between gap-3 border-b border-stone-100 py-2">
+                                        <span className="text-xs text-stone-500">Sales Status</span>
+                                        <span className={`inline-flex items-center gap-1 text-xs font-medium ${order.status === "Completed" ? "text-emerald-600" : "text-stone-500"}`}>
+                                            <span className={`h-1.5 w-1.5 rounded-full ${order.status === "Completed" ? "bg-emerald-500" : "bg-stone-400"}`} />
+                                            {order.status === "Completed" ? "Available" : "Not listed"}
+                                        </span>
+                                    </div>
+                                    <DetailRow label="Listed Price (MRP)" value={formatAmount(Math.round(order.amount * 1.3))} />
+                                    <DetailRow label="Linked Zoho Invoice" value="—" />
+                                    <DetailRow label="Sold Date" value="—" />
+                                    <div className="mt-3 flex gap-2 rounded-lg bg-sky-50 px-3 py-2.5">
+                                        <Info size={14} className="mt-0.5 shrink-0 text-blue-500" />
+                                        <div>
+                                            <p className="text-xs font-medium text-blue-700">Item is available for sale</p>
+                                            <p className="mt-0.5 text-[10px] leading-4 text-stone-500">Once sold in Zoho Books, the status will update here.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </DetailSection>
+                        </div>
+
+                        {/* Zoho sync history */}
+                        <DetailSection title="Zoho Sync History">
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[700px] border-collapse text-left">
+                                    <thead>
+                                        <tr className="border-y border-stone-100 bg-stone-50">
+                                            {["Date & Time", "Action", "Zoho Item ID", "Status", "Synced By", "Remarks"].map((heading) => (
+                                                <th key={heading} className="px-3 py-2 text-[11px] font-semibold text-stone-600">{heading}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {[
+                                            {
+                                                date: order.status === "Completed" ? "21-06-2026 11:35 AM" : "—",
+                                                action: order.status === "Completed" ? "Item created in Zoho Books" : "Waiting for inventory",
+                                                itemId: order.status === "Completed" ? `ZB-${order.id.replace(/[^0-9]/g, "").slice(-4)}896` : "—",
+                                                status: order.status === "Completed" ? "Success" : "Pending",
+                                                syncedBy: "System",
+                                                remarks: order.status === "Completed" ? "Item created in Zoho Books" : "Inventory record not created",
+                                            },
+                                            {
+                                                date: "21-06-2026 11:30 AM",
+                                                action: "Sync initiated",
+                                                itemId: order.status === "Completed" ? `ZB-${order.id.replace(/[^0-9]/g, "").slice(-4)}896` : "—",
+                                                status: order.status === "Completed" ? "Success" : "Pending",
+                                                syncedBy: "System",
+                                                remarks: order.status === "Completed" ? "Initial sync completed" : "Awaiting required details",
+                                            },
+                                        ].map((entry, index) => (
+                                            <tr key={`${entry.action}-${index}`} className="border-b border-stone-100 last:border-b-0">
+                                                <td className="whitespace-nowrap px-3 py-2 text-[10px] text-stone-500">{entry.date}</td>
+                                                <td className="px-3 py-2 text-[10px] text-stone-600">{entry.action}</td>
+                                                <td className="whitespace-nowrap px-3 py-2 text-[10px] text-stone-600">{entry.itemId}</td>
+                                                <td className="px-3 py-2">
+                                                    <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold ${entry.status === "Success" ? "bg-emerald-50 text-emerald-700" : "bg-orange-50 text-orange-700"}`}>
+                                                        <CheckCircle2 size={10} /> {entry.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-3 py-2 text-[10px] text-stone-500">{entry.syncedBy}</td>
+                                                <td className="px-3 py-2 text-[10px] text-stone-500">{entry.remarks}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </DetailSection>
                     </div>
                 );
