@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api } from "../../api/axios";
 import {
     ArrowLeft,
     SlidersHorizontal,
@@ -36,12 +37,22 @@ type OrderStatus =
     | "Cancelled";
 
 type Order = {
+    backendId: string;
+    rawStatus: string;
     id: string;
     customer: string;
     phone: string;
     device: string;
     variant: string;
-    amount: number;
+    amount: number | null;
+    dateValue: string | null;
+    createdAtLabel: string;
+    customerAddress: string;
+    agentPhone: string;
+    pickupDate: string;
+    pickupTime: string;
+    inventoryStatus: string;
+    internalNotes: string;
     status: OrderStatus;
     agent: string;
     date: string;
@@ -49,395 +60,43 @@ type Order = {
     imei: string;
     paymentMethod: string;
     paymentStatus: string;
+    invoiceFileName: string | null;
     inspectionStatus: string;
     condition: string;
     timeline: { title: string; date: string; completed: boolean }[];
 };
 
-const initialOrders: Order[] = [
-    {
-        id: "EXC-2026-1041",
-        customer: "Hafiz Rahman",
-        phone: "+91 98471 23456",
-        device: "Apple iPhone 14 Pro",
-        variant: "256GB · Deep Purple",
-        amount: 42000,
-        status: "Completed",
-        agent: "Muhammed Shamil",
-        date: "13 Oct 2026",
-        location: "Manjeri, Malappuram",
-        imei: "356789102345672",
-        paymentMethod: "Bank Transfer",
-        paymentStatus: "Paid",
-        inspectionStatus: "Passed",
-        condition: "Excellent",
-        timeline: [
-            { title: "Order created", date: "12 Oct 2026, 10:00 AM", completed: true },
-            { title: "Pickup completed", date: "12 Oct 2026, 2:00 PM", completed: true },
-            { title: "Inspection completed", date: "13 Oct 2026, 10:00 AM", completed: true },
-            { title: "Payment completed", date: "13 Oct 2026, 1:00 PM", completed: true },
-        ],
-    },
-    {
-        id: "EXC-2026-1040",
-        customer: "Fathima N",
-        phone: "+91 97450 12345",
-        device: "Samsung Galaxy S22",
-        variant: "128GB · Green",
-        amount: 24500,
-        status: "Payment Pending",
-        agent: "Shahid Ali",
-        date: "12 Oct 2026",
-        location: "Kottakkal, Malappuram",
-        imei: "358123456789013",
-        paymentMethod: "UPI",
-        paymentStatus: "Pending",
-        inspectionStatus: "Passed",
-        condition: "Good",
-        timeline: [
-            { title: "Order created", date: "11 Oct 2026, 9:00 AM", completed: true },
-            { title: "Pickup completed", date: "11 Oct 2026, 1:00 PM", completed: true },
-            { title: "Inspection completed", date: "12 Oct 2026, 10:00 AM", completed: true },
-            { title: "Payment pending", date: "Awaiting payment", completed: false },
-        ],
-    },
-    {
-        id: "EXC-2026-1039",
-        customer: "Ashraf K",
-        phone: "+91 98950 11223",
-        device: "OnePlus 10 Pro",
-        variant: "256GB · Emerald Forest",
-        amount: 18000,
-        status: "Inspection",
-        agent: "Abdul Basith",
-        date: "12 Oct 2026",
-        location: "Perinthalmanna, Malappuram",
-        imei: "351234567890124",
-        paymentMethod: "Bank Transfer",
-        paymentStatus: "Not Initiated",
-        inspectionStatus: "In Progress",
-        condition: "Pending",
-        timeline: [
-            { title: "Order created", date: "11 Oct 2026, 9:30 AM", completed: true },
-            { title: "Pickup completed", date: "11 Oct 2026, 3:00 PM", completed: true },
-            { title: "Inspection in progress", date: "12 Oct 2026, 11:00 AM", completed: false },
-        ],
-    },
-    {
-        id: "EXC-2026-1038",
-        customer: "Naseema P",
-        phone: "+91 96330 45678",
-        device: "Apple iPhone 13 Pro",
-        variant: "128GB · Sierra Blue",
-        amount: 29000,
-        status: "Picked Up",
-        agent: "Rashid K",
-        date: "11 Oct 2026",
-        location: "Tirur, Malappuram",
-        imei: "352345678901235",
-        paymentMethod: "UPI",
-        paymentStatus: "Not Initiated",
-        inspectionStatus: "Pending",
-        condition: "Pending",
-        timeline: [
-            { title: "Order created", date: "11 Oct 2026, 8:00 AM", completed: true },
-            { title: "Pickup completed", date: "11 Oct 2026, 2:00 PM", completed: true },
-            { title: "Inspection pending", date: "Waiting for inspection", completed: false },
-        ],
-    },
-    {
-        id: "EXC-2026-1037",
-        customer: "Junaid M",
-        phone: "+91 99610 67890",
-        device: "Google Pixel 7",
-        variant: "128GB · Obsidian",
-        amount: 16500,
-        status: "Scheduled",
-        agent: "Nihal T",
-        date: "10 Oct 2026",
-        location: "Manjeri, Malappuram",
-        imei: "353456789012346",
-        paymentMethod: "Bank Transfer",
-        paymentStatus: "Not Initiated",
-        inspectionStatus: "Pending",
-        condition: "Pending",
-        timeline: [
-            { title: "Order created", date: "10 Oct 2026, 11:00 AM", completed: true },
-            { title: "Pickup scheduled", date: "13 Oct 2026, 10:00 AM", completed: false },
-        ],
-    },
-    {
-        id: "EXC-2026-1036",
-        customer: "Rifana T",
-        phone: "+91 98470 67891",
-        device: "Samsung Galaxy A54",
-        variant: "128GB · Awesome Graphite",
-        amount: 10500,
-        status: "New",
-        agent: "Not assigned",
-        date: "10 Oct 2026",
-        location: "Kondotty, Malappuram",
-        imei: "354567890123457",
-        paymentMethod: "Not selected",
-        paymentStatus: "Not Initiated",
-        inspectionStatus: "Pending",
-        condition: "Pending",
-        timeline: [
-            { title: "Order created", date: "10 Oct 2026, 2:30 PM", completed: true },
-            { title: "Agent assignment", date: "Awaiting assignment", completed: false },
-        ],
-    },
-    {
-        id: "EXC-2026-1035",
-        customer: "Basheer V",
-        phone: "+91 98951 22334",
-        device: "Redmi Note 13 Pro",
-        variant: "256GB · Midnight Black",
-        amount: 12500,
-        status: "Cancelled",
-        agent: "Not assigned",
-        date: "9 Oct 2026",
-        location: "Wandoor, Malappuram",
-        imei: "355678901234568",
-        paymentMethod: "Not selected",
-        paymentStatus: "Not Initiated",
-        inspectionStatus: "Not Started",
-        condition: "Pending",
-        timeline: [
-            { title: "Order created", date: "9 Oct 2026, 12:00 PM", completed: true },
-            { title: "Order cancelled", date: "9 Oct 2026, 1:30 PM", completed: true },
-        ],
-    },
-    {
-        id: "EXC-2026-1034",
-        customer: "Shameer A",
-        phone: "+91 97460 11223",
-        device: "Apple iPhone 12 Pro",
-        variant: "128GB · Pacific Blue",
-        amount: 19500,
-        status: "Completed",
-        agent: "Muhammed Shamil",
-        date: "9 Oct 2026",
-        location: "Manjeri, Malappuram",
-        imei: "356789102345673",
-        paymentMethod: "Bank Transfer",
-        paymentStatus: "Paid",
-        inspectionStatus: "Passed",
-        condition: "Good",
-        timeline: [
-            { title: "Order created", date: "8 Oct 2026, 10:00 AM", completed: true },
-            { title: "Pickup completed", date: "8 Oct 2026, 2:00 PM", completed: true },
-            { title: "Inspection completed", date: "9 Oct 2026, 10:00 AM", completed: true },
-            { title: "Payment completed", date: "9 Oct 2026, 12:00 PM", completed: true },
-        ],
-    },
-    {
-        id: "EXC-2026-1033",
-        customer: "Muneer P",
-        phone: "+91 96330 12345",
-        device: "Samsung Galaxy S21 FE",
-        variant: "128GB · Olive",
-        amount: 14500,
-        status: "Payment Pending",
-        agent: "Shahid Ali",
-        date: "8 Oct 2026",
-        location: "Kottakkal, Malappuram",
-        imei: "357890123456781",
-        paymentMethod: "UPI",
-        paymentStatus: "Pending",
-        inspectionStatus: "Passed",
-        condition: "Good",
-        timeline: [
-            { title: "Order created", date: "7 Oct 2026, 9:00 AM", completed: true },
-            { title: "Pickup completed", date: "7 Oct 2026, 1:00 PM", completed: true },
-            { title: "Inspection completed", date: "8 Oct 2026, 10:00 AM", completed: true },
-            { title: "Payment pending", date: "Awaiting payment", completed: false },
-        ],
-    },
-    {
-        id: "EXC-2026-1032",
-        customer: "Haseena K",
-        phone: "+91 99610 98765",
-        device: "OnePlus Nord 3",
-        variant: "128GB · Misty Green",
-        amount: 13500,
-        status: "Inspection",
-        agent: "Abdul Basith",
-        date: "8 Oct 2026",
-        location: "Perinthalmanna, Malappuram",
-        imei: "358901234567892",
-        paymentMethod: "Bank Transfer",
-        paymentStatus: "Not Initiated",
-        inspectionStatus: "In Progress",
-        condition: "Pending",
-        timeline: [
-            { title: "Order created", date: "7 Oct 2026, 10:00 AM", completed: true },
-            { title: "Pickup completed", date: "7 Oct 2026, 3:00 PM", completed: true },
-            { title: "Inspection in progress", date: "8 Oct 2026, 11:00 AM", completed: false },
-        ],
-    },
-    {
-        id: "EXC-2026-1031",
-        customer: "Adil Rahman",
-        phone: "+91 98471 56789",
-        device: "Apple iPhone 11",
-        variant: "128GB · Black",
-        amount: 12000,
-        status: "Picked Up",
-        agent: "Rashid K",
-        date: "7 Oct 2026",
-        location: "Tirur, Malappuram",
-        imei: "359012345678903",
-        paymentMethod: "UPI",
-        paymentStatus: "Not Initiated",
-        inspectionStatus: "Pending",
-        condition: "Pending",
-        timeline: [
-            { title: "Order created", date: "7 Oct 2026, 8:00 AM", completed: true },
-            { title: "Pickup completed", date: "7 Oct 2026, 2:00 PM", completed: true },
-            { title: "Inspection pending", date: "Waiting for inspection", completed: false },
-        ],
-    },
-    {
-        id: "EXC-2026-1030",
-        customer: "Faseela C",
-        phone: "+91 98950 33445",
-        device: "Google Pixel 6",
-        variant: "128GB · Stormy Black",
-        amount: 11000,
-        status: "Scheduled",
-        agent: "Nihal T",
-        date: "7 Oct 2026",
-        location: "Manjeri, Malappuram",
-        imei: "350123456789014",
-        paymentMethod: "Bank Transfer",
-        paymentStatus: "Not Initiated",
-        inspectionStatus: "Pending",
-        condition: "Pending",
-        timeline: [
-            { title: "Order created", date: "7 Oct 2026, 9:30 AM", completed: true },
-            { title: "Pickup scheduled", date: "10 Oct 2026, 11:00 AM", completed: false },
-        ],
-    },
-    {
-        id: "EXC-2026-1029",
-        customer: "Suhail T",
-        phone: "+91 97450 99887",
-        device: "Samsung Galaxy A34",
-        variant: "128GB · Awesome Silver",
-        amount: 9000,
-        status: "New",
-        agent: "Not assigned",
-        date: "6 Oct 2026",
-        location: "Kondotty, Malappuram",
-        imei: "351234567890125",
-        paymentMethod: "Not selected",
-        paymentStatus: "Not Initiated",
-        inspectionStatus: "Pending",
-        condition: "Pending",
-        timeline: [
-            { title: "Order created", date: "6 Oct 2026, 1:00 PM", completed: true },
-            { title: "Agent assignment", date: "Awaiting assignment", completed: false },
-        ],
-    },
-    {
-        id: "EXC-2026-1028",
-        customer: "Nabeel P",
-        phone: "+91 96330 44556",
-        device: "Redmi Note 11",
-        variant: "128GB · Star Blue",
-        amount: 6500,
-        status: "Cancelled",
-        agent: "Not assigned",
-        date: "6 Oct 2026",
-        location: "Wandoor, Malappuram",
-        imei: "352345678901236",
-        paymentMethod: "Not selected",
-        paymentStatus: "Not Initiated",
-        inspectionStatus: "Not Started",
-        condition: "Pending",
-        timeline: [
-            { title: "Order created", date: "6 Oct 2026, 10:00 AM", completed: true },
-            { title: "Order cancelled", date: "6 Oct 2026, 11:00 AM", completed: true },
-        ],
-    },
-    {
-        id: "EXC-2026-1027",
-        customer: "Afsal M",
-        phone: "+91 99610 44556",
-        device: "Apple iPhone XR",
-        variant: "64GB · Coral",
-        amount: 8000,
-        status: "Completed",
-        agent: "Muhammed Shamil",
-        date: "5 Oct 2026",
-        location: "Manjeri, Malappuram",
-        imei: "353456789012347",
-        paymentMethod: "Bank Transfer",
-        paymentStatus: "Paid",
-        inspectionStatus: "Passed",
-        condition: "Fair",
-        timeline: [
-            { title: "Order created", date: "4 Oct 2026, 10:00 AM", completed: true },
-            { title: "Pickup completed", date: "4 Oct 2026, 2:00 PM", completed: true },
-            { title: "Inspection completed", date: "5 Oct 2026, 10:00 AM", completed: true },
-            { title: "Payment completed", date: "5 Oct 2026, 12:00 PM", completed: true },
-        ],
-    },
-    {
-        id: "EXC-2026-1026",
-        customer: "Ramees K",
-        phone: "+91 98470 99887",
-        device: "Samsung Galaxy M34",
-        variant: "128GB · Midnight Blue",
-        amount: 7500,
-        status: "Payment Pending",
-        agent: "Shahid Ali",
-        date: "5 Oct 2026",
-        location: "Kottakkal, Malappuram",
-        imei: "354567890123458",
-        paymentMethod: "UPI",
-        paymentStatus: "Pending",
-        inspectionStatus: "Passed",
-        condition: "Good",
-        timeline: [
-            { title: "Order created", date: "4 Oct 2026, 9:00 AM", completed: true },
-            { title: "Pickup completed", date: "4 Oct 2026, 1:00 PM", completed: true },
-            { title: "Inspection completed", date: "5 Oct 2026, 10:00 AM", completed: true },
-            { title: "Payment pending", date: "Awaiting payment", completed: false },
-        ],
-    },
-    {
-        id: "EXC-2026-1025",
-        customer: "Shifana A",
-        phone: "+91 98951 55667",
-        device: "OnePlus Nord CE 3",
-        variant: "256GB · Aqua Surge",
-        amount: 9500,
-        status: "New",
-        agent: "Not assigned",
-        date: "4 Oct 2026",
-        location: "Perinthalmanna, Malappuram",
-        imei: "355678901234569",
-        paymentMethod: "Not selected",
-        paymentStatus: "Not Initiated",
-        inspectionStatus: "Pending",
-        condition: "Pending",
-        timeline: [
-            { title: "Order created", date: "4 Oct 2026, 2:00 PM", completed: true },
-            { title: "Agent assignment", date: "Awaiting assignment", completed: false },
-        ],
-    },
-];
+type ApiOrder = Record<string, any>;
+
+const statusFromApi = (status: string): OrderStatus => {
+    const map: Record<string, OrderStatus> = {
+        pending: "New",
+        pickup_scheduled: "Scheduled",
+        assigned: "Scheduled",
+        picked_up: "Picked Up",
+        in_transit: "Picked Up",
+        inspection_pending: "Inspection",
+        inspection_in_progress: "Inspection",
+        inspection_completed: "Inspection",
+        approved: "Completed",
+        ready_stock: "Completed",
+        completed: "Completed",
+        payment_pending: "Payment Pending",
+        payment_completed: "Picked Up",
+        cancelled: "Cancelled",
+        rejected: "Cancelled",
+    };
+    return map[status] ?? "New";
+};
 
 const tabs = [
-    { label: "Overview", icon: ShoppingBag },
+    { label: "Overview", icon: Monitor },
     { label: "Device Details", icon: Smartphone },
     { label: "Payments", icon: Wallet },
     { label: "Inspection", icon: ClipboardCheck },
     { label: "Documents", icon: FileText },
     { label: "Timeline", icon: History },
-    { label: "Inventory & Sales", icon: PackageCheck },
+    { label: "Inventory & Sales", icon: ShoppingBag },
 ];
 
 const statusStyles: Record<OrderStatus, string> = {
@@ -450,7 +109,104 @@ const statusStyles: Record<OrderStatus, string> = {
     Cancelled: "bg-red-50 text-red-700 ring-red-200",
 };
 
-function formatAmount(amount: number) {
+const formatDate = (value?: string | Date | null) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return new Intl.DateTimeFormat("en-IN", {
+        day: "2-digit", month: "short", year: "numeric",
+    }).format(date);
+};
+
+const asText = (value: unknown, fallback = "—") =>
+    typeof value === "string" && value.trim() ? value : fallback;
+
+const asAmount = (...values: unknown[]): number | null => {
+    for (const value of values) {
+        if (typeof value === "number" && Number.isFinite(value)) return value;
+        if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
+    }
+    return null;
+};
+
+const mapApiOrder = (source: ApiOrder): Order => {
+    const customer = source.customer ?? {};
+    const agent = source.agent ?? source.pickup?.assignedAgent ?? {};
+    const device = source.device ?? {};
+    const payment = source.payment ?? {};
+    const pickupAddress = source.pickup?.address ?? {};
+    const customerAddress = customer.address ?? customer.contactAddress ?? {};
+    const addressText = (address: ApiOrder) => typeof address === "string"
+        ? address
+        : [address?.line1, address?.line2, address?.city, address?.state, address?.pinCode ?? address?.postalCode]
+            .filter(Boolean).join(", ");
+    const pickupScheduledAt = source.pickup?.scheduledAt ?? source.pickup?.scheduledDate ?? source.pickup?.date;
+    const pickupSlot = source.pickup?.timeSlot ?? source.pickup?.slot ?? source.pickup?.scheduledTime;
+    const location = [pickupAddress.line1, pickupAddress.city, pickupAddress.state, pickupAddress.pinCode]
+        .filter(Boolean).join(", ");
+    const brandModel = [device.brand, device.model].filter(Boolean).join(" ");
+    const variant = [device.storage, device.ram, device.color || device.variant]
+        .filter(Boolean).join(" · ");
+    const rawStatus = String(source.status ?? "pending");
+    const rawPaymentStatus = typeof payment.status === "string" && payment.status.trim()
+        ? payment.status
+        : "";
+    const purchaseInvoice = Array.isArray(source.documents)
+        ? source.documents.find((document: ApiOrder) => document?.type === "purchase_invoice" && (document?.url || document?.fileName))
+        : undefined;
+    const invoiceFileName = typeof purchaseInvoice?.fileName === "string" && purchaseInvoice.fileName.trim()
+        ? `INV-${purchaseInvoice.fileName.replace(/\.pdf$/i, "").replace(/^INV[-_]?/i, "")}`
+        : null;
+    const timeline = Array.isArray(source.timeline) ? source.timeline.map((event: ApiOrder) => ({
+        title: asText(event.message, String(event.status ?? "Order update").replaceAll("_", " ")),
+        date: event.createdAt ? `${formatDate(event.createdAt)}${Number.isNaN(new Date(event.createdAt).getTime()) ? "" : ` · ${new Date(event.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`}` : "—",
+        completed: true,
+    })) : [];
+
+    return {
+        backendId: String(source._id ?? source.id ?? ""),
+        rawStatus,
+        id: asText(source.orderNumber, String(source._id ?? "Order")),
+        customer: asText(customer.fullName),
+        phone: asText(customer.phone),
+        device: asText(brandModel),
+        variant: asText(variant, "—"),
+        amount: (() => {
+            const amount = asAmount(payment.finalAmount, payment.estimatedAmount, source.estimatedAmount);
+            return amount !== null && amount > 0 ? amount : null;
+        })(),
+        status: statusFromApi(rawStatus),
+        agent: asText(agent.fullName),
+        date: formatDate(source.createdAt),
+        dateValue: source.createdAt ? String(source.createdAt) : null,
+        createdAtLabel: source.createdAt
+            ? `${formatDate(source.createdAt)} · ${new Date(source.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`
+            : "—",
+        customerAddress: addressText(customerAddress) || "—",
+        agentPhone: asText(agent.phone ?? agent.mobile ?? agent.phoneNumber),
+        pickupDate: formatDate(pickupScheduledAt),
+        pickupTime: asText(pickupSlot),
+        inventoryStatus: asText(source.inventory?.status ?? source.inventoryStatus),
+        internalNotes: asText(source.internalNotes ?? source.notes, ""),
+        location: location || "—",
+        imei: asText(device.imei1),
+        paymentMethod: asText(payment.paymentMethod).replaceAll("_", " "),
+        paymentStatus: rawPaymentStatus ? (rawPaymentStatus === "completed" ? "Paid" : rawPaymentStatus.replaceAll("_", " ")) : "—",
+        invoiceFileName,
+        inspectionStatus: asText(source.inspection?.status, rawStatus.includes("inspection") ? rawStatus.replaceAll("inspection_", "") : "Pending"),
+        condition: asText(source.inspection?.condition ?? device.customerEvaluation?.bodyCondition, "Not assessed"),
+        timeline,
+    };
+};
+
+interface OrdersResponse {
+    success: boolean;
+    data: ApiOrder[];
+    pagination?: { total?: number; page?: number; limit?: number; totalPages?: number };
+}
+
+function formatAmount(amount: number | null | undefined) {
+    if (typeof amount !== "number" || !Number.isFinite(amount)) return "—";
     return new Intl.NumberFormat("en-IN", {
         style: "currency",
         currency: "INR",
@@ -498,60 +254,116 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function Orders() {
-    const [orders, setOrders] = useState(initialOrders);
-    const [search] = useState("");
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("All");
-    const [dateFilter] = useState("All time");
+    const [dateFilter, setDateFilter] = useState("All time");
     const [page, setPage] = useState(1);
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState("Overview");
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [loadError, setLoadError] = useState("");
+    const [successMessage, setSuccessMessage] = useState("");
+
+    const fetchOrders = useCallback(async () => {
+        setIsLoading(true);
+        setLoadError("");
+        try {
+            // The backend allows a maximum of 100 records per request. Load every
+            // backend page so search, filters, and summary cards use the complete
+            // order dataset rather than only the first 100 records.
+            const firstResponse = await api.get<OrdersResponse>("/admin/orders", {
+                params: { page: 1, limit: 100 },
+            });
+            const firstPageOrders = Array.isArray(firstResponse.data?.data)
+                ? firstResponse.data.data
+                : [];
+            const totalPages = Math.max(1, Number(firstResponse.data?.pagination?.totalPages) || 1);
+            const allApiOrders = [...firstPageOrders];
+
+            for (let currentPage = 2; currentPage <= totalPages; currentPage += 1) {
+                const pageResponse = await api.get<OrdersResponse>("/admin/orders", {
+                    params: { page: currentPage, limit: 100 },
+                });
+                if (Array.isArray(pageResponse.data?.data)) {
+                    allApiOrders.push(...pageResponse.data.data);
+                }
+            }
+
+            setOrders(allApiOrders.map(mapApiOrder));
+        } catch (error: any) {
+            setLoadError(error?.response?.data?.message || error?.message || "Unable to load orders.");
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void fetchOrders();
+    }, [fetchOrders]);
 
     const selectedOrder = orders.find((order) => order.id === selectedOrderId);
 
     const filteredOrders = useMemo(() => {
         const query = search.trim().toLowerCase();
+        const today = new Date();
+        const last7 = new Date();
+        last7.setDate(today.getDate() - 7);
 
         return orders.filter((order) => {
-            const matchesSearch =
-                !query ||
-                order.id.toLowerCase().includes(query) ||
-                order.customer.toLowerCase().includes(query) ||
-                order.phone.toLowerCase().includes(query) ||
-                order.device.toLowerCase().includes(query);
-
-            const matchesStatus =
-                statusFilter === "All" || order.status === statusFilter;
-
-            const matchesDate =
-                dateFilter === "All time" ||
-                (dateFilter === "Today" && order.date === "16 Oct 2026") ||
-                (dateFilter === "Last 7 days" &&
-                    ["16 Oct 2026", "15 Oct 2026", "14 Oct 2026"].includes(order.date));
-
+            const matchesSearch = !query || [order.id, order.customer, order.phone, order.device, order.agent, order.variant]
+                .some((value) => value !== "—" && value.toLowerCase().includes(query));
+            const matchesStatus = statusFilter === "All" || order.status === statusFilter;
+            const sourceDate = order.dateValue ? new Date(order.dateValue) : null;
+            const validDate = sourceDate !== null && !Number.isNaN(sourceDate.getTime());
+            const matchesDate = dateFilter === "All time" ||
+                (dateFilter === "Today" && validDate && sourceDate!.toDateString() === today.toDateString()) ||
+                (dateFilter === "Last 7 days" && validDate && sourceDate! >= last7);
             return matchesSearch && matchesStatus && matchesDate;
         });
     }, [orders, search, statusFilter, dateFilter]);
 
     const pageSize = 8;
     const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
-    const visibleOrders = filteredOrders.slice(
-        (page - 1) * pageSize,
-        page * pageSize,
-    );
+    const safePage = Math.min(page, totalPages);
+    const visibleOrders = filteredOrders.slice((safePage - 1) * pageSize, safePage * pageSize);
 
     const openOrder = (order: Order) => {
         setSelectedOrderId(order.id);
         setActiveTab("Overview");
+        setSuccessMessage("");
     };
 
-    const updateOrderStatus = (status: OrderStatus) => {
+    const updateOrderStatus = async (status: OrderStatus) => {
         if (!selectedOrder) return;
-
-        setOrders((current) =>
-            current.map((order) =>
-                order.id === selectedOrder.id ? { ...order, status } : order,
-            ),
-        );
+        const apiStatus: Record<OrderStatus, string> = {
+            "New": "pending",
+            "Scheduled": "pickup_scheduled",
+            "Picked Up": "picked_up",
+            "Inspection": "inspection_in_progress",
+            "Payment Pending": "payment_pending",
+            "Completed": "completed",
+            "Cancelled": "cancelled",
+        };
+        setIsSaving(true);
+        setLoadError("");
+        setSuccessMessage("");
+        try {
+            const response = await api.patch(`/admin/orders/${selectedOrder.backendId}/status`, { status: apiStatus[status] });
+            const updated = response.data?.data;
+            if (updated) {
+                const mapped = mapApiOrder(updated);
+                setOrders((current) => current.map((order) => order.backendId === mapped.backendId ? mapped : order));
+            } else {
+                await fetchOrders();
+            }
+            setSuccessMessage("Order status updated successfully.");
+        } catch (error: any) {
+            setLoadError(error?.response?.data?.message || error?.message || "Unable to update order status.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const selectFilter = (value: string) => {
@@ -567,51 +379,51 @@ export default function Orders() {
                         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.35fr_0.95fr_1.1fr_0.9fr]">
                             <DetailSection title="Order Information">
                                 <DetailRow label="Order ID" value={order.id} />
-                                <DetailRow label="Invoice ID" value={`#INV-${order.id.match(/(\\d+)$/)?.[1] ?? ""}`} />
-                                <DetailRow label="Created On" value={`${order.date} · 10:30 AM`} />
+                                <DetailRow label="Invoice ID" value={order.invoiceFileName ?? "—"} />
+                                <DetailRow label="Created On" value={order.createdAtLabel} />
                                 <DetailRow label="Pickup Address" value={order.location} />
-                                <DetailRow label="User Address" value={order.location} />
+                                <DetailRow label="User Address" value={order.customerAddress} />
                             </DetailSection>
 
                             <DetailSection title="Agent & Pickup Details">
                                 <p className="mb-2 text-xs font-medium text-stone-500">Assigned Agent</p>
                                 <div className="flex items-center gap-2 rounded-lg border border-stone-200 p-2.5">
                                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">
-                                        {order.agent === "Not assigned" ? "—" : order.agent.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}
+                                        {order.agent === "—" ? "—" : order.agent.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}
                                     </span>
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate text-sm font-semibold text-stone-700">{order.agent}</p>
-                                        <p className="text-xs text-stone-500">+91 98765 10000</p>
+                                        <p className="text-xs text-stone-500">{order.agentPhone}</p>
                                     </div>
                                     <ChevronRight size={15} className="text-stone-400" />
                                 </div>
                                 <div className="mt-4">
                                     <p className="mb-2 text-xs font-medium text-stone-500">Pickup Date</p>
                                     <div className="flex items-center justify-between rounded-lg border border-stone-200 px-3 py-2.5 text-sm text-stone-700">
-                                        <span>{order.date}</span><History size={15} className="text-stone-400" />
+                                        <span>{order.pickupDate}</span><History size={15} className="text-stone-400" />
                                     </div>
                                 </div>
                                 <div className="mt-3">
                                     <p className="mb-2 text-xs font-medium text-stone-500">Pickup Time</p>
                                     <div className="flex items-center justify-between rounded-lg border border-stone-200 px-3 py-2.5 text-sm text-stone-700">
-                                        <span>10:30 AM – 12:00 PM</span><Clock3 size={15} className="text-stone-400" />
+                                        <span>{order.pickupTime}</span><Clock3 size={15} className="text-stone-400" />
                                     </div>
                                 </div>
                                 <div className="mt-3">
                                     <p className="text-xs font-medium text-stone-500">Pickup Status</p>
                                     <div className="mt-2"><StatusBadge status={order.status} /></div>
                                 </div>
-                                <p className="mt-2 text-xs text-stone-500">On {order.date}, 11:00 AM</p>
+                                
                             </DetailSection>
 
                             <DetailSection title="Status & Progress">
                                 <div className="space-y-4">
                                     {([
-                                        ["Order Status", "Order Confirmed", true],
+                                        ["Order Created", order.date, Boolean(order.dateValue)],
                                         ["Order Status", order.status, ["Picked Up", "Inspection", "Payment Pending", "Completed"].includes(order.status)],
                                         ["Payment Status", order.paymentStatus, order.paymentStatus === "Paid"],
-                                        ["Inspection Status", order.inspectionStatus, order.inspectionStatus === "Passed"],
-                                        ["Inventory Status", order.status === "Completed" ? "Confirmed" : "Not Confirmed", order.status === "Completed"],
+                                        ["Inspection Status", order.inspectionStatus, ["passed", "approved", "completed"].includes(order.inspectionStatus.toLowerCase())],
+                                        ["Inventory Status", order.inventoryStatus, ["available", "listed", "ready_stock", "in_stock"].includes(order.inventoryStatus.toLowerCase())],
                                     ] as [string, string, boolean][]).map(([label, value, done], index) => (
                                         <div key={`${label}-${index}`} className="grid grid-cols-[minmax(0,1fr)_minmax(0,auto)] items-center gap-x-3">
                                             <span className="text-xs font-medium text-stone-500">{label}</span>
@@ -674,55 +486,12 @@ export default function Orders() {
                             <DetailSection title="Activity Timeline">
                                 <div className="relative">
                                     {order.timeline.map((item, index) => {
-                                        const activityDetails: Record<string, { description: string; category: string }> = {
-                                            "Order created": {
-                                                description: "The trade-in order was created and recorded in the system.",
-                                                category: "Order",
-                                            },
-                                            "Pickup completed": {
-                                                description: `Device pickup recorded for ${order.customer}.`,
-                                                category: "Pickup",
-                                            },
-                                            "Pickup scheduled": {
-                                                description: `Pickup arranged for ${order.location}.`,
-                                                category: "Pickup",
-                                            },
-                                            "Inspection completed": {
-                                                description: `Device inspection finished. Result: ${order.inspectionStatus}.`,
-                                                category: "Inspection",
-                                            },
-                                            "Inspection in progress": {
-                                                description: "Device checks are currently being carried out.",
-                                                category: "Inspection",
-                                            },
-                                            "Inspection pending": {
-                                                description: "The device is waiting for inspection to begin.",
-                                                category: "Inspection",
-                                            },
-                                            "Payment completed": {
-                                                description: `Payment status: ${order.paymentStatus}.`,
-                                                category: "Payment",
-                                            },
-                                            "Payment pending": {
-                                                description: "Payment is awaiting processing or confirmation.",
-                                                category: "Payment",
-                                            },
-                                            "Agent assignment": {
-                                                description: "An agent still needs to be assigned to this order.",
-                                                category: "Assignment",
-                                            },
-                                            "Order cancelled": {
-                                                description: "This order has been marked as cancelled.",
-                                                category: "Order",
-                                            },
-                                        };
-
-                                        const details = activityDetails[item.title] ?? {
-                                            description: item.completed
-                                                ? "This order activity has been recorded."
-                                                : "This activity is waiting to be completed.",
-                                            category: "Activity",
-                                        };
+                                        const normalizedTitle = item.title.toLowerCase();
+                                        const category = normalizedTitle.includes("payment") ? "Payment"
+                                            : normalizedTitle.includes("pickup") ? "Pickup"
+                                            : normalizedTitle.includes("inspection") ? "Inspection"
+                                            : normalizedTitle.includes("agent") || normalizedTitle.includes("assign") ? "Assignment"
+                                            : "Order";
 
                                         return (
                                             <div key={`${item.title}-${index}`} className="relative flex gap-2.5 pb-3 last:pb-0">
@@ -743,12 +512,9 @@ export default function Orders() {
                                                             {item.completed ? "Completed" : "Pending"}
                                                         </span>
                                                     </div>
-                                                    <p className="mt-0.5 truncate text-[10px] leading-3 text-stone-500" title={details.description}>
-                                                        {details.description}
-                                                    </p>
                                                     <div className="mt-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 border-t border-stone-100 pt-1">
                                                         <span className="text-[9px] font-medium text-stone-400">
-                                                            {details.category}
+                                                            {category}
                                                         </span>
                                                         <span className="text-[9px] text-stone-500">
                                                             {item.date}
@@ -765,7 +531,7 @@ export default function Orders() {
                         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
                             <DetailSection title="Internal Notes">
                                 <p className="mb-3 text-xs text-stone-500">Add notes about inspection, customer request, pickup issue, price revision reason, etc.</p>
-                                <textarea defaultValue="Customer requested careful handling of the device during pickup." rows={4} maxLength={1000} className="w-full resize-y rounded-lg border border-stone-200 px-3 py-2.5 text-sm text-stone-700 outline-none focus:border-orange-400" placeholder="Write your notes here..." />
+                                <textarea defaultValue={order.internalNotes} rows={4} maxLength={1000} className="w-full resize-y rounded-lg border border-stone-200 px-3 py-2.5 text-sm text-stone-700 outline-none focus:border-orange-400" placeholder="Write your notes here..." />
                                 <p className="mt-2 text-xs text-blue-600">ⓘ These notes will not be visible to the user</p>
                             </DetailSection>
                             <DetailSection title="Cancel Order">
@@ -781,7 +547,7 @@ export default function Orders() {
                                     </select>
                                     <textarea rows={3} maxLength={1000} className="min-h-20 resize-y rounded-lg border border-stone-200 px-3 py-2.5 text-xs text-stone-600 outline-none focus:border-orange-400" placeholder="Provide more details (optional)..." />
                                 </div>
-                                <button type="button" onClick={() => updateOrderStatus("Cancelled")} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50">
+                                <button type="button" onClick={() => void updateOrderStatus("Cancelled")} disabled={isSaving} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50">
                                     <XCircle size={15} /> Cancel Order
                                 </button>
                             </DetailSection>
@@ -2054,8 +1820,8 @@ export default function Orders() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    // Current order edits are held in local React state in this static preview.
+                                onClick={async () => {
+                                    await fetchOrders();
                                     setSelectedOrderId(null);
                                     setActiveTab("Overview");
                                 }}
@@ -2073,16 +1839,25 @@ export default function Orders() {
 
     return (
         <div className="space-y-2">
+            {loadError && (
+                <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <span>{loadError}</span>
+                    <button type="button" onClick={() => void fetchOrders()} className="font-semibold underline">Retry</button>
+                </div>
+            )}
+            {successMessage && !selectedOrderId && (
+                <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{successMessage}</div>
+            )}
             {/* Summary cards */}
 
 
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
                 {[
-                    { label: "Total Orders", value: "2,845", change: "↑ 12.5%", note: "from last month", icon: PackageCheck, box: "bg-purple-50 text-purple-500", positive: true },
-                    { label: "Pending", value: "54", change: "↑ 9.1%", note: "from last month", icon: Clock3, box: "bg-red-50 text-red-400", positive: true },
-                    { label: "In Progress", value: "54", change: "↑ 12.4%", note: "from last month", icon: Truck, box: "bg-amber-50 text-amber-500", positive: true },
-                    { label: "Completed", value: "328", change: "↓ 6.3%", note: "vs last week", icon: PackageCheck, box: "bg-green-50 text-green-600", positive: false },
-                    { label: "Cancelled", value: "11", change: "↑ 11.7%", note: "vs yesterday", icon: XCircle, box: "bg-red-50 text-red-500", positive: true },
+                    { label: "Total Orders", value: orders.length.toLocaleString("en-IN"), change: "", note: "current records", icon: PackageCheck, box: "bg-purple-50 text-purple-500", positive: true },
+                    { label: "Pending", value: orders.filter((item) => ["New", "Scheduled", "Payment Pending"].includes(item.status)).length.toLocaleString("en-IN"), change: "", note: "awaiting action", icon: Clock3, box: "bg-red-50 text-red-400", positive: true },
+                    { label: "In Progress", value: orders.filter((item) => ["Picked Up", "Inspection"].includes(item.status)).length.toLocaleString("en-IN"), change: "", note: "in progress", icon: Truck, box: "bg-amber-50 text-amber-500", positive: true },
+                    { label: "Completed", value: orders.filter((item) => item.status === "Completed").length.toLocaleString("en-IN"), change: "", note: "completed orders", icon: PackageCheck, box: "bg-green-50 text-green-600", positive: false },
+                    { label: "Cancelled", value: orders.filter((item) => item.status === "Cancelled").length.toLocaleString("en-IN"), change: "", note: "cancelled orders", icon: XCircle, box: "bg-red-50 text-red-500", positive: true },
                 ].map(({ label, value, change, note, icon: Icon, box, positive }) => (
                     <div
                         key={label}
@@ -2126,6 +1901,14 @@ export default function Orders() {
                     </h2>
 
                     <div className="flex items-center gap-3">
+                        <input
+                            type="search"
+                            value={search}
+                            onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+                            placeholder="Search orders..."
+                            aria-label="Search orders"
+                            className="h-[38px] w-44 rounded-lg border border-stone-200 bg-white px-3 text-sm text-stone-700 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                        />
                         {/* Premium Filter */}
                         <label className="flex h-[38px] cursor-pointer items-center gap-2 rounded-lg border border-stone-200 bg-white px-3.5 text-stone-600 shadow-sm transition-all duration-200 hover:border-orange-300 hover:bg-orange-50/50 hover:text-orange-600 focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-100">
                             <SlidersHorizontal
@@ -2161,7 +1944,7 @@ export default function Orders() {
                                         order.agent,
                                         order.device,
                                         order.status,
-                                        String(order.amount),
+                                        order.amount === null ? "—" : String(order.amount),
                                         order.date,
                                     ]),
                                 ];
@@ -2224,8 +2007,12 @@ export default function Orders() {
                         </thead>
 
                         <tbody className="divide-y divide-stone-100">
-                            {visibleOrders.map((order, index) => {
-                                const initials = order.customer
+                            {isLoading ? (
+                                <tr><td colSpan={8} className="px-6 py-12 text-center text-sm text-stone-500">Loading orders from the backend…</td></tr>
+                            ) : visibleOrders.length === 0 ? (
+                                <tr><td colSpan={8} className="px-6 py-12 text-center text-sm text-stone-500">No orders found.</td></tr>
+                            ) : visibleOrders.map((order) => {
+                                const initials = order.customer === "—" ? "—" : order.customer
                                     .split(" ")
                                     .map((part) => part[0])
                                     .slice(0, 2)
@@ -2246,28 +2033,12 @@ export default function Orders() {
                                                     order.status === "Picked Up" ? "bg-cyan-50 text-cyan-600" :
                                                         "bg-orange-50 text-orange-600";
 
-                                const deviceImage =
-                                    order.device.toLowerCase().includes("samsung")
-                                        ? "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=100&h=150&fit=crop"
-                                        : order.device.toLowerCase().includes("oneplus")
-                                            ? "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=100&h=150&fit=crop"
-                                            : order.device.toLowerCase().includes("xiaomi")
-                                                ? "https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=100&h=150&fit=crop"
-                                                : order.device.toLowerCase().includes("google")
-                                                    ? "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=150&fit=crop"
-                                                    : "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=100&h=150&fit=crop";
-
-                                const invoiceNumber = order.id.match(/(\d+)$/)?.[1] ?? String(1089 - index);
-
                                 return (
                                     <tr key={order.id} className="h-[58px] transition-colors hover:bg-orange-50/30">
                                         <td className="px-4 py-2">
                                             <button type="button" onClick={() => openOrder(order)} className="text-left">
-                                                <span className="block whitespace-nowrap text-sm font-semibold text-stone-700">
+                                                <span className="block whitespace-nowrap text-sm font-semibold text-orange-600">
                                                     {order.id}
-                                                </span>
-                                                <span className="mt-1 block text-xs font-medium text-orange-600">
-                                                    #INV-{invoiceNumber}
                                                 </span>
                                             </button>
                                         </td>
@@ -2278,29 +2049,26 @@ export default function Orders() {
                                                     {initials}
                                                 </span>
                                                 <span className="truncate text-sm font-semibold text-stone-700">
-                                                    {order.customer.toUpperCase()}
+                                                    {order.customer === "—" ? "—" : order.customer.toUpperCase()}
                                                 </span>
                                             </div>
                                         </td>
 
                                         <td className="truncate px-4 py-2 text-sm font-medium text-stone-600">
-                                            {order.agent === "Not assigned" ? "—" : order.agent.toUpperCase()}
+                                            {order.agent === "—" ? "—" : order.agent.toUpperCase()}
                                         </td>
 
                                         <td className="px-4 py-2">
                                             <div className="flex min-w-0 items-center gap-2">
-                                                <img
-                                                    src={deviceImage}
-                                                    alt={order.device}
-                                                    className="h-[42px] w-[32px] shrink-0 rounded-md border border-stone-200 bg-stone-100 object-cover"
-                                                    loading="lazy"
-                                                />
+                                                <span className="flex h-[42px] w-[32px] shrink-0 items-center justify-center rounded-md border border-stone-200 bg-stone-50 text-stone-400" aria-hidden="true">
+                                                    <Smartphone size={20} strokeWidth={1.5} />
+                                                </span>
                                                 <div className="min-w-0">
                                                     <p className="truncate text-sm font-semibold text-stone-700">
                                                         {order.device}
                                                     </p>
                                                     <p className="mt-1 text-xs text-orange-600">
-                                                        {order.variant.split(" · ")[0]}
+                                                        {order.variant === "—" ? "—" : order.variant.split(" · ")[0]}
                                                     </p>
                                                 </div>
                                             </div>
@@ -2322,7 +2090,7 @@ export default function Orders() {
                                         </td>
 
                                         <td className="whitespace-nowrap px-3 py-2 text-sm text-stone-600">
-                                            {order.date.replace(" Oct ", "-")}
+                                            {order.date}
                                         </td>
 
                                         <td className="px-3 py-2">
@@ -2341,24 +2109,17 @@ export default function Orders() {
                                 );
                             })}
 
-                            {visibleOrders.length === 0 && (
-                                <tr>
-                                    <td colSpan={8} className="py-10 text-center text-base text-stone-500">
-                                        No orders found.
-                                    </td>
-                                </tr>
-                            )}
                         </tbody>
                     </table>
                 </div>
 
 
                 <div className="flex min-h-[37px] flex-wrap items-center justify-between gap-2 px-3 py-2">
-                    <p className="text-sm text-stone-500">Showing {filteredOrders.length === 0 ? 0 : (page - 1) * pageSize + 1} to {Math.min(page * pageSize, filteredOrders.length)} of {filteredOrders.length} orders</p>
+                    <p className="text-sm text-stone-500">Showing {filteredOrders.length === 0 ? 0 : (safePage - 1) * pageSize + 1} to {Math.min(safePage * pageSize, filteredOrders.length)} of {filteredOrders.length} orders</p>
                     <div className="flex items-center gap-1.5">
-                        <button type="button" disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded border border-stone-200 p-1 text-stone-500 disabled:opacity-40" aria-label="Previous page"><ChevronLeft size={13} /></button>
-                        {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => <button key={pageNumber} type="button" onClick={() => setPage(pageNumber)} className={`h-7 min-w-7 rounded px-2 text-sm ${page === pageNumber ? "bg-orange-500 font-semibold text-white" : "border border-stone-200 text-stone-600 hover:bg-stone-50"}`}>{pageNumber}</button>)}
-                        <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="rounded border border-stone-200 p-1 text-stone-500 disabled:opacity-40" aria-label="Next page"><ChevronRight size={13} /></button>
+                        <button type="button" disabled={safePage === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded border border-stone-200 p-1 text-stone-500 disabled:opacity-40" aria-label="Previous page"><ChevronLeft size={13} /></button>
+                        {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => <button key={pageNumber} type="button" onClick={() => setPage(pageNumber)} className={`h-7 min-w-7 rounded px-2 text-sm ${safePage === pageNumber ? "bg-orange-500 font-semibold text-white" : "border border-stone-200 text-stone-600 hover:bg-stone-50"}`}>{pageNumber}</button>)}
+                        <button type="button" disabled={safePage >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="rounded border border-stone-200 p-1 text-stone-500 disabled:opacity-40" aria-label="Next page"><ChevronRight size={13} /></button>
                         <span className="ml-2 whitespace-nowrap text-xs text-stone-500">Rows per page</span><span className="rounded border border-stone-200 px-2 py-1 text-sm text-stone-600">{pageSize}</span>
                     </div>
                 </div>
