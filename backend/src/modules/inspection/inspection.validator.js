@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 
 const objectId = z
@@ -25,6 +26,7 @@ export const updateInspectionSchema = z.object({
       "Poor",
       "Broken",
     ])
+    .nullable()
     .optional(),
 
   bodyCondition: z
@@ -34,25 +36,31 @@ export const updateInspectionSchema = z.object({
       "Average",
       "Poor",
     ])
+    .nullable()
     .optional(),
 
   batteryHealth: z.coerce
     .number()
     .min(0)
     .max(100)
+    .nullable()
     .optional(),
 
   functionalTests: z
     .object({
-      camera: z.boolean().optional(),
-      speaker: z.boolean().optional(),
-      microphone: z.boolean().optional(),
-      chargingPort: z.boolean().optional(),
-      wifi: z.boolean().optional(),
-      bluetooth: z.boolean().optional(),
-      network: z.boolean().optional(),
-      faceId: z.boolean().optional(),
-      fingerprint: z.boolean().optional(),
+      camera: z.boolean().nullable().optional(),
+      speaker: z.boolean().nullable().optional(),
+      microphone: z.boolean().nullable().optional(),
+      buttons: z.boolean().nullable().optional(),
+      touchScreen: z.boolean().nullable().optional(),
+      chargingPort: z.boolean().nullable().optional(),
+      wifi: z.boolean().nullable().optional(),
+      bluetooth: z.boolean().nullable().optional(),
+      network: z.boolean().nullable().optional(),
+      faceId: z.boolean().nullable().optional(),
+      fingerprint: z.boolean().nullable().optional(),
+      vibration: z.boolean().nullable().optional(),
+      gps: z.boolean().nullable().optional(),
     })
     .optional(),
 
@@ -60,6 +68,7 @@ export const updateInspectionSchema = z.object({
     .object({
       charger: z.boolean().optional(),
       cable: z.boolean().optional(),
+      earphones: z.boolean().optional(),
       box: z.boolean().optional(),
       bill: z.boolean().optional(),
       simEjector: z.boolean().optional(),
@@ -88,6 +97,7 @@ export const updateInspectionSchema = z.object({
       "C",
       "D",
     ])
+    .nullable()
     .optional(),
 
   estimatedPrice: z.coerce

@@ -26,6 +26,20 @@ import {
     Download,
     Info,
     Images,
+    Camera,
+    Volume2,
+    Mic,
+    Power,
+    Hand,
+    Wifi,
+    Bluetooth,
+    Fingerprint,
+    Radio,
+    Package,
+    CalendarDays,
+    Save,
+    Check,
+     Headphones,
 } from "lucide-react";
 
 type OrderStatus =
@@ -39,6 +53,7 @@ type OrderStatus =
 
 type Order = {
     backendId: string;
+    deviceBackendId: string;
     rawStatus: string;
     id: string;
     customer: string;
@@ -226,6 +241,7 @@ const mapApiOrder = (source: ApiOrder): Order => {
 
     return {
         backendId: String(source._id ?? source.id ?? ""),
+        deviceBackendId: String(device._id ?? device.id ?? ""),
         rawStatus,
         id: asText(source.orderNumber, String(source._id ?? "Order")),
         customer: asText(customer.fullName),
@@ -373,6 +389,15 @@ function DetailSection({
     );
 }
 
+function InfoField({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="flex items-center justify-between gap-3 border-b border-stone-100 pb-2 last:border-b-0">
+            <span className="text-[10px] text-stone-500">{label}</span>
+            <span className="break-words text-right text-[10px] font-medium text-stone-700">{value || "—"}</span>
+        </div>
+    );
+}
+
 function DetailRow({ label, value }: { label: string; value: string }) {
     return (
         <div className="flex flex-col gap-1 border-b border-stone-100 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
@@ -395,6 +420,23 @@ export default function Orders() {
     const [isSaving, setIsSaving] = useState(false);
     const [loadError, setLoadError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
+    const [inspectionRecord, setInspectionRecord] = useState<any | null>(null);
+    const [inspectionLoading, setInspectionLoading] = useState(false);
+    const [inspectionSaving, setInspectionSaving] = useState(false);
+    const [inspectionLoadError, setInspectionLoadError] = useState("");
+    const [inspectionMessage, setInspectionMessage] = useState("");
+    const [inspectionStep, setInspectionStep] = useState("Functional Check");
+    const [inspectionForm, setInspectionForm] = useState<any>({
+        screenCondition: "",
+        bodyCondition: "",
+        batteryHealth: "",
+        functionalTests: { camera: null, speaker: null, microphone: null, buttons: null, touchScreen: null, wifi: null, bluetooth: null, faceId: null, fingerprint: null, chargingPort: null, network: null, vibration: null, gps: null },
+        accessories: { charger: false, cable: false, box: false, bill: false, simEjector: false },
+        repairHistory: { repaired: false, remarks: "" },
+        overallGrade: "",
+        estimatedPrice: "",
+        remarks: "",
+    });
 
     const fetchOrders = useCallback(async () => {
         setIsLoading(true);
@@ -434,6 +476,159 @@ export default function Orders() {
     }, [fetchOrders]);
 
     const selectedOrder = orders.find((order) => order.id === selectedOrderId);
+
+    const hydrateInspectionForm = (record: any) => {
+        setInspectionForm({
+            screenCondition: record?.screenCondition ?? "",
+            bodyCondition: record?.bodyCondition ?? "",
+            batteryHealth: record?.batteryHealth ?? "",
+            functionalTests: {
+                camera: record?.functionalTests?.camera ?? null,
+                speaker: record?.functionalTests?.speaker ?? null,
+                microphone: record?.functionalTests?.microphone ?? null,
+                buttons: record?.functionalTests?.buttons ?? null,
+                touchScreen: record?.functionalTests?.touchScreen ?? null,
+                wifi: record?.functionalTests?.wifi ?? null,
+                bluetooth: record?.functionalTests?.bluetooth ?? null,
+                faceId: record?.functionalTests?.faceId ?? null,
+                fingerprint: record?.functionalTests?.fingerprint ?? null,
+                chargingPort: record?.functionalTests?.chargingPort ?? null,
+                network: record?.functionalTests?.network ?? null,
+                vibration: record?.functionalTests?.vibration ?? null,
+                gps: record?.functionalTests?.gps ?? null,
+            },
+            accessories: {
+                charger: Boolean(record?.accessories?.charger),
+                cable: Boolean(record?.accessories?.cable),
+                box: Boolean(record?.accessories?.box),
+                bill: Boolean(record?.accessories?.bill),
+                simEjector: Boolean(record?.accessories?.simEjector),
+            },
+            repairHistory: {
+                repaired: Boolean(record?.repairHistory?.repaired),
+                remarks: record?.repairHistory?.remarks ?? "",
+            },
+            overallGrade: record?.overallGrade ?? "",
+            estimatedPrice: record?.estimatedPrice ?? "",
+            remarks: record?.remarks ?? "",
+        });
+    };
+
+    const loadInspection = useCallback(async () => {
+        if (!selectedOrder) return;
+        setInspectionLoading(true);
+        setInspectionLoadError("");
+        setInspectionMessage("");
+        try {
+            const response = await api.get("/admin/inspections", { params: { page: 1, limit: 100 } });
+            const payload = response.data?.data;
+            const records = Array.isArray(payload?.inspections) ? payload.inspections : Array.isArray(payload) ? payload : [];
+            const found = records.find((item: any) => String(item?.order?._id ?? item?.order ?? "") === selectedOrder.backendId);
+            setInspectionRecord(found ?? null);
+            if (found) hydrateInspectionForm(found);
+            else hydrateInspectionForm(null);
+        } catch (error: any) {
+            setInspectionLoadError(error?.response?.data?.message || error?.message || "Unable to load inspection details.");
+        } finally {
+            setInspectionLoading(false);
+        }
+    }, [selectedOrder?.backendId]);
+
+    useEffect(() => {
+        if (activeTab === "Inspection" && selectedOrder) void loadInspection();
+    }, [activeTab, selectedOrder?.backendId, loadInspection]);
+
+    const startInspection = async () => {
+        if (!selectedOrder) return;
+        if (!selectedOrder.deviceBackendId) {
+            setInspectionLoadError("This order does not have a linked device ID, so an inspection cannot be started.");
+            return;
+        }
+        setInspectionSaving(true);
+        setInspectionLoadError("");
+        setInspectionMessage("");
+        try {
+            const response = await api.post("/admin/inspections", {
+                order: selectedOrder.backendId,
+                device: selectedOrder.deviceBackendId,
+            });
+            const created = response.data?.data;
+            setInspectionRecord(created);
+            hydrateInspectionForm(created);
+            await fetchOrders();
+            setInspectionMessage("Inspection started. Enter the actual device test results and save them.");
+        } catch (error: any) {
+            setInspectionLoadError(error?.response?.data?.message || error?.message || "Unable to start inspection.");
+        } finally {
+            setInspectionSaving(false);
+        }
+    };
+
+    const saveInspection = async () => {
+        if (!inspectionRecord?._id) return;
+        setInspectionSaving(true);
+        setInspectionLoadError("");
+        setInspectionMessage("");
+        const functionalTests = Object.fromEntries(Object.entries(inspectionForm.functionalTests).filter(([, value]) => typeof value === "boolean"));
+        try {
+            const response = await api.patch(`/admin/inspections/${inspectionRecord._id}`, {
+                ...(inspectionForm.screenCondition ? { screenCondition: inspectionForm.screenCondition } : {}),
+                ...(inspectionForm.bodyCondition ? { bodyCondition: inspectionForm.bodyCondition } : {}),
+                ...(inspectionForm.batteryHealth !== "" ? { batteryHealth: Number(inspectionForm.batteryHealth) } : {}),
+                functionalTests,
+                accessories: inspectionForm.accessories,
+                repairHistory: inspectionForm.repairHistory,
+                ...(inspectionForm.overallGrade ? { overallGrade: inspectionForm.overallGrade } : {}),
+                ...(inspectionForm.estimatedPrice !== "" ? { estimatedPrice: Number(inspectionForm.estimatedPrice) } : {}),
+                remarks: inspectionForm.remarks,
+            });
+            const updated = response.data?.data;
+            if (updated) setInspectionRecord(updated);
+            setInspectionMessage("Inspection details saved successfully.");
+            await fetchOrders();
+        } catch (error: any) {
+            setInspectionLoadError(error?.response?.data?.message || error?.message || "Unable to save inspection details.");
+        } finally {
+            setInspectionSaving(false);
+        }
+    };
+
+    const completeInspection = async () => {
+        if (!inspectionRecord?._id) return;
+        setInspectionSaving(true);
+        setInspectionLoadError("");
+        setInspectionMessage("");
+        try {
+            await api.patch(`/admin/inspections/${inspectionRecord._id}/complete`, {});
+            setInspectionMessage("Inspection completed. It is now awaiting admin approval.");
+            await loadInspection();
+            await fetchOrders();
+        } catch (error: any) {
+            setInspectionLoadError(error?.response?.data?.message || error?.message || "Unable to complete inspection. Please fill all required fields.");
+        } finally {
+            setInspectionSaving(false);
+        }
+    };
+
+    const updateInspectionDecision = async (status: "approved" | "rejected") => {
+        if (!inspectionRecord?._id) return;
+        const reason = status === "rejected" ? window.prompt("Please enter the reason for rejecting this inspection:")?.trim() : undefined;
+        if (status === "rejected" && !reason) return;
+        setInspectionSaving(true);
+        setInspectionLoadError("");
+        setInspectionMessage("");
+        try {
+            const response = await api.patch(`/admin/inspections/${inspectionRecord._id}/status`, { status, ...(reason ? { reason } : {}) });
+            setInspectionRecord(response.data?.data ?? inspectionRecord);
+            setInspectionMessage(status === "approved" ? "Inspection approved successfully." : "Inspection rejected.");
+            await loadInspection();
+            await fetchOrders();
+        } catch (error: any) {
+            setInspectionLoadError(error?.response?.data?.message || error?.message || "Unable to update inspection status.");
+        } finally {
+            setInspectionSaving(false);
+        }
+    };
 
     const filteredOrders = useMemo(() => {
         const query = search.trim().toLowerCase();
@@ -579,7 +774,7 @@ export default function Orders() {
                                     <p className="text-xs font-medium text-stone-500">Pickup Status</p>
                                     <div className="mt-2"><StatusBadge status={order.status} /></div>
                                 </div>
-                                
+
                             </DetailSection>
 
                             <DetailSection title="Status & Progress">
@@ -655,9 +850,9 @@ export default function Orders() {
                                         const normalizedTitle = item.title.toLowerCase();
                                         const category = normalizedTitle.includes("payment") ? "Payment"
                                             : normalizedTitle.includes("pickup") ? "Pickup"
-                                            : normalizedTitle.includes("inspection") ? "Inspection"
-                                            : normalizedTitle.includes("agent") || normalizedTitle.includes("assign") ? "Assignment"
-                                            : "Order";
+                                                : normalizedTitle.includes("inspection") ? "Inspection"
+                                                    : normalizedTitle.includes("agent") || normalizedTitle.includes("assign") ? "Assignment"
+                                                        : "Order";
 
                                         return (
                                             <div key={`${item.title}-${index}`} className="relative flex gap-2.5 pb-3 last:pb-0">
@@ -1160,229 +1355,387 @@ export default function Orders() {
                         </section>
                     </div>
                 );
-            case "Inspection":
+            case "Inspection": {
+                const inspectionStatus = String(inspectionRecord?.status ?? selectedOrder?.inspectionStatus ?? "pending").toLowerCase();
+                const isEditable = inspectionStatus === "in_progress";
+                const functionalLabels: Array<{ key: string; label: string; detail: string; Icon: any }> = [
+                    { key: "camera", label: "Camera", detail: "Front & Back", Icon: Camera },
+                    { key: "speaker", label: "Speaker", detail: "Sound Output", Icon: Volume2 },
+                    { key: "microphone", label: "Microphone", detail: "Mic Input", Icon: Mic },
+                    { key: "buttons", label: "Buttons", detail: "All Physical Buttons", Icon: Power },
+                    { key: "touchScreen", label: "Touch Screen", detail: "Touch Response", Icon: Hand },
+                    { key: "wifi", label: "Wi-Fi", detail: "Wi-Fi Connection", Icon: Wifi },
+                    { key: "bluetooth", label: "Bluetooth", detail: "Connection", Icon: Bluetooth },
+                    { key: "faceId", label: "Fingerprint/FaceID", detail: "Biometric Function", Icon: ScanFace },
+                    { key: "chargingPort", label: "Charging Port", detail: "Charging Function", Icon: BatteryCharging },
+                    { key: "network", label: "SIM & Network", detail: "Network & SIM", Icon: Radio },
+                    { key: "vibration", label: "Vibration", detail: "Vibration Feedback", Icon: Smartphone },
+                    { key: "gps", label: "GPS", detail: "Location Accuracy", Icon: Monitor },
+                ];
+                const accessoryLabels: Array<{ key: string; label: string; detail: string; Icon: any }> = [
+                    { key: "charger", label: "Original Charger", detail: "Charging adapter", Icon: BatteryCharging },
+                    { key: "cable", label: "Cable", detail: "Charging cable", Icon: Power },
+                    { key: "box", label: "Original Box", detail: "Device box", Icon: Package },
+                    { key: "bill", label: "Bill / Invoice", detail: "Purchase invoice", Icon: ReceiptText },
+                    { key: "simEjector", label: "SIM Ejector", detail: "SIM tray tool", Icon: Smartphone },
+                ];
+                const steps = ["Basic Information", "Physical Condition", "Display", "Functional Check", "Accessories", "Warranty Status", "Overall Condition", "Add to Inventory"];
+                const stepIndex = steps.indexOf(inspectionStep);
+                const done = (step: string) => {
+                    if (step === "Basic Information") return Boolean(selectedOrder?.device && selectedOrder?.customer);
+                    if (step === "Physical Condition") return Boolean(inspectionForm.bodyCondition && inspectionForm.batteryHealth !== "");
+                    if (step === "Display") return Boolean(inspectionForm.screenCondition);
+                    if (step === "Functional Check") return Object.values(inspectionForm.functionalTests).some((v) => typeof v === "boolean");
+                    if (step === "Accessories") return true;
+                    if (step === "Overall Condition") return Boolean(inspectionForm.overallGrade && inspectionForm.estimatedPrice !== "");
+                    if (step === "Add to Inventory") return inspectionStatus === "approved";
+                    return false;
+                };
+                const selectClass = "mt-1 h-9 w-full rounded-md border border-stone-200 bg-white px-3 text-xs text-stone-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 disabled:bg-stone-50 disabled:text-stone-400";
+                const inputClass = "mt-1 h-9 w-full rounded-md border border-stone-200 bg-white px-3 text-xs text-stone-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 disabled:bg-stone-50 disabled:text-stone-400";
+                const functionalResult = (value: any) => value === true ? "Good" : value === false ? "Issue" : "Not tested";
                 return (
-                    <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[0.8fr_2fr_1fr]">
-                        {/* Inspection Progress */}
-                        <DetailSection title="Inspection Progress">
-                            <p className="mb-4 text-xs text-stone-500">
-                                Complete all checks before adding to inventory.
-                            </p>
-
-                            <div className="relative space-y-1">
-                                {[
-                                    { label: "Basic Information", state: "done" },
-                                    { label: "Physical Condition", state: "done" },
-                                    { label: "Display", state: "done" },
-                                    { label: "Functional Check", state: "current" },
-                                    { label: "Accessories", state: "pending" },
-                                    { label: "Warranty Status", state: "pending" },
-                                    { label: "Overall Condition", state: "pending" },
-                                    { label: "Add to Inventory", state: "pending" },
-                                ].map((step, index, steps) => (
-                                    <div
-                                        key={step.label}
-                                        className="relative flex min-h-[39px] items-start gap-3"
-                                    >
-                                        {index !== steps.length - 1 && (
-                                            <span className="absolute left-[7px] top-4 h-full w-px bg-stone-200" />
-                                        )}
-
-                                        <span
-                                            className={`relative z-10 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full border ${step.state === "done"
-                                                ? "border-emerald-500 bg-emerald-500 text-white"
-                                                : step.state === "current"
-                                                    ? "border-orange-500 bg-orange-500 text-white"
-                                                    : "border-stone-300 bg-white text-stone-400"
-                                                }`}
-                                        >
-                                            {step.state === "done" ? (
-                                                <CheckCircle2 size={12} />
-                                            ) : step.state === "current" ? (
-                                                <span className="text-[10px] font-bold">−</span>
-                                            ) : null}
-                                        </span>
-
-                                        <span
-                                            className={`text-xs leading-4 ${step.state === "current"
-                                                ? "font-semibold text-stone-800"
-                                                : step.state === "done"
-                                                    ? "text-stone-600"
-                                                    : "text-stone-400"
-                                                }`}
-                                        >
-                                            {step.label}
-                                        </span>
-                                    </div>
-                                ))}
+                    <div className="-mx-1 flex min-h-[304px] flex-col overflow-hidden bg-[#f8f8f7]">
+                        {inspectionLoadError && <div className="mx-3 mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{inspectionLoadError}</div>}
+                        {inspectionMessage && <div className="mx-3 mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{inspectionMessage}</div>}
+                        {inspectionLoading ? (
+                            <div className="flex min-h-[304px] items-center justify-center text-sm text-stone-500">Loading inspection details…</div>
+                        ) : !inspectionRecord ? (
+                            <div className="flex min-h-[304px] flex-col items-center justify-center px-6 text-center">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-50 text-orange-500"><ClipboardCheck size={24} /></div>
+                                <h3 className="mt-3 text-sm font-semibold text-stone-900">No inspection record yet</h3>
+                                <p className="mt-1 max-w-md text-xs leading-5 text-stone-500">Start inspection after the device has been received at the store. The results will be saved against this order.</p>
+                                {selectedOrder?.rawStatus === "inspection_pending" ? (
+                                    <button type="button" disabled={inspectionSaving} onClick={() => void startInspection()} className="mt-4 inline-flex h-9 items-center gap-2 rounded-md bg-orange-500 px-4 text-xs font-semibold text-white hover:bg-orange-600 disabled:opacity-60">{inspectionSaving ? "Starting…" : "Start Inspection"}</button>
+                                ) : <p className="mt-3 text-xs text-stone-500">Current order status: {selectedOrder?.rawStatus?.replaceAll("_", " ") ?? "—"}</p>}
                             </div>
-                        </DetailSection>
+                        ) : (
+                            <>
+                                <div className="grid min-h-[304px] grid-cols-1 gap-2 p-2 md:grid-cols-[196px_minmax(0,1fr)_220px]">
 
-                        {/* Functional Checks */}
-                        <DetailSection title="Functional Checks">
-                            <p className="mb-4 text-xs text-stone-500">
-                                Test all key features to ensure the device is fully operational.
-                            </p>
+                                    {/* Left progress rail */}
+                                    <section className="rounded-lg border border-stone-200 bg-white p-4">
+                                        <h3 className="text-base font-semibold text-stone-900">
+                                            Inspection Progress
+                                        </h3>
 
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                                {[
-                                    { label: "Camera", detail: "Front & Back", Icon: Smartphone },
-                                    { label: "Speaker", detail: "Sound Output", Icon: Monitor },
-                                    { label: "Microphone", detail: "Mic Input", Icon: Smartphone },
-                                    { label: "Buttons", detail: "All Physical Buttons", Icon: CheckCircle2 },
-                                    { label: "Touch Screen", detail: "Touch Response", Icon: Smartphone },
-                                    { label: "Wi-Fi", detail: "Wi-Fi Connection", Icon: Clock3 },
-                                    { label: "Bluetooth", detail: "Connection", Icon: Smartphone },
-                                    { label: "Fingerprint/FaceID", detail: "Biometric Function", Icon: CheckCircle2 },
-                                    { label: "Charging Port", detail: "Charging Function", Icon: BatteryCharging },
-                                    { label: "SIM & Network", detail: "Network & SIM", Icon: Smartphone },
-                                    { label: "Vibration", detail: "Vibration Feedback", Icon: Smartphone },
-                                    { label: "GPS", detail: "Location Accuracy", Icon: Clock3 },
-                                ].map(({ label, detail, Icon }) => (
-                                    <div
-                                        key={label}
-                                        className="flex min-w-0 items-center gap-2 rounded-md border border-stone-200 bg-white p-2"
-                                    >
-                                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone-50 text-stone-600">
-                                            <Icon size={15} strokeWidth={1.8} />
-                                        </span>
+                                        <p className="mt-1 text-xs leading-5 text-stone-500">
+                                            Complete all checks before adding to inventory.
+                                        </p>
 
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-[11px] font-semibold text-stone-700">
-                                                {label}
-                                            </p>
-                                            <p className="truncate text-[10px] text-stone-400">
-                                                {detail}
-                                            </p>
+                                        <div className="relative mt-4">
+                                            {/* Vertical timeline connector */}
+                                            <div className="absolute left-[12px] top-[9px] h-[308px] w-px bg-stone-200" />
+
+                                            {steps.map((step, index) => {
+                                                const active = inspectionStep === step;
+                                                const complete =
+                                                    !active &&
+                                                    index < steps.indexOf(inspectionStep) &&
+                                                    done(step);
+
+                                                return (
+                                                    <button
+                                                        key={step}
+                                                        type="button"
+                                                        onClick={() => setInspectionStep(step)}
+                                                        className={`relative flex h-[44px] w-full items-center gap-3 rounded-md px-1 text-left transition ${active
+                                                            ? "text-orange-600"
+                                                            : "text-stone-600 hover:bg-stone-50"
+                                                            }`}
+                                                    >
+                                                        {/* Progress circle */}
+                                                        <span
+                                                            className={`relative z-10 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border ${complete
+                                                                ? "border-emerald-500 bg-emerald-500 text-white"
+                                                                : active
+                                                                    ? "border-orange-500 bg-orange-500 text-white"
+                                                                    : "border-stone-300 bg-white"
+                                                                }`}
+                                                        >
+                                                            {complete ? (
+                                                                <Check size={12} strokeWidth={3} />
+                                                            ) : active ? (
+                                                                <span className="h-[2px] w-[8px] rounded-full bg-white" />
+                                                            ) : null}
+                                                        </span>
+
+                                                        {/* Step label */}
+                                                        <span
+                                                            className={`text-xs leading-5 ${active ? "font-semibold" : "font-normal"
+                                                                }`}
+                                                        >
+                                                            {step}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
+                                    </section>
 
-                                        <select
-                                            defaultValue="Good"
-                                            aria-label={`${label} status`}
-                                            className="h-6 max-w-[76px] rounded-md border border-emerald-100 bg-emerald-50 px-1 text-[10px] font-medium text-emerald-700 outline-none focus:border-orange-400"
-                                        >
-                                            <option value="Good">Good</option>
-                                            <option value="Fair">Fair</option>
-                                            <option value="Faulty">Faulty</option>
-                                            <option value="Not Tested">Not Tested</option>
-                                        </select>
-                                    </div>
-                                ))}
-                            </div>
+                                    {/* Center active inspection step */}
+                                    <section className="min-w-0 rounded-[10px] border border-stone-200 bg-white p-3.5">
+                                        {inspectionStep === "Functional Check" ? (
+                                            <>
+                                                <h3 className="text-[14px] font-semibold text-stone-900">
+                                                    Functional Checks
+                                                </h3>
 
-                            <label className="mt-4 block">
-                                <span className="mb-2 block text-xs font-medium text-stone-600">
-                                    Remarks (Optional)
-                                </span>
-                                <textarea
-                                    rows={3}
-                                    defaultValue=""
-                                    placeholder="Add any notes about functional checks..."
-                                    className="w-full resize-y rounded-lg border border-stone-200 px-3 py-3 text-xs text-stone-700 outline-none placeholder:text-stone-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-                                />
-                            </label>
-                        </DetailSection>
+                                                <p className="mt-1 text-[10px] leading-[14px] text-stone-500">
+                                                    Test all key features to ensure device is fully operational.
+                                                </p>
 
-                        {/* Accessories and Warranty */}
-                        <div className="flex flex-col gap-3">
-                            <DetailSection title="Accessories Check">
-                                <p className="mb-3 text-xs text-stone-500">
-                                    Verify all accessories received with the device.
-                                </p>
+                                                <div className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                                                    {functionalLabels.map(({ key, label, detail, Icon }) => {
+                                                        const value = inspectionForm.functionalTests[key];
 
-                                <div className="space-y-2">
-                                    {[
-                                        { label: "Original Charger / Cable", detail: "Charging cable and adapter", checked: true },
-                                        { label: "Earphones", detail: "Original earphones", checked: true },
-                                        { label: "Original Box", detail: "Device box", checked: false },
-                                        { label: "Bill / Invoice", detail: "Purchase invoice", checked: false },
-                                    ].map((item) => (
-                                        <label
-                                            key={item.label}
-                                            className="flex cursor-pointer items-center gap-2 rounded-md border border-stone-200 px-2.5 py-2 transition hover:border-orange-200"
-                                        >
-                                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone-50 text-stone-600">
-                                                <PackageCheck size={15} />
-                                            </span>
+                                                        return (
+                                                            <div
+                                                                key={key}
+                                                                className="flex min-w-0 items-center gap-2 rounded-[7px] border border-stone-200 bg-white px-2.5 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.025)]"
+                                                            >
+                                                                <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-md bg-stone-50 text-stone-600">
+                                                                    <Icon size={15} strokeWidth={1.8} />
+                                                                </span>
 
-                                            <span className="min-w-0 flex-1">
-                                                <span className="block text-[11px] font-semibold text-stone-700">
-                                                    {item.label}
-                                                </span>
-                                                <span className="block text-[10px] text-stone-400">
-                                                    {item.detail}
-                                                </span>
-                                            </span>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="truncate text-[11px] font-semibold leading-4 text-stone-700">
+                                                                        {label}
+                                                                    </p>
+                                                                    <p className="truncate text-[9px] leading-3.5 text-stone-400">
+                                                                        {detail}
+                                                                    </p>
+                                                                </div>
 
-                                            <input
-                                                type="checkbox"
-                                                defaultChecked={item.checked}
-                                                className="h-3.5 w-3.5 shrink-0 accent-orange-500"
-                                            />
-                                        </label>
-                                    ))}
+                                                                <div className="relative h-[36px] w-[112px] shrink-0">
+                                                                    <select
+                                                                        aria-label={`${label} result`}
+                                                                        disabled={!isEditable}
+                                                                        value={
+                                                                            value === null || value === undefined
+                                                                                ? ""
+                                                                                : String(value)
+                                                                        }
+                                                                        onChange={(e) =>
+                                                                            setInspectionForm((f: any) => ({
+                                                                                ...f,
+                                                                                functionalTests: {
+                                                                                    ...f.functionalTests,
+                                                                                    [key]:
+                                                                                        e.target.value === ""
+                                                                                            ? null
+                                                                                            : e.target.value === "true",
+                                                                                },
+                                                                            }))
+                                                                        }
+                                                                        className={`h-full w-full appearance-none cursor-pointer rounded-md border pl-3 pr-8 text-[13px] font-medium leading-none outline-none transition ${value === true
+                                                                                ? "border-emerald-200 bg-emerald-50 text-emerald-700 focus:ring-2 focus:ring-emerald-100"
+                                                                                : value === false
+                                                                                    ? "border-red-200 bg-red-50 text-red-700 focus:ring-2 focus:ring-red-100"
+                                                                                    : "border-stone-200 bg-white text-stone-600 focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                                                                            }`}
+                                                                    >
+                                                                        <option value="">Pending</option>
+                                                                        <option value="true">Good</option>
+                                                                        <option value="false">Issue</option>
+                                                                    </select>
+
+                                                                    <svg
+                                                                        aria-hidden="true"
+                                                                        className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-current"
+                                                                        viewBox="0 0 20 20"
+                                                                        fill="none"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth="1.8"
+                                                                    >
+                                                                        <path
+                                                                            d="m5 7.5 5 5 5-5"
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                        />
+                                                                    </svg>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                <label className="mt-3 block text-[11px] font-medium text-stone-700">
+                                                    Remarks{" "}
+                                                    <span className="font-normal text-stone-400">(Optional)</span>
+
+                                                    <textarea
+                                                        rows={2}
+                                                        disabled={!isEditable}
+                                                        value={inspectionForm.remarks}
+                                                        onChange={(e) =>
+                                                            setInspectionForm((f: any) => ({
+                                                                ...f,
+                                                                remarks: e.target.value,
+                                                            }))
+                                                        }
+                                                        className="mt-1.5 w-full resize-none rounded-md border border-stone-200 bg-white px-3 py-2.5 text-[11px] font-normal text-stone-700 outline-none placeholder:text-stone-400 transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100 disabled:bg-stone-50"
+                                                        placeholder="Add any notes about functional checks…"
+                                                    />
+                                                </label>
+                                            </>
+                                        ) : inspectionStep === "Basic Information" ? (
+                                            <>
+                                                {/* Keep your existing Basic Information block here */}
+                                            </>
+                                        ) : inspectionStep === "Physical Condition" ? (
+                                            <>
+                                                {/* Keep your existing Physical Condition block here */}
+                                            </>
+                                        ) : inspectionStep === "Display" ? (
+                                            <>
+                                                {/* Keep your existing Display block here */}
+                                            </>
+                                        ) : inspectionStep === "Accessories" ? (
+                                            <>
+                                                {/* Keep your existing Accessories block here */}
+                                            </>
+                                        ) : inspectionStep === "Warranty Status" ? (
+                                            <>
+                                                {/* Keep your existing Warranty Status block here */}
+                                            </>
+                                        ) : inspectionStep === "Overall Condition" ? (
+                                            <>
+                                                {/* Keep your existing Overall Condition block here */}
+                                            </>
+                                        ) : (
+                                            <>
+                                                {/* Keep your existing Add to Inventory block here */}
+                                            </>
+                                        )}
+                                    </section>
+
+                                    {/* Right rail */}
+                                    <div className="flex flex-col gap-2">
+{/* Accessories Check */}
+<section className="rounded-[10px] border border-stone-200 bg-white p-2.5">
+    <h3 className="text-[13px] font-semibold leading-5 text-stone-900">
+        Accessories Check
+    </h3>
+
+    <p className="mt-1 text-[10px] leading-[14px] text-stone-500">
+        Verify all accessories received with the device.
+    </p>
+
+    <div className="mt-2 space-y-1">
+        {[
+            {
+                key: "chargerCable",
+                label: "Original Charger / Cable",
+                detail: "Charging cable and adapter",
+                Icon: BatteryCharging,
+                checked: Boolean(
+                    inspectionForm.accessories.charger &&
+                    inspectionForm.accessories.cable
+                ),
+            },
+            {
+                key: "earphones",
+                label: "Earphones",
+                detail: "Original earphones",
+                Icon: Headphones,
+                checked: Boolean(inspectionForm.accessories.earphones),
+            },
+            {
+                key: "box",
+                label: "Original Box",
+                detail: "Device box",
+                Icon: Package,
+                checked: Boolean(inspectionForm.accessories.box),
+            },
+            {
+                key: "bill",
+                label: "Bill / Invoice",
+                detail: "Purchase invoice",
+                Icon: ReceiptText,
+                checked: Boolean(inspectionForm.accessories.bill),
+            },
+        ].map((item) => {
+            const { Icon } = item;
+
+            return (
+                <label
+                    key={item.key}
+                    className={`flex min-h-[35px] items-center gap-2 rounded-md border border-stone-200 px-2 py-1.5 transition ${
+                        isEditable
+                            ? "cursor-pointer hover:border-orange-200"
+                            : "cursor-not-allowed"
+                    }`}
+                >
+                    {/* Accessory icon */}
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center text-stone-600">
+                        <Icon size={13} strokeWidth={1.6} />
+                    </span>
+
+                    {/* Accessory details */}
+                    <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[10px] font-medium leading-[14px] text-stone-800">
+                            {item.label}
+                        </span>
+                        <span className="block truncate text-[9px] leading-3 text-stone-400">
+                            {item.detail}
+                        </span>
+                    </span>
+
+                    {/* Custom checkbox with white tick */}
+                    <input
+                        type="checkbox"
+                        disabled={!isEditable}
+                        checked={item.checked}
+                        onChange={(e) => {
+                            const checked = e.target.checked;
+
+                            setInspectionForm((f: any) => ({
+                                ...f,
+                                accessories:
+                                    item.key === "chargerCable"
+                                        ? {
+                                              ...f.accessories,
+                                              charger: checked,
+                                              cable: checked,
+                                          }
+                                        : {
+                                              ...f.accessories,
+                                              [item.key]: checked,
+                                          },
+                            }));
+                        }}
+                        className="h-3.5 w-3.5 shrink-0 cursor-pointer appearance-none rounded-[3px] border border-stone-300 bg-white checked:border-orange-500 checked:bg-orange-500 checked:bg-[length:10px_10px] checked:bg-center checked:bg-no-repeat checked:[background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22none%22%3E%3Cpath d=%22m3 8 3 3 7-7%22 stroke=%22white%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E')] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400 disabled:cursor-not-allowed"
+                    />
+                </label>
+            );
+        })}
+    </div>
+</section>
+
+    {/* Warranty Status */}
+    <section className="rounded-[10px] border border-stone-200 bg-white p-2.5">
+        <h3 className="text-[13px] font-semibold leading-5 text-stone-900">
+            Warranty Status
+        </h3>
+
+        <p className="mt-1 text-[10px] leading-[14px] text-stone-500">
+            Check device warranty information.
+        </p>
+
+        <div className="mt-2 space-y-1">
+            <InfoField label="Warranty Status" value="—" />
+            <InfoField label="Warranty Type" value="—" />
+            <InfoField label="Valid Until" value="—" />
+        </div>
+    </section>
+</div>
                                 </div>
-                            </DetailSection>
-
-                            <DetailSection title="Warranty Status">
-                                <p className="mb-3 text-xs text-stone-500">
-                                    Check device warranty information.
-                                </p>
-
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <span className="text-xs text-stone-500">
-                                            Warranty Status
-                                        </span>
-                                        <span className="rounded bg-orange-50 px-2 py-1 text-[10px] font-medium text-orange-600">
-                                            In Warranty
-                                        </span>
-                                    </div>
-
-                                    <div className="flex items-center justify-between gap-2">
-                                        <span className="text-xs text-stone-500">
-                                            Warranty Type
-                                        </span>
-                                        <span className="text-right text-xs font-medium text-stone-700">
-                                            Manufacturer Warranty
-                                        </span>
-                                    </div>
-
-                                    <div className="flex items-center justify-between gap-2">
-                                        <span className="text-xs text-stone-500">
-                                            Valid Until
-                                        </span>
-                                        <span className="text-xs font-medium text-stone-700">
-                                            15-02-2027
-                                        </span>
-                                    </div>
-                                </div>
-                            </DetailSection>
-                        </div>
+                            </>
+                        )}
                     </div>
                 );
-                return (
-                    <div className="grid gap-5 xl:grid-cols-2">
-                        <DetailSection title="Inspection Summary">
-                            <DetailRow label="Inspection Status" value={order.inspectionStatus} />
-                            <DetailRow label="Device Condition" value={order.condition} />
-                            <DetailRow label="Inspection Result" value={order.inspectionStatus === "Passed" ? "Passed" : "Awaiting completion"} />
-                            <DetailRow label="Inspector" value={order.agent} />
-                        </DetailSection>
-                        <DetailSection title="Inspection Checklist">
-                            {["Display and touch", "Battery health", "Camera and audio", "Buttons and connectivity", "Physical condition"].map((item, index) => (
-                                <div key={item} className="flex items-center justify-between gap-3 border-b border-stone-100 py-3 last:border-0">
-                                    <span className="text-sm text-stone-600">{item}</span>
-                                    {order.inspectionStatus === "Passed" ? (
-                                        <CheckCircle2 size={18} className="text-emerald-600" />
-                                    ) : (
-                                        <span className="text-xs text-stone-400">{index === 0 && order.inspectionStatus === "In Progress" ? "In progress" : "Pending"}</span>
-                                    )}
-                                </div>
-                            ))}
-                        </DetailSection>
-                    </div>
-                );
+            }
 
             case "Documents":
                 return (
@@ -1681,7 +2034,7 @@ export default function Orders() {
                                             <PackageCheck size={13} className="text-blue-500" />
                                         </span>
                                     </div>
-                                    <DetailRow label="Availability" value={order.status === "Completed" ? "In Stock" : "Pending" } />
+                                    <DetailRow label="Availability" value={order.status === "Completed" ? "In Stock" : "Pending"} />
                                     <DetailRow label="Added to Inventory" value={order.status === "Completed" ? "21-06-2026 11:30 AM" : "Not added yet"} />
                                     <DetailRow label="IMEI Number" value={order.imei} />
                                     <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-purple-50/70 px-3 py-3">
@@ -1822,13 +2175,12 @@ export default function Orders() {
                             <div className="flex flex-wrap items-center gap-2.5">
                                 <h1 className="text-xl font-bold tracking-tight text-stone-700 sm:text-2xl">{selectedOrder.id}</h1>
                                 <button type="button" onClick={() => navigator.clipboard?.writeText(selectedOrder.id)} aria-label="Copy order ID" title="Copy order ID" className="rounded p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700"><FileText size={15} /></button>
-                                <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium ${
-                                    ["paid", "completed", "success", "succeeded"].includes(selectedOrder.paymentStatus.toLowerCase())
-                                        ? "bg-emerald-100 text-emerald-700"
-                                        : ["", "—", "not started", "not_started", "not initiated"].includes(selectedOrder.paymentStatus.toLowerCase())
-                                            ? "bg-stone-100 text-stone-500"
-                                            : "bg-orange-100 text-orange-600"
-                                }`}>
+                                <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium ${["paid", "completed", "success", "succeeded"].includes(selectedOrder.paymentStatus.toLowerCase())
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : ["", "—", "not started", "not_started", "not initiated"].includes(selectedOrder.paymentStatus.toLowerCase())
+                                        ? "bg-stone-100 text-stone-500"
+                                        : "bg-orange-100 text-orange-600"
+                                    }`}>
                                     <Wallet size={14} />
                                     {["paid", "completed", "success", "succeeded"].includes(selectedOrder.paymentStatus.toLowerCase())
                                         ? "Payment Completed"
@@ -1836,13 +2188,12 @@ export default function Orders() {
                                             ? "Payment Not Started"
                                             : "Payment Pending"}
                                 </span>
-                                <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium ${
-                                    ["passed", "completed", "approved", "done"].includes(selectedOrder.inspectionStatus.toLowerCase().replace(/[_-]/g, " "))
-                                        ? "bg-emerald-100 text-emerald-700"
-                                        : ["", "—", "not started", "pending setup", "not initiated"].includes(selectedOrder.inspectionStatus.toLowerCase().replace(/[_-]/g, " "))
-                                            ? "bg-stone-100 text-stone-500"
-                                            : "bg-orange-100 text-orange-600"
-                                }`}>
+                                <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium ${["passed", "completed", "approved", "done"].includes(selectedOrder.inspectionStatus.toLowerCase().replace(/[_-]/g, " "))
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : ["", "—", "not started", "pending setup", "not initiated"].includes(selectedOrder.inspectionStatus.toLowerCase().replace(/[_-]/g, " "))
+                                        ? "bg-stone-100 text-stone-500"
+                                        : "bg-orange-100 text-orange-600"
+                                    }`}>
                                     <ClipboardCheck size={14} />
                                     {["passed", "completed", "approved", "done"].includes(selectedOrder.inspectionStatus.toLowerCase().replace(/[_-]/g, " "))
                                         ? "Inspection Completed"
@@ -1922,6 +2273,10 @@ export default function Orders() {
                             <button
                                 type="button"
                                 onClick={async () => {
+                                    if (activeTab === "Inspection") {
+                                        await saveInspection();
+                                        return;
+                                    }
                                     await fetchOrders();
                                     setSelectedOrderId(null);
                                     setActiveTab("Overview");
