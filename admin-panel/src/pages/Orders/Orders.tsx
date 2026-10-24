@@ -386,7 +386,7 @@ export default function Orders() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("All");
-    const [dateFilter, setDateFilter] = useState("All time");
+    const [dateFilter] = useState("All time");
     const [page, setPage] = useState(1);
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState("Overview");
