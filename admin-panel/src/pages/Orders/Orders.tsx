@@ -25,6 +25,7 @@ import {
     Receipt,
     Download,
     Info,
+    Images,
 } from "lucide-react";
 
 type OrderStatus =
@@ -43,12 +44,15 @@ type Order = {
     customer: string;
     phone: string;
     device: string;
+    storage: string;
+    color: string;
     variant: string;
     amount: number | null;
     dateValue: string | null;
     createdAtLabel: string;
     customerAddress: string;
     agentPhone: string;
+    purchaseInvoiceUrl: string;
     pickupDate: string;
     pickupTime: string;
     inventoryStatus: string;
@@ -63,6 +67,14 @@ type Order = {
     invoiceFileName: string | null;
     inspectionStatus: string;
     condition: string;
+    deviceInfo: Record<string, string>;
+    inspectionInfo: Record<string, string>;
+    functionalChecks: Array<{ label: string; value: string }>;
+    accessories: Array<{ label: string; value: string }>;
+    physicalConditions: Array<{ label: string; value: string }>;
+    deviceImages: Array<{ label: string; url: string }>;
+    purchaseBillUrl: string;
+    agentNotes: string;
     timeline: { title: string; date: string; completed: boolean }[];
 };
 
@@ -138,8 +150,14 @@ const mapApiOrder = (source: ApiOrder): Order => {
     const customerAddress = customer.address ?? customer.contactAddress ?? {};
     const addressText = (address: ApiOrder) => typeof address === "string"
         ? address
-        : [address?.line1, address?.line2, address?.city, address?.state, address?.pinCode ?? address?.postalCode]
-            .filter(Boolean).join(", ");
+        : [
+            address?.line1 ?? address?.addressLine1 ?? address?.street,
+            address?.line2 ?? address?.addressLine2,
+            address?.area ?? address?.locality,
+            address?.city ?? address?.district,
+            address?.state,
+            address?.pinCode ?? address?.postalCode ?? address?.pincode ?? address?.zipCode,
+        ].filter(Boolean).join(", ");
     const pickupScheduledAt = source.pickup?.scheduledAt ?? source.pickup?.scheduledDate ?? source.pickup?.date;
     const pickupSlot = source.pickup?.timeSlot ?? source.pickup?.slot ?? source.pickup?.scheduledTime;
     const location = [pickupAddress.line1, pickupAddress.city, pickupAddress.state, pickupAddress.pinCode]
@@ -157,6 +175,49 @@ const mapApiOrder = (source: ApiOrder): Order => {
     const invoiceFileName = typeof purchaseInvoice?.fileName === "string" && purchaseInvoice.fileName.trim()
         ? `INV-${purchaseInvoice.fileName.replace(/\.pdf$/i, "").replace(/^INV[-_]?/i, "")}`
         : null;
+    const inspection = source.inspection ?? {};
+    const customerEvaluation = device.customerEvaluation ?? source.customerEvaluation ?? source.device?.customerEvaluation ?? {};
+    const agentEvaluation = device.agentEvaluation ?? source.agentEvaluation ?? source.device?.agentEvaluation ?? {};
+    const stringifyValue = (value: unknown): string => {
+        if (typeof value === "boolean") return value ? "Yes" : "No";
+        if (typeof value === "number") return String(value);
+        if (typeof value === "string" && value.trim()) return value;
+        if (Array.isArray(value)) return value.length ? value.map((item) => typeof item === "string" ? item : asText(item?.label ?? item?.name ?? item?.value)).filter(Boolean).join(", ") : "No issues";
+        if (value && typeof value === "object") {
+            const record = value as ApiOrder;
+            if (typeof record.repaired === "boolean") return record.repaired ? "Repaired" : "Not repaired";
+            if (typeof record.value === "string" || typeof record.value === "number" || typeof record.value === "boolean") return stringifyValue(record.value);
+            if (typeof record.status === "string") return record.status;
+        }
+        return "—";
+    };
+    const labelValueList = (value: unknown): Array<{ label: string; value: string }> => {
+        if (Array.isArray(value)) {
+            return value.map((item: ApiOrder, index: number) => ({
+                label: asText(item?.label ?? item?.name ?? item?.key, `Item ${index + 1}`),
+                value: stringifyValue(item?.value ?? item?.status ?? item?.result ?? item?.checked),
+            }));
+        }
+        if (value && typeof value === "object") {
+            return Object.entries(value as Record<string, unknown>).map(([key, item]) => ({
+                label: key.replace(/([A-Z])/g, " $1").replace(/[_-]/g, " ").replace(/^./, (letter) => letter.toUpperCase()),
+                value: stringifyValue(item),
+            }));
+        }
+        return [];
+    };
+    const documents = Array.isArray(source.documents) ? source.documents : [];
+    const purchaseBill = documents.find((document: ApiOrder) =>
+        ["purchase_bill", "purchase_receipt", "device_purchase_bill"].includes(String(document?.type ?? "").toLowerCase()) && document?.url
+    );
+    const imageCandidates = device.images ?? device.deviceImages ?? device.photos ?? source.deviceImages ?? source.devicePhotos ?? inspection.images ?? inspection.deviceImages ?? inspection.photos ?? [];
+    const deviceImages = Array.isArray(imageCandidates) ? imageCandidates.map((image: ApiOrder, index: number) => ({
+        label: asText(image?.label ?? image?.view ?? image?.type, `Image ${index + 1}`),
+        url: typeof image === "string" ? image : asText(image?.url ?? image?.secure_url, ""),
+    })).filter((image: { label: string; url: string }) => Boolean(image.url)) : [];
+    const functionalChecks = labelValueList(agentEvaluation.functionalChecks ?? inspection.functionalChecks ?? inspection.functionalStatus ?? inspection.checks);
+    const accessories = labelValueList(customerEvaluation.accessories ?? agentEvaluation.accessories ?? inspection.accessories ?? device.accessories ?? source.accessories);
+    const physicalConditions = labelValueList(agentEvaluation.physicalCondition ?? agentEvaluation.physicalConditions ?? inspection.physicalCondition ?? inspection.physicalConditions ?? inspection.conditionDetails);
     const timeline = Array.isArray(source.timeline) ? source.timeline.map((event: ApiOrder) => ({
         title: asText(event.message, String(event.status ?? "Order update").replaceAll("_", " ")),
         date: event.createdAt ? `${formatDate(event.createdAt)}${Number.isNaN(new Date(event.createdAt).getTime()) ? "" : ` · ${new Date(event.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`}` : "—",
@@ -170,6 +231,8 @@ const mapApiOrder = (source: ApiOrder): Order => {
         customer: asText(customer.fullName),
         phone: asText(customer.phone),
         device: asText(brandModel),
+        storage: asText(device.storage),
+        color: asText(device.color ?? device.variant),
         variant: asText(variant, "—"),
         amount: (() => {
             const amount = asAmount(payment.finalAmount, payment.estimatedAmount, source.estimatedAmount);
@@ -183,7 +246,8 @@ const mapApiOrder = (source: ApiOrder): Order => {
             ? `${formatDate(source.createdAt)} · ${new Date(source.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`
             : "—",
         customerAddress: addressText(customerAddress) || "—",
-        agentPhone: asText(agent.phone ?? agent.mobile ?? agent.phoneNumber),
+        agentPhone: asText(agent.phone ?? agent.mobile ?? agent.phoneNumber ?? agent.mobileNumber ?? agent.contactNumber ?? agent.user?.phone ?? agent.user?.mobile ?? agent.profile?.phone ?? agent.profile?.mobile),
+        purchaseInvoiceUrl: asText(purchaseInvoice?.url, ""),
         pickupDate: formatDate(pickupScheduledAt),
         pickupTime: asText(pickupSlot),
         inventoryStatus: asText(source.inventory?.status ?? source.inventoryStatus),
@@ -193,10 +257,75 @@ const mapApiOrder = (source: ApiOrder): Order => {
         paymentMethod: asText(payment.paymentMethod).replaceAll("_", " "),
         paymentStatus: rawPaymentStatus ? (rawPaymentStatus === "completed" ? "Paid" : rawPaymentStatus.replaceAll("_", " ")) : "—",
         invoiceFileName,
-        inspectionStatus: asText(source.inspection?.status, rawStatus.includes("inspection") ? rawStatus.replaceAll("inspection_", "") : "Pending"),
-        condition: asText(source.inspection?.condition ?? device.customerEvaluation?.bodyCondition, "Not assessed"),
+        inspectionStatus: asText(source.inspection?.status, rawStatus.includes("inspection") ? rawStatus.replaceAll("inspection_", "") : "Not Started"),
+        condition: stringifyValue(customerEvaluation.bodyCondition ?? agentEvaluation.bodyCondition ?? inspection.condition),
+        deviceInfo: {
+            network: stringifyValue(device.network ?? device.networkType ?? device.connectivity),
+            simSlot: stringifyValue(device.simSlot ?? device.simSlots ?? device.simType),
+            esim: stringifyValue(device.esimSupport ?? device.eSIMSupport ?? device.esim ?? device.eSIM),
+            warrantyStatus: stringifyValue(device.warrantyStatus ?? inspection.warrantyStatus),
+        },
+        inspectionInfo: {
+            screenCondition: stringifyValue(customerEvaluation.screenCondition ?? agentEvaluation.screenCondition ?? inspection.screenCondition ?? inspection.physicalCondition?.screen ?? inspection.physicalConditions?.screen),
+            displayIssues: stringifyValue(customerEvaluation.displayIssues ?? agentEvaluation.displayIssues ?? inspection.displayIssues ?? inspection.displayIssue ?? inspection.functionalChecks?.display),
+            batteryHealth: stringifyValue(customerEvaluation.batteryHealth ?? agentEvaluation.batteryHealth ?? inspection.batteryHealth ?? inspection.functionalChecks?.batteryHealth ?? device.batteryHealth),
+            repairStatus: stringifyValue(customerEvaluation.repairHistory ?? agentEvaluation.repairHistory ?? inspection.repairStatus ?? inspection.repairHistory ?? device.repairStatus),
+            displayCondition: stringifyValue(inspection.displayCondition ?? inspection.physicalCondition?.display),
+            scratches: stringifyValue(inspection.scratches ?? inspection.physicalCondition?.scratches),
+            backPanel: stringifyValue(inspection.backPanel ?? inspection.physicalCondition?.backPanel),
+            dents: stringifyValue(inspection.dents ?? inspection.physicalCondition?.dents),
+            frame: stringifyValue(inspection.frame ?? inspection.physicalCondition?.frame),
+        },
+        functionalChecks,
+        accessories,
+        physicalConditions,
+        deviceImages,
+        purchaseBillUrl: asText(purchaseBill?.url, ""),
+        agentNotes: asText(inspection.notes ?? inspection.agentNotes ?? inspection.additionalNotes, ""),
         timeline,
     };
+};
+
+const FUNCTIONAL_CHECK_LABELS = [
+    "Display", "Speaker", "Touch Screen", "Microphone", "Buttons",
+    "Charging", "Camera (Front)", "Battery Health", "Camera (Back)", "Face ID / Fingerprint",
+];
+const ACCESSORY_LABELS = ["Original Box", "Charger", "Cable", "Earphones", "Other Accessories"];
+const PHYSICAL_CONDITION_LABELS = ["Overall", "Display Condition", "Condition", "Scratches", "Back Panel", "Dents"];
+
+const normalizeLabel = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+const getReportedValue = (items: Array<{ label: string; value: string }>, label: string) => {
+    const aliases: Record<string, string[]> = {
+        display: ["screen", "displaystatus"],
+        touchscreen: ["touch", "touchresponse"],
+        camerafront: ["frontcamera"],
+        cameraback: ["backcamera", "rearcamera"],
+        faceidfingerprint: ["faceid", "fingerprint", "biometrics"],
+        originalbox: ["box"],
+        otheraccessories: ["other"],
+        overall: ["overallcondition", "bodycondition"],
+        condition: ["bodycondition", "overallcondition"],
+    };
+    const possible = [normalizeLabel(label), ...(aliases[normalizeLabel(label)] ?? [])];
+    const match = items.find((item) => possible.includes(normalizeLabel(item.label)));
+    return match?.value && match.value !== "—" ? match.value : "";
+};
+
+const inspectionValueClass = (label: string, value: string) => {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized || normalized === "—") return "text-stone-700";
+    if (label === "Battery Health") {
+        const numeric = Number(normalized.match(/\d+(?:\.\d+)?/)?.[0]);
+        if (Number.isFinite(numeric)) return numeric < 70 ? "text-red-600" : numeric > 90 ? "text-emerald-600" : "text-orange-600";
+    }
+    if (label === "Repair Status") {
+        if (/repaired|repair required|replaced|yes/.test(normalized) && !/not repaired|original|no repair|no/.test(normalized)) return "text-red-600";
+        if (/not repaired|original|no repair|no/.test(normalized)) return "text-emerald-600";
+    }
+    if (/poor|issue|damaged|broken|crack|fault|not working|bad/.test(normalized)) return "text-red-600";
+    if (/average|fair|minor|moderate|warning/.test(normalized)) return "text-orange-600";
+    if (/good|excellent|working|healthy|no issues|not repaired|original/.test(normalized)) return "text-emerald-600";
+    return "text-stone-700";
 };
 
 interface OrdersResponse {
@@ -261,6 +390,7 @@ export default function Orders() {
     const [page, setPage] = useState(1);
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState("Overview");
+    const [showAllDeviceImages, setShowAllDeviceImages] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [loadError, setLoadError] = useState("");
@@ -332,6 +462,7 @@ export default function Orders() {
     const openOrder = (order: Order) => {
         setSelectedOrderId(order.id);
         setActiveTab("Overview");
+        setShowAllDeviceImages(false);
         setSuccessMessage("");
     };
 
@@ -369,6 +500,41 @@ export default function Orders() {
     const selectFilter = (value: string) => {
         setStatusFilter(value);
         setPage(1);
+    };
+
+    const downloadInvoice = async () => {
+        if (!selectedOrder) return;
+
+        try {
+            // Prefer the actual invoice document URL returned by the backend.
+            if (selectedOrder.purchaseInvoiceUrl) {
+                const link = document.createElement("a");
+                link.href = selectedOrder.purchaseInvoiceUrl;
+                link.download = selectedOrder.invoiceFileName || `invoice-${selectedOrder.id}.pdf`;
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                return;
+            }
+
+            // If no document URL is included in the order payload, request the
+            // backend's purchase-invoice endpoint and download its response.
+            const response = await api.get(`/admin/orders/${selectedOrder.backendId}/purchase-invoice`, {
+                responseType: "blob",
+            });
+            const blobUrl = URL.createObjectURL(response.data);
+            const link = document.createElement("a");
+            link.href = blobUrl;
+            link.download = selectedOrder.invoiceFileName || `invoice-${selectedOrder.id}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(blobUrl);
+        } catch (error: any) {
+            window.alert(error?.response?.data?.message || error?.message || "Unable to download the invoice. Please check that an invoice has been generated for this order.");
+        }
     };
 
     const renderTabContent = (order: Order) => {
@@ -557,154 +723,181 @@ export default function Orders() {
 
             case "Device Details":
                 return (
-                    <div className="space-y-3">
-                        <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(245px,0.9fr)_minmax(0,2.1fr)]">
-                            <div className="space-y-3">
-                                {/* Device information */}
-                                <DetailSection title="Device Information">
-                                    <div className="space-y-0">
-                                        {[
-                                            ["Device Name", order.device],
-                                            ["Storage", order.variant.split(" · ")[0] || "Not specified"],
-                                            ["Color", order.variant.includes(" · ") ? order.variant.split(" · ").slice(1).join(" · ") : "Not specified"],
-                                            ["IMEI", order.imei],
-                                            ["Network", "5G"],
-                                            ["SIM Slot", "Dual SIM (Nano + Nano)"],
-                                            ["eSIM", "Not Supported"],
-                                        ].map(([label, value]) => (
-                                            <div key={label} className="flex items-start justify-between gap-3 border-b border-stone-100 py-2 last:border-b-0">
-                                                <span className="shrink-0 text-xs text-stone-500">{label}</span>
-                                                <span className="break-words text-right text-xs font-medium text-stone-800">{value}</span>
-                                            </div>
-                                        ))}
-                                        <div className="flex items-center justify-between gap-3 border-b border-stone-100 py-2">
-                                            <span className="text-xs text-stone-500">Purchase Bill</span>
-                                            <button type="button" className="text-xs font-semibold text-blue-600 hover:underline" onClick={() => window.alert("Purchase bill is not attached in the sample data.")}>View Document</button>
+                    <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,2fr)]">
+                        {/* Left column: device information and compact inspection summary */}
+                        <div className="flex min-w-0 flex-col gap-3">
+                            <section className="rounded-xl border border-stone-200 bg-white px-6 py-5">
+                                <h3 className="mb-4 text-sm font-bold leading-5 text-stone-950">Device Information</h3>
+                                <div className="space-y-0">
+                                    {([
+                                        ["Device Name", order.device],
+                                        ["Storage", order.storage],
+                                        ["Color", order.color],
+                                        ["IMEI", order.imei],
+                                        ["Network", order.deviceInfo.network],
+                                        ["SIM Slot", order.deviceInfo.simSlot],
+                                        ["eSIM", order.deviceInfo.esim],
+                                    ] as Array<[string, string]>).map(([label, value]) => (
+                                        <div key={label} className="grid min-h-[32px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-stone-100 py-1.5 last:border-b-0">
+                                            <span className="text-xs leading-5 text-stone-600">{label}</span>
+                                            <span className="break-words text-right text-xs font-medium leading-5 text-stone-800">{value || "—"}</span>
                                         </div>
-                                        <div className="flex items-center justify-between gap-3 py-2">
-                                            <span className="text-xs text-stone-500">Warranty Status</span>
-                                            <span className="rounded bg-orange-50 px-2 py-1 text-[10px] font-medium text-orange-600">Out of warranty</span>
-                                        </div>
+                                    ))}
+                                    <div className="grid min-h-[32px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-stone-100 py-1.5">
+                                        <span className="text-xs text-stone-600">Purchase Bill</span>
+                                        {order.purchaseBillUrl ? (
+                                            <a href={order.purchaseBillUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold text-blue-600 hover:underline">View Document</a>
+                                        ) : <span className="rounded bg-stone-50 px-2 py-1 text-xs text-stone-500">—</span>}
                                     </div>
-                                </DetailSection>
+                                    <div className="grid min-h-[32px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-1.5">
+                                        <span className="text-xs text-stone-600">Warranty Status</span>
+                                        <span className="rounded bg-stone-50 px-2 py-1 text-xs font-medium text-stone-600">{order.deviceInfo.warrantyStatus || "—"}</span>
+                                    </div>
+                                </div>
+                            </section>
 
-                                {/* Quick inspection summary stays in the left column */}
-                                <div className="flex flex-col justify-center gap-8 rounded-xl border border-stone-200 bg-white px-5 py-5">
-                                    {(
-                                        [
-                                            ["Screen Condition", "Excellent", Smartphone],
-                                            ["Display Issues", "No Issues", Monitor],
-                                            ["Body Condition", order.condition, Smartphone],
-                                            ["Battery Health", "Above 85%", BatteryCharging],
-                                            ["Repair Status", "Original/Not repaired", Wrench],
-                                        ] as Array<[string, string, typeof Smartphone]>
-                                    ).map(([label, value, Icon]) => {
+                            <section className="min-h-[240px] rounded-xl border border-stone-200 bg-white px-6 py-6">
+                                <div className="space-y-3">
+                                    {([
+                                        ["Screen Condition", order.inspectionInfo.screenCondition, Smartphone],
+                                        ["Display Issues", order.inspectionInfo.displayIssues, Monitor],
+                                        ["Body Condition", order.condition, Smartphone],
+                                        ["Battery Health", order.inspectionInfo.batteryHealth, BatteryCharging],
+                                        ["Repair Status", order.inspectionInfo.repairStatus, Wrench],
+                                    ] as Array<[string, string, typeof Smartphone]>).map(([label, value, Icon]) => {
                                         const SummaryIcon = Icon;
-
                                         return (
-                                            <div key={label as string} className="flex items-center gap-3">
+                                            <div key={label} className="flex min-w-0 items-center gap-3 py-0.5">
                                                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-orange-50 text-orange-500">
-                                                    <SummaryIcon size={21} strokeWidth={2.1} />
+                                                    <SummaryIcon size={15} strokeWidth={2} />
                                                 </span>
-                                                <span className="min-w-0 flex-1 text-sm font-medium text-stone-600">
-                                                    {label}
-                                                </span>
-                                                <span className="shrink-0 text-sm font-medium text-emerald-600">
-                                                    {value as string}
-                                                </span>
+                                                <span className="min-w-0 flex-1 text-xs leading-5 text-stone-700">{label}</span>
+                                                <span className={`shrink-0 text-right text-xs font-medium leading-5 ${inspectionValueClass(label, value)}`}>{value && value !== "—" ? value : "—"}</span>
                                             </div>
                                         );
                                     })}
                                 </div>
-                            </div>
-
-                            {/* Device images and inspection reports */}
-                            <div className="space-y-3">
-                                <DetailSection title="Device Images">
-                                    <div className="mb-3 flex items-center justify-between gap-3">
-                                        <p className="text-xs text-stone-500">Photos submitted for this device</p>
-                                        <button type="button" onClick={() => window.alert("Device photos are not attached in the sample data.")} className="rounded-md border border-stone-200 px-2.5 py-1.5 text-[10px] font-semibold text-stone-600 transition hover:border-orange-300 hover:text-orange-600">View All (0)</button>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                                        {["Front", "Back", "Left Side", "Right Side", "Ports"].map((view) => (
-                                            <div key={view} className="flex min-w-0 flex-col items-center justify-center rounded-md border border-stone-200 bg-white p-2">
-                                                <div className="flex h-[72px] w-full items-center justify-center rounded bg-stone-50 text-stone-400">
-                                                    <Smartphone size={view.includes("Side") || view === "Ports" ? 25 : 38} strokeWidth={1.3} className={view.includes("Side") ? "rotate-90" : ""} />
-                                                </div>
-                                                <span className="mt-2 text-[10px] text-stone-500">{view}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </DetailSection>
-
-                                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                                    <DetailSection title="Functional Status (Reported by Agent)" className="min-h-[190px]">
-                                        <div className="grid grid-cols-2 gap-x-4">
-                                            {[
-                                                ["Display", "Working"],
-                                                ["Speaker", "Working"],
-                                                ["Touch Screen", "Working"],
-                                                ["Microphone", "Working"],
-                                                ["Buttons", "Working"],
-                                                ["Charging", "Working"],
-                                                ["Camera (Front)", "Working"],
-                                                ["Battery Health", "Above 85%"],
-                                                ["Camera (Back)", "Working"],
-                                                ["Face ID / Fingerprint", "Working"],
-                                            ].map(([label, value]) => (
-                                                <div key={label} className="flex min-w-0 items-start justify-between gap-2 border-b border-stone-100 py-1.5 last:border-b-0">
-                                                    <span className="text-[10px] leading-4 text-stone-600">{label}</span>
-                                                    <span className="shrink-0 text-[10px] font-medium text-emerald-600">{value}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </DetailSection>
-
-                                    <DetailSection title="Accessories (Reported)" className="min-h-[190px]">
-                                        <div className="space-y-0">
-                                            {[
-                                                ["Original Box", "Yes"],
-                                                ["Charger", "Yes"],
-                                                ["Cable", "Yes"],
-                                                ["Earphones", "No"],
-                                                ["Other Accessories", "—"],
-                                            ].map(([label, value]) => (
-                                                <div key={label} className="flex items-center justify-between gap-3 border-b border-stone-100 py-1.5 last:border-b-0">
-                                                    <span className="text-[10px] text-stone-600">{label}</span>
-                                                    <span className={`text-[10px] font-medium ${value === "Yes" ? "text-stone-700" : "text-stone-500"}`}>{value}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </DetailSection>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                                    <DetailSection title="Physical Condition (Reported by Agent)" className="min-h-[190px]">
-                                        <div className="grid grid-cols-2 gap-x-4">
-                                            {[
-                                                ["Overall", order.condition],
-                                                ["Display Condition", "Good"],
-                                                ["Condition", order.condition],
-                                                ["Scratches", "Minor"],
-                                                ["Back Panel", "Good"],
-                                                ["Dents", "Good"],
-                                                ["Frame", "Good"],
-                                            ].map(([label, value]) => (
-                                                <div key={label} className="flex min-w-0 items-start justify-between gap-2 border-b border-stone-100 py-1.5 last:border-b-0">
-                                                    <span className="text-[10px] leading-4 text-stone-600">{label}</span>
-                                                    <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${value === "Minor" ? "bg-orange-50 text-orange-600" : "bg-emerald-50 text-emerald-600"}`}>{value}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </DetailSection>
-
-                                    <DetailSection title="Additional Notes (by Agent)" className="min-h-[190px]">
-                                        <p className="text-xs leading-5 text-stone-600">Device overall in {order.condition.toLowerCase()} condition. Minor scratches may be present on the back panel.</p>
-                                    </DetailSection>
-                                </div>
-                            </div>
+                            </section>
                         </div>
 
+                        {/* Right column: image gallery, checks, accessories, condition and notes */}
+                        <div className="flex min-w-0 flex-col gap-3">
+                            <section className="rounded-xl border border-stone-200 bg-white px-5 py-4">
+                                <div className="mb-3 flex items-center justify-between gap-3">
+                                    <h3 className="text-sm font-bold leading-5 text-stone-950">Device Images</h3>
+                                    {order.deviceImages.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAllDeviceImages((current) => !current)}
+                                            className="shrink-0 rounded-md border border-stone-200 px-3 py-1.5 text-xs font-semibold text-orange-600 transition hover:border-orange-300 hover:bg-orange-50"
+                                        >
+                                            <span className="inline-flex items-center gap-1.5"><Images size={14} strokeWidth={1.8} />{showAllDeviceImages ? "Show Less" : `View All (${order.deviceImages.length})`}</span>
+                                        </button>
+                                    )}
+                                </div>
+                                {order.deviceImages.length ? (
+                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+                                        {(showAllDeviceImages ? order.deviceImages : order.deviceImages.slice(0, 5)).map((image, index) => (
+                                            <a
+                                                key={`${image.url}-${index}`}
+                                                href={image.url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                title={`Open ${image.label}`}
+                                                className="flex aspect-square min-w-0 items-center justify-center overflow-hidden rounded-lg border border-stone-200 bg-white p-2 transition hover:border-orange-300"
+                                            >
+                                                <img src={image.url} alt={image.label} loading="lazy" className="h-full w-full object-contain object-center" />
+                                            </a>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-stone-200 px-4 text-sm text-stone-500">
+                                        No device images available for this order.
+                                    </div>
+                                )}
+                            </section>
+
+                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.25fr_0.85fr]">
+                                <section className="rounded-xl border border-stone-200 bg-white px-6 py-5">
+                                    <h3 className="mb-4 text-sm font-bold leading-5 text-stone-950">Functional Status (Reported by Agent)</h3>
+                                    <div className="grid grid-cols-2 gap-x-3">
+                                        {FUNCTIONAL_CHECK_LABELS.map((label, index) => {
+                                            const value = getReportedValue(order.functionalChecks, label);
+                                            const CheckIcon = [Monitor, Smartphone, CheckCircle2, ScanFace, BatteryCharging, Clock3][index % 6];
+                                            return (
+                                                <div key={label} className="flex min-w-0 items-center justify-between gap-2 border-b border-stone-100 py-2 last:border-b-0">
+                                                    <span className="flex min-w-0 items-center gap-2 text-xs leading-5 text-stone-600">
+                                                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-50 text-orange-500"><CheckIcon size={15} strokeWidth={1.8} /></span>
+                                                        <span className="min-w-0">{label}</span>
+                                                    </span>
+                                                    <span className={`shrink-0 text-right text-xs font-medium leading-5 ${inspectionValueClass(label, value)}`}>{value || "—"}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+
+                                <section className="rounded-xl border border-stone-200 bg-white px-6 py-5">
+                                    <h3 className="mb-4 text-sm font-bold leading-5 text-stone-950">Accessories (Reported)</h3>
+                                    <div className="space-y-0">
+                                        {ACCESSORY_LABELS.map((label, index) => {
+                                            const value = getReportedValue(order.accessories, label);
+                                            const AccessoryIcon = [PackageCheck, BatteryCharging, PackageCheck, ReceiptText, ShoppingBag][index];
+                                            return (
+                                                <div key={label} className="flex items-center justify-between gap-2 border-b border-stone-100 py-2 last:border-b-0">
+                                                    <span className="flex min-w-0 items-center gap-2 text-xs leading-5 text-stone-600">
+                                                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-50 text-orange-500"><AccessoryIcon size={15} strokeWidth={1.8} /></span>
+                                                        <span>{label}</span>
+                                                    </span>
+                                                    <span className="flex min-w-5 justify-end" aria-label={`${label}: ${value || "not recorded"}`}>
+                                                        {(() => {
+                                                            const normalized = value.trim().toLowerCase();
+                                                            const present = /^(yes|true|present|included|available|working|available)$/i.test(normalized);
+                                                            const absent = /^(no|false|absent|not included|not available|missing)$/i.test(normalized);
+                                                            if (present) {
+                                                                return <CheckCircle2 size={18} className="text-emerald-600" strokeWidth={2.2} />;
+                                                            }
+                                                            if (absent) {
+                                                                return <span className="text-base leading-none text-stone-400">—</span>;
+                                                            }
+                                                            return value ? <span className="text-right text-xs font-medium leading-5 text-stone-700">{value}</span> : <span className="text-base leading-none text-stone-400">—</span>;
+                                                        })()}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.25fr_0.85fr]">
+                                <section className="rounded-xl border border-stone-200 bg-white px-6 py-5">
+                                    <h3 className="mb-4 text-sm font-bold leading-5 text-stone-950">Physical Condition (Reported by Agent)</h3>
+                                    <div className="grid grid-cols-2 gap-x-3">
+                                        {PHYSICAL_CONDITION_LABELS.map((label, index) => {
+                                            const value = label === "Overall"
+                                                ? (order.condition === "—" ? "" : order.condition)
+                                                : getReportedValue(order.physicalConditions, label);
+                                            const ConditionIcon = [ClipboardCheck, Smartphone, Monitor, ScanFace, Wrench, CheckCircle2, Smartphone][index];
+                                            return (
+                                                <div key={label} className="flex min-w-0 items-center justify-between gap-2 border-b border-stone-100 py-2 last:border-b-0">
+                                                    <span className="flex min-w-0 items-center gap-2 text-xs leading-5 text-stone-600">
+                                                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-50 text-orange-500"><ConditionIcon size={15} strokeWidth={1.8} /></span>
+                                                        <span className="min-w-0">{label}</span>
+                                                    </span>
+                                                    <span className={`break-words text-right text-xs font-medium leading-5 ${inspectionValueClass(label, value)}`}>{value || "—"}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+
+                                <section className="rounded-xl border border-stone-200 bg-white px-6 py-5">
+                                    <h3 className="mb-4 text-sm font-bold leading-5 text-stone-950">Additional Notes (by Agent)</h3>
+                                    <p className="whitespace-pre-wrap text-xs leading-5 text-stone-600">{order.agentNotes || "No additional notes recorded."}</p>
+                                </section>
+                            </div>
+                        </div>
                     </div>
                 );
 
@@ -778,7 +971,7 @@ export default function Orders() {
                         </section>
 
                         {/* Offer and Payment Summary */}
-                        <div className="flex min-w-0 flex-col gap-2">
+                        <div className="flex min-w-0 flex-col gap-3">
                             <section className="rounded-xl border border-stone-200 bg-white">
                                 <div className="border-b border-stone-100 px-5 py-4">
                                     <h3 className="text-base font-bold text-stone-900">
@@ -790,7 +983,7 @@ export default function Orders() {
                                     <div className="flex items-center justify-between gap-3">
                                         <span className="text-xs text-stone-600">Estimated Offer:</span>
                                         <span className="text-sm font-semibold text-stone-700">
-                                            {formatAmount(order.amount + 2500)}
+                                            {formatAmount((order.amount ?? 0) + 2500)}
                                         </span>
                                     </div>
 
@@ -967,126 +1160,6 @@ export default function Orders() {
                         </section>
                     </div>
                 );
-                return (
-                    <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[1.05fr_1.05fr_1.25fr]">
-                        {/* Payment conditions */}
-                        <DetailSection title="Payment Conditions" className="h-full">
-                            <div className="flex min-h-[255px] flex-col items-center justify-center px-2 py-3 text-center">
-                                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                                    <CheckCircle2 size={34} strokeWidth={1.8} />
-                                </div>
-                                <p className="mt-4 max-w-[190px] text-[11px] leading-5 text-stone-500">
-                                    Complete user payment to proceed with device inspection.
-                                </p>
-                                <div className="mt-5 w-full max-w-[190px] rounded-lg border border-stone-100 px-3 py-2.5 text-left">
-                                    {[
-                                        { label: "Offer Approved", done: true },
-                                        { label: "Pickup Completed", done: true },
-                                        { label: "Payment Pending", done: false },
-                                        { label: "Inspection Pending", done: false },
-                                    ].map((step) => (
-                                        <div key={step.label} className="flex items-center gap-2 py-1.5">
-                                            {step.done ? (
-                                                <CheckCircle2 size={13} className="shrink-0 text-emerald-500" />
-                                            ) : (
-                                                <span className="h-[13px] w-[13px] shrink-0 rounded-full border border-stone-300" />
-                                            )}
-                                            <span className={`text-[10px] ${step.done ? "text-stone-600" : "text-stone-400"}`}>{step.label}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </DetailSection>
-
-                        {/* Offer summary */}
-                        <DetailSection title="Offer Summary" className="h-full">
-                            <div className="space-y-0.5">
-                                <div className="flex items-center justify-between gap-3 py-2">
-                                    <span className="text-[11px] text-stone-500">Estimated Offer</span>
-                                    <span className="text-[11px] font-medium text-stone-700">{formatAmount(order.amount + 2500)}</span>
-                                </div>
-                                <div className="flex items-center justify-between gap-3 py-2">
-                                    <span className="text-[11px] text-stone-500">Deductions</span>
-                                    <span className="text-[11px] font-semibold text-red-500">-{formatAmount(2500)}</span>
-                                </div>
-                                <div className="flex items-center justify-between gap-3 border-t border-stone-100 py-3">
-                                    <span className="text-[11px] font-medium text-stone-600">Final Offer (Approved)</span>
-                                    <span className="text-[12px] font-bold text-emerald-600">{formatAmount(order.amount)}</span>
-                                </div>
-                                <div className="flex items-center justify-between gap-3 py-2">
-                                    <span className="text-[11px] text-stone-500">Customer Approval</span>
-                                    <span className={`rounded px-2 py-1 text-[10px] font-semibold ${order.paymentStatus === "Paid" ? "bg-emerald-50 text-emerald-700" : "bg-emerald-50 text-emerald-700"}`}>
-                                        Approved
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="mt-5 rounded-lg bg-stone-50 px-3 py-3">
-                                <p className="text-[10px] text-stone-500">Payment Status</p>
-                                <p className={`mt-1 text-xs font-semibold ${order.paymentStatus === "Paid" ? "text-emerald-600" : "text-orange-600"}`}>
-                                    {order.paymentStatus === "Paid" ? "Payment Completed" : order.paymentStatus === "Pending" ? "Payment Pending" : "Awaiting Payment"}
-                                </p>
-                            </div>
-                        </DetailSection>
-
-                        {/* Payment actions */}
-                        <DetailSection title="Payment Actions" className="h-full">
-                            <p className="mb-3 text-[10px] text-stone-500">Review details and initiate payment</p>
-                            <div className="rounded-lg border border-stone-200 p-3">
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="flex min-w-0 items-center gap-2">
-                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-stone-100 text-[10px] font-bold text-stone-600">
-                                            {order.customer.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}
-                                        </span>
-                                        <div className="min-w-0">
-                                            <p className="truncate text-[11px] font-semibold text-stone-800">{order.customer}</p>
-                                            <span className="mt-0.5 inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-medium text-emerald-700">
-                                                <CheckCircle2 size={10} /> Verified Account
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="shrink-0 text-right">
-                                        <p className="text-[9px] text-stone-500">Amount to Pay</p>
-                                        <p className="mt-0.5 text-sm font-bold text-orange-600">{formatAmount(order.amount)}</p>
-                                    </div>
-                                </div>
-                                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-stone-100 pt-3">
-                                    <div>
-                                        <p className="text-[9px] text-stone-500">Bank Name</p>
-                                        <p className="mt-1 text-[10px] font-medium text-stone-700">HDFC Bank</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[9px] text-stone-500">Account Number</p>
-                                        <p className="mt-1 text-[10px] font-medium text-stone-700">XXXXXX3214</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[9px] text-stone-500">IFSC Code</p>
-                                        <p className="mt-1 text-[10px] font-medium text-stone-700">HDFC0001234</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[9px] text-stone-500">Account Type</p>
-                                        <p className="mt-1 text-[10px] font-medium text-stone-700">Savings Account</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <label className="mt-3 block text-[10px] font-medium text-stone-600" htmlFor="payment-account">Pay From Account</label>
-                            <select id="payment-account" defaultValue="hdfc" className="mt-1.5 h-9 w-full rounded-md border border-stone-200 bg-white px-2.5 text-[10px] text-stone-700 outline-none focus:border-orange-400">
-                                <option value="hdfc">HDFC Bank - A/c ending 3214</option>
-                                <option value="icici">ICICI Bank - A/c ending 7821</option>
-                            </select>
-                            <label className="mt-3 block text-[10px] font-medium text-stone-600" htmlFor="payment-remarks">Remarks (Optional)</label>
-                            <input id="payment-remarks" type="text" placeholder={`Payment for order ${order.id}`} className="mt-1.5 h-9 w-full rounded-md border border-stone-200 px-2.5 text-[10px] text-stone-700 outline-none placeholder:text-stone-400 focus:border-orange-400" />
-                            <button
-                                type="button"
-                                disabled={order.paymentStatus === "Paid"}
-                                onClick={() => window.alert("This is a sample UI. No real payment has been initiated.")}
-                                className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-orange-500 px-3 text-[11px] font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-emerald-600"
-                            >
-                                <Wallet size={13} /> {order.paymentStatus === "Paid" ? "Payment Completed" : `Pay Now ${formatAmount(order.amount)}`}
-                            </button>
-                        </DetailSection>
-                    </div>
-                );
-
             case "Inspection":
                 return (
                     <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[0.8fr_2fr_1fr]">
@@ -1657,7 +1730,7 @@ export default function Orders() {
                                             {order.status === "Completed" ? "Available" : "Not listed"}
                                         </span>
                                     </div>
-                                    <DetailRow label="Listed Price (MRP)" value={formatAmount(Math.round(order.amount * 1.3))} />
+                                    <DetailRow label="Listed Price (MRP)" value={order.amount === null ? "—" : formatAmount(Math.round(order.amount * 1.3))} />
                                     <DetailRow label="Linked Zoho Invoice" value="—" />
                                     <DetailRow label="Sold Date" value="—" />
                                     <div className="mt-3 flex gap-2 rounded-lg bg-sky-50 px-3 py-2.5">
@@ -1703,8 +1776,8 @@ export default function Orders() {
                                         ].map((entry, index) => (
                                             <tr key={`${entry.action}-${index}`} className="border-b border-stone-100 last:border-b-0">
                                                 <td className="whitespace-nowrap px-3 py-2 text-[10px] text-stone-500">{entry.date}</td>
-                                                <td className="px-3 py-2 text-[10px] text-stone-600">{entry.action}</td>
-                                                <td className="whitespace-nowrap px-3 py-2 text-[10px] text-stone-600">{entry.itemId}</td>
+                                                <td className="px-3 py-2 text-xs text-stone-600">{entry.action}</td>
+                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-stone-600">{entry.itemId}</td>
                                                 <td className="px-3 py-2">
                                                     <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold ${entry.status === "Success" ? "bg-emerald-50 text-emerald-700" : "bg-orange-50 text-orange-700"}`}>
                                                         <CheckCircle2 size={10} /> {entry.status}
@@ -1749,14 +1822,42 @@ export default function Orders() {
                             <div className="flex flex-wrap items-center gap-2.5">
                                 <h1 className="text-xl font-bold tracking-tight text-stone-700 sm:text-2xl">{selectedOrder.id}</h1>
                                 <button type="button" onClick={() => navigator.clipboard?.writeText(selectedOrder.id)} aria-label="Copy order ID" title="Copy order ID" className="rounded p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700"><FileText size={15} /></button>
-                                <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-100 px-3 py-2 text-xs font-medium text-orange-600"><ClipboardCheck size={14} />{selectedOrder.inspectionStatus === "Passed" ? "Inspection Completed" : selectedOrder.inspectionStatus === "In Progress" ? "Inspection In Progress" : "Inspection Pending"}</span>
-                                <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-100 px-3 py-2 text-xs font-medium text-orange-600"><Wallet size={14} />{selectedOrder.paymentStatus === "Paid" ? "Payment Completed" : "Payment Pending"}</span>
+                                <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium ${
+                                    ["paid", "completed", "success", "succeeded"].includes(selectedOrder.paymentStatus.toLowerCase())
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : ["", "—", "not started", "not_started", "not initiated"].includes(selectedOrder.paymentStatus.toLowerCase())
+                                            ? "bg-stone-100 text-stone-500"
+                                            : "bg-orange-100 text-orange-600"
+                                }`}>
+                                    <Wallet size={14} />
+                                    {["paid", "completed", "success", "succeeded"].includes(selectedOrder.paymentStatus.toLowerCase())
+                                        ? "Payment Completed"
+                                        : ["", "—", "not started", "not_started", "not initiated"].includes(selectedOrder.paymentStatus.toLowerCase())
+                                            ? "Payment Not Started"
+                                            : "Payment Pending"}
+                                </span>
+                                <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium ${
+                                    ["passed", "completed", "approved", "done"].includes(selectedOrder.inspectionStatus.toLowerCase().replace(/[_-]/g, " "))
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : ["", "—", "not started", "pending setup", "not initiated"].includes(selectedOrder.inspectionStatus.toLowerCase().replace(/[_-]/g, " "))
+                                            ? "bg-stone-100 text-stone-500"
+                                            : "bg-orange-100 text-orange-600"
+                                }`}>
+                                    <ClipboardCheck size={14} />
+                                    {["passed", "completed", "approved", "done"].includes(selectedOrder.inspectionStatus.toLowerCase().replace(/[_-]/g, " "))
+                                        ? "Inspection Completed"
+                                        : ["in progress", "started", "inspection in progress"].includes(selectedOrder.inspectionStatus.toLowerCase().replace(/[_-]/g, " "))
+                                            ? "Inspection In Progress"
+                                            : ["", "—", "not started", "pending setup", "not initiated"].includes(selectedOrder.inspectionStatus.toLowerCase().replace(/[_-]/g, " "))
+                                                ? "Inspection Not Started"
+                                                : "Inspection Pending"}
+                                </span>
                             </div>
                             <p className="mt-1 text-sm font-medium text-orange-600">#INV-{selectedOrder.id.match(/(\d+)$/)?.[1] ?? ""}</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                             <button type="button" onClick={() => window.print()} className="inline-flex h-9 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 text-sm font-medium text-stone-600 hover:bg-stone-50"><FileText size={15} /> Print</button>
-                            <button type="button" onClick={() => window.print()} className="inline-flex h-9 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 text-sm font-medium text-stone-600 hover:border-orange-300 hover:bg-orange-50"><FileText size={15} /> Download Invoice</button>
+                            <button type="button" onClick={() => void downloadInvoice()} className="inline-flex h-9 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 text-sm font-medium text-stone-600 hover:border-orange-300 hover:bg-orange-50"><Download size={15} /> Download Invoice</button>
                         </div>
                     </div>
 
@@ -1774,18 +1875,18 @@ export default function Orders() {
                                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone-100 text-xs font-bold text-stone-600">{selectedOrder.customer.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</div>
                                 <div className="min-w-0">
                                     <p className="text-sm text-stone-500">User</p><p className="mt-1 truncate text-sm font-bold text-stone-700">{selectedOrder.customer}</p><p className="mt-1 text-sm text-stone-600">{selectedOrder.phone}</p>
-                                    <button type="button" onClick={() => setActiveTab("Overview")} className="mt-2 text-xs font-semibold text-blue-600 hover:underline">View User</button>
+                                    <button type="button" className="mt-2 cursor-default text-xs font-semibold text-blue-600">View User</button>
                                 </div>
                             </div>
                             <div className="flex min-w-0 items-center gap-3 p-4">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">{selectedOrder.agent === "Not assigned" ? "—" : selectedOrder.agent.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</div>
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">{["—", "Not assigned"].includes(selectedOrder.agent) ? "—" : selectedOrder.agent.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</div>
                                 <div className="min-w-0">
-                                    <p className="text-sm text-stone-500">Agent</p><p className="mt-1 truncate text-sm font-bold text-stone-700">{selectedOrder.agent}</p><p className="mt-1 truncate text-sm text-stone-600">{selectedOrder.location}</p>
-                                    <button type="button" onClick={() => setActiveTab("Overview")} className="mt-2 text-xs font-semibold text-blue-600 hover:underline">View Agent</button>
+                                    <p className="text-sm text-stone-500">Agent</p><p className="mt-1 truncate text-sm font-bold text-stone-700">{selectedOrder.agent}</p><p className="mt-1 truncate text-sm text-stone-600">{selectedOrder.agentPhone}</p>
+                                    <button type="button" className="mt-2 cursor-default text-xs font-semibold text-blue-600">View Agent</button>
                                 </div>
                             </div>
                             <div className="p-4">
-                                <p className="text-sm text-stone-500">Order Date</p><p className="mt-3 text-sm font-semibold text-stone-700">{selectedOrder.date}</p><p className="mt-1 text-sm text-stone-500">10:30 AM</p>
+                                <p className="text-sm text-stone-500">Order Date</p><p className="mt-3 text-sm font-semibold text-stone-700">{selectedOrder.date}</p><p className="mt-1 text-sm text-stone-500">{selectedOrder.createdAtLabel.includes(" · ") ? selectedOrder.createdAtLabel.split(" · ").slice(1).join(" · ") : "—"}</p>
                                 <p className="mt-3 text-sm text-stone-500">Order Amount (Final)</p><p className="mt-1 text-2xl font-bold text-stone-700">{formatAmount(selectedOrder.amount)}</p>
                             </div>
                         </div>

@@ -43,7 +43,10 @@ import errorHandler from "./middlewares/errors/errorHandler.js";
 import payoutAccountRoutes from "./modules/payment/payoutAccount.routes.js";
 
 import deviceCatalogRoutes from "./modules/deviceCatalog/deviceCatalog.routes.js";
+
 import brandRoutes from "./modules/brand/brand.routes.js";
+
+import modelRoutes from "./modules/model/model.routes.js";
 
 import notificationRoutes from "./modules/notification/notification.routes.js";
 
@@ -56,6 +59,7 @@ import agentTrackingRoutes from "./modules/agentTracking/agentTracking.routes.js
 import settingRoutes from "./modules/setting/setting.routes.js";
 
 import auditRoutes from "./modules/audit/audit.routes.js";
+
 import reviewRoutes from "./modules/review/review.routes.js";
 
 import faqRoutes from "./modules/faq/faq.routes.js";
@@ -104,6 +108,8 @@ app.use("/api/v1/devices", deviceRoutes);
 app.use("/api/v1/device-catalog", deviceCatalogRoutes);
 
 app.use("/api/v1/brands", brandRoutes);
+
+app.use("/api/v1/models", modelRoutes);
 
 app.use("/api/v1/addresses", addressRoutes);
 
