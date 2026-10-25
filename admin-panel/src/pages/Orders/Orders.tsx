@@ -34,9 +34,7 @@ Hand,
 Wifi,
 Bluetooth,
 Radio,
-Package,
 Check,
-Headphones,
 } from "lucide-react";
 type OrderStatus =
 | "New"
@@ -377,14 +375,6 @@ return (
 </section>
 );
 }
-function InfoField({ label, value, className = "" }: { label: string; value: string; className?: string }) {
-return (
-<div className={`flex items-center justify-between gap-3 border-b border-stone-100 pb-2 last:border-b-0 ${className}`}>
-<span className="text-xs text-stone-500">{label}</span>
-<span className="break-words text-right text-xs font-medium text-stone-700">{value || "—"}</span>
-</div>
-);
-}
 function DetailRow({ label, value }: { label: string; value: string }) {
 return (
 <div className="group flex flex-col gap-1.5 border-b border-stone-100/90 py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
@@ -721,38 +711,6 @@ setCancelReason("");
 setCancelRemarks("");
 } catch (error: any) {
 setLoadError(error?.response?.data?.message || error?.message || "Unable to cancel the order or save its cancellation details.");
-} finally {
-setIsSaving(false);
-}
-};
-const updateOrderStatus = async (status: OrderStatus) => {
-if (!selectedOrder) return;
-const apiStatus: Record<OrderStatus, string> = {
-"New": "pending",
-"Scheduled": "pickup_scheduled",
-"Picked Up": "picked_up",
-"In Transit": "in_transit",
-"Inspection": "inspection_in_progress",
-"Payment Pending": "payment_pending",
-"Completed": "completed",
-"Ready Stock": "ready_stock",
-"Cancelled": "cancelled",
-};
-setIsSaving(true);
-setLoadError("");
-setSuccessMessage("");
-try {
-const response = await api.patch(`/admin/orders/${selectedOrder.backendId}/status`, { status: apiStatus[status] });
-const updated = response.data?.data;
-if (updated) {
-const mapped = mapApiOrder(updated);
-setOrders((current) => current.map((order) => order.backendId === mapped.backendId ? mapped : order));
-} else {
-await fetchOrders();
-}
-setSuccessMessage("Order status updated successfully.");
-} catch (error: any) {
-setLoadError(error?.response?.data?.message || error?.message || "Unable to update order status.");
 } finally {
 setIsSaving(false);
 }
@@ -1438,7 +1396,7 @@ Complete all checks before adding to inventory.
 <div className="relative mt-4">
 {/* Vertical timeline connector */}
 <div className="absolute left-[12px] top-[9px] h-[308px] w-px bg-stone-200" />
-{steps.map((step, index) => {
+{steps.map((step) => {
 const active = inspectionStep === step;
 const complete =
 (inspectionStatus === "completed" || inspectionStatus === "approved") && step !== "Add to Inventory"

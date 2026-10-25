@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { connectAdminSocket } from "../../api/socket";
 import {
   ArrowRight,
   Eye,
@@ -48,7 +49,6 @@ export default function Login() {
         throw new Error("Invalid login response from server.");
       }
 
-
       // Clear old authentication data from both storage locations.
       const authKeys = ["accessToken", "refreshToken", "admin"];
 
@@ -64,8 +64,10 @@ export default function Login() {
       storage.setItem("refreshToken", refreshToken);
       storage.setItem("admin", JSON.stringify(admin));
 
+      // Establish the authenticated real-time connection.
+      connectAdminSocket();
 
-      // Navigate to the dashboard after successful authentication.
+      // Navigate to the dashboard after successful login.
       navigate("/dashboard", { replace: true });
     } catch (err: unknown) {
       let message = "Unable to sign in. Please try again.";
