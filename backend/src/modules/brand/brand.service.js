@@ -1,5 +1,6 @@
 
 import brandRepository from "./brand.repository.js";
+import broadcastDataChanges from "../../middlewares/realtime/broadcastDataChanges.js";
 
 class BrandService {
   async createBrand(data, userId) {
@@ -19,13 +20,21 @@ class BrandService {
       throw error;
     }
 
-    return brandRepository.create({
+    const brand = await brandRepository.create({
       name,
       image: data.image?.trim() || "",
       active: data.active ?? true,
       createdBy: userId || null,
       updatedBy: userId || null,
     });
+
+    broadcastDataChanges({
+      entity: "brands",
+      action: "created",
+      recordId: brand._id,
+    });
+
+    return brand;
   }
 
   async getBrands({ activeOnly = true } = {}) {
@@ -78,7 +87,17 @@ class BrandService {
       updatedBy: userId || null,
     };
 
-    return brandRepository.updateById(id, updates);
+    const updatedBrand = await brandRepository.updateById(id, updates);
+
+    if (updatedBrand) {
+      broadcastDataChanges({
+        entity: "brands",
+        action: "updated",
+        recordId: updatedBrand._id,
+      });
+    }
+
+    return updatedBrand;
   }
 
   async deactivateBrand(id, userId) {
@@ -90,10 +109,20 @@ class BrandService {
       throw error;
     }
 
-    return brandRepository.updateById(id, {
+    const updatedBrand = await brandRepository.updateById(id, {
       active: false,
       updatedBy: userId || null,
     });
+
+    if (updatedBrand) {
+      broadcastDataChanges({
+        entity: "brands",
+        action: "deactivated",
+        recordId: updatedBrand._id,
+      });
+    }
+
+    return updatedBrand;
   }
 }
 

@@ -1,19 +1,23 @@
+
 import http from "http";
 import { env } from "./config/env/index.js";
 import logger from "./config/logger/index.js";
 import connectDatabase from "./config/database/index.js";
 import app from "./app.js";
 import { initializeSocket } from "./config/socket/index.js";
+import { startChangeStream } from "./config/database/changeStream.js";
 
 const startServer = async () => {
   try {
-    logger.info(" ExCart Backend Starting...");
+    logger.info("ExCart Backend Starting...");
 
     await connectDatabase();
 
     const server = http.createServer(app);
 
     initializeSocket(server);
+
+    startChangeStream();
 
     server.listen(env.PORT, () => {
       logger.info(

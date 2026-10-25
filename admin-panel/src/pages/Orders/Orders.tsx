@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../../api/axios";
+import { getAdminSocket } from "../../api/socket";
 import {
 ArrowLeft,
 SlidersHorizontal,
@@ -39,6 +40,7 @@ Check,
 type OrderStatus =
 | "New"
 | "Scheduled"
+| "Agent Assigned"
 | "Picked Up"
 | "In Transit"
 | "Inspection"
@@ -93,7 +95,7 @@ const statusFromApi = (status: string): OrderStatus => {
 const map: Record<string, OrderStatus> = {
 pending: "New",
 pickup_scheduled: "Scheduled",
-assigned: "Scheduled",
+assigned: "Agent Assigned",
 picked_up: "Picked Up",
 in_transit: "In Transit",
 inspection_pending: "Inspection",
@@ -124,6 +126,7 @@ const tabs = [
 const statusStyles: Record<OrderStatus, string> = {
 New: "bg-blue-50 text-blue-700 ring-blue-200",
 Scheduled: "bg-violet-50 text-violet-700 ring-violet-200",
+"Agent Assigned": "bg-orange-50 text-orange-700 ring-orange-200",
 "Picked Up": "bg-cyan-50 text-cyan-700 ring-cyan-200",
 "In Transit": "bg-blue-50 text-blue-700 ring-blue-200",
 Inspection: "bg-amber-50 text-amber-700 ring-amber-200",
@@ -383,6 +386,72 @@ return (
 </div>
 );
 }
+// Compare orders created in the most recent 30 days with the previous 30 days.
+ // These are live comparisons calculated from the loaded order records, not hardcoded percentages.
+type TrendPeriod = "month" | "week" | "day";
+
+// Trends are calculated from real order records. Status trends group records by
+// their current status and creation date; pickup trends use the scheduled pickup date.
+function getCardTrend(
+  orders: Order[],
+  statuses?: string[],
+  period: TrendPeriod = "month",
+  usePickupDate = false,
+) {
+  const now = new Date();
+  const currentStart = new Date(now);
+  const previousStart = new Date(now);
+  const periodLabel =
+    period === "day" ? "vs yesterday" :
+    period === "week" ? "vs last week" :
+    "from last month";
+
+  if (period === "day") {
+    currentStart.setHours(0, 0, 0, 0);
+    previousStart.setTime(currentStart.getTime());
+    previousStart.setDate(previousStart.getDate() - 1);
+  } else if (period === "week") {
+    currentStart.setDate(currentStart.getDate() - 7);
+    previousStart.setDate(previousStart.getDate() - 14);
+  } else {
+    currentStart.setDate(currentStart.getDate() - 30);
+    previousStart.setDate(previousStart.getDate() - 60);
+  }
+
+  const matchesStatus = (order: Order) =>
+    !statuses || statuses.includes(String(order.rawStatus).toLowerCase());
+
+  const inRange = (order: Order, start: Date, end: Date) => {
+    if (!matchesStatus(order)) return false;
+    const dateValue = usePickupDate ? order.pickupDate : order.dateValue;
+    if (!dateValue) return false;
+    const recordDate = new Date(dateValue);
+    return !Number.isNaN(recordDate.getTime()) && recordDate >= start && recordDate < end;
+  };
+
+  const current = orders.filter((order) => inRange(order, currentStart, now)).length;
+  const previous = orders.filter((order) => inRange(order, previousStart, currentStart)).length;
+
+  // A percentage is undefined when the previous period had zero records.
+  // Show the real count difference instead of the unhelpful "No previous data".
+  // This keeps the card dynamic without inventing a percentage.
+  if (previous === 0) {
+    const difference = current - previous;
+    return {
+      text: difference > 0 ? `+${difference} ${difference === 1 ? "order" : "orders"}` : "0 orders",
+      direction: difference > 0 ? "up" as const : "flat" as const,
+      period: periodLabel,
+    };
+  }
+
+  const change = ((current - previous) / previous) * 100;
+  return {
+    text: `${change > 0 ? "+" : ""}${change.toFixed(1)}%`,
+    direction: change > 0 ? "up" as const : change < 0 ? "down" as const : "flat" as const,
+    period: periodLabel,
+  };
+}
+
 export default function Orders() {
 const [orders, setOrders] = useState<Order[]>([]);
 const [agents, setAgents] = useState<any[]>([]);
@@ -425,15 +494,20 @@ warrantyDuration: "",
 warrantyValidUntil: "",
 remarks: "",
 });
-const fetchOrders = useCallback(async () => {
-setIsLoading(true);
-setLoadError("");
+const fetchOrders = useCallback(async (options?: { silent?: boolean }) => {
+  const silent = options?.silent ?? false;
+
+  if (!silent) {
+    setIsLoading(true);
+  }
+
+  setLoadError("");
 try {
 // The backend allows a maximum of 100 records per request. Load every
 // backend page so search, filters, and summary cards use the complete
 // order dataset rather than only the first 100 records.
 const firstResponse = await api.get<OrdersResponse>("/admin/orders", {
-params: { page: 1, limit: 100 },
+params: { page: 1, limit: 20 },
 });
 const firstPageOrders = Array.isArray(firstResponse.data?.data)
 ? firstResponse.data.data
@@ -442,7 +516,7 @@ const totalPages = Math.max(1, Number(firstResponse.data?.pagination?.totalPages
 const allApiOrders = [...firstPageOrders];
 for (let currentPage = 2; currentPage <= totalPages; currentPage += 1) {
 const pageResponse = await api.get<OrdersResponse>("/admin/orders", {
-params: { page: currentPage, limit: 100 },
+params: { page: currentPage, limit: 20 },
 });
 if (Array.isArray(pageResponse.data?.data)) {
 allApiOrders.push(...pageResponse.data.data);
@@ -460,11 +534,76 @@ setAgents(agentList);
 } catch (error: any) {
 setLoadError(error?.response?.data?.message || error?.message || "Unable to load orders.");
 } finally {
-setIsLoading(false);
+  if (!silent) {
+    setIsLoading(false);
+  }
 }
 }, []);
 useEffect(() => {
-void fetchOrders();
+  // Load the current data when the Orders page opens and manage the loading state.
+  void fetchOrders();
+
+  const socket = getAdminSocket();
+
+  if (!socket) {
+    console.warn(
+      "[ExCart Orders] Real-time socket is not initialized; automatic updates are unavailable until it connects.",
+    );
+    return;
+  }
+
+  const relevantEntities = new Set([
+    "orders",
+    "order",
+    "agents",
+    "agent",
+    "users",
+    "user",
+    "devices",
+    "device",
+    "inspections",
+    "inspection",
+    "inventory",
+    "payments",
+    "payment",
+    "pickups",
+    "pickup",
+  ]);
+
+  const handleDataChanged = (payload: {
+    entity?: string;
+    action?: string;
+    recordId?: string;
+    timestamp?: string;
+  }) => {
+    const entity = payload?.entity?.toLowerCase();
+
+    if (!entity || !relevantEntities.has(entity)) {
+      return;
+    }
+
+    console.info(
+      "[ExCart Orders] Refreshing orders after real-time event:",
+      payload,
+    );
+
+    void fetchOrders();
+  };
+
+  // Refresh this page when another admin changes an order or related data.
+  socket.on("data:changed", handleDataChanged);
+
+  // Re-fetch after a reconnect so changes made while disconnected are not missed.
+  socket.on("connect", handleReconnect);
+
+  function handleReconnect() {
+    void fetchOrders();
+  }
+
+  return () => {
+    socket.off("data:changed", handleDataChanged);
+    socket.off("connect", handleReconnect);
+  };
 }, [fetchOrders]);
 const selectedOrder = orders.find((order) => order.id === selectedOrderId);
 useEffect(() => {
@@ -2184,15 +2323,24 @@ return (
 {/* Summary cards */}
 <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
 {[
-{ label: "Total Orders", value: orders.length.toLocaleString("en-IN"), note: "all orders", icon: PackageCheck, box: "bg-purple-50 text-purple-500" },
-{ label: "New Orders", value: orders.filter((item) => item.rawStatus === "pending").length.toLocaleString("en-IN"), note: "new requests", icon: Clock3, box: "bg-red-50 text-red-400" },
-{ label: "In Transit", value: orders.filter((item) => ["in_transit", "payment_completed"].includes(item.rawStatus)).length.toLocaleString("en-IN"), note: "with agent", icon: Truck, box: "bg-blue-50 text-blue-500" },
-{ label: "Cancelled", value: orders.filter((item) => ["cancelled", "rejected"].includes(item.rawStatus)).length.toLocaleString("en-IN"), note: "cancelled orders", icon: XCircle, box: "bg-red-50 text-red-500" },
-{ label: "Inspection Pending", value: orders.filter((item) => item.rawStatus === "inspection_pending").length.toLocaleString("en-IN"), note: "awaiting inspection", icon: ClipboardCheck, box: "bg-amber-50 text-amber-500" },
-].map(({ label, value, note, icon: Icon, box }) => (
-<div key={label} className="flex h-[91px] min-w-0 items-center gap-4 rounded-lg border border-stone-200 bg-white px-4">
-<div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${box}`}><Icon size={24} strokeWidth={1.7} /></div>
-<div className="min-w-0"><p className="text-sm font-medium leading-5 text-stone-600">{label}</p><p className="text-2xl font-semibold leading-7 text-stone-700">{value}</p><p className="mt-0.5 whitespace-nowrap text-xs text-stone-500">{note}</p></div>
+{ label: "Total Orders", value: orders.length.toLocaleString("en-IN"), note: "all orders", icon: PackageCheck, box: "bg-purple-50 text-purple-500", trend: getCardTrend(orders, undefined, "month") },
+{ label: "Pending", value: orders.filter((item) => ["pending", "pickup_scheduled", "assigned"].includes(String(item.rawStatus).toLowerCase())).length.toLocaleString("en-IN"), note: "pending orders", icon: Clock3, box: "bg-red-50 text-red-400", trend: getCardTrend(orders, ["pending", "pickup_scheduled", "assigned"], "month") },
+{ label: "In Transit", value: orders.filter((item) => ["in_transit", "payment_completed"].includes(item.rawStatus)).length.toLocaleString("en-IN"), note: "with agent", icon: Truck, box: "bg-blue-50 text-blue-500", trend: getCardTrend(orders, ["in_transit", "payment_completed"], "day", true) },
+{ label: "Cancelled", value: orders.filter((item) => ["cancelled", "rejected"].includes(item.rawStatus)).length.toLocaleString("en-IN"), note: "cancelled orders", icon: XCircle, box: "bg-red-50 text-red-500", trend: getCardTrend(orders, ["cancelled", "rejected"], "month") },
+{ label: "Inspection Pending", value: orders.filter((item) => ["inspection_pending", "inspection_in_progress", "under_inspection"].includes(String(item.rawStatus).toLowerCase())).length.toLocaleString("en-IN"), note: "awaiting inspection", icon: ClipboardCheck, box: "bg-amber-50 text-amber-500", trend: getCardTrend(orders, ["inspection_pending", "inspection_in_progress", "under_inspection"], "week") },
+ ].map(({ label, value, note, icon: Icon, box, trend }) => (
+<div key={label} className="flex h-[91px] min-w-0 items-center gap-3 rounded-lg border border-stone-200 bg-white px-3.5">
+<div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${box}`}><Icon size={22} strokeWidth={1.7} /></div>
+<div className="min-w-0">
+<p className="text-xs font-medium leading-4 text-stone-600">{label}</p>
+<p className="text-2xl font-semibold leading-7 text-stone-700">{value}</p>
+<div className="mt-0.5 flex min-w-0 items-center gap-1 whitespace-nowrap text-[10px] leading-3">
+<span className={trend?.direction === "down" ? "font-semibold text-red-500" : trend?.direction === "up" ? "font-semibold text-emerald-600" : "font-medium text-stone-500"}>
+{trend?.direction === "down" ? "↘" : trend?.direction === "up" ? "↗" : "→"} {trend?.text}
+</span>
+<span className="truncate text-stone-400">{trend?.period ?? note}</span>
+</div>
+</div>
 </div>
 ))}
 </div>

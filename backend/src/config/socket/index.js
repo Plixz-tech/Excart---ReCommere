@@ -1,5 +1,7 @@
+
 import { Server } from "socket.io";
 import mongoose from "mongoose";
+
 import { verifyAccessToken } from "../../lib/jwt.js";
 import { findUserById } from "../../modules/auth/auth.repository.js";
 import Order from "../../models/Order.js";
@@ -15,8 +17,7 @@ export const initializeSocket = (server) => {
     },
   });
 
-    // SOCKET AUTHENTICATION
-  
+  // SOCKET AUTHENTICATION
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
@@ -26,15 +27,21 @@ export const initializeSocket = (server) => {
       }
 
       const decoded = verifyAccessToken(token);
-
       const user = await findUserById(decoded.userId);
 
       if (!user) {
         return next(new Error("User not found."));
       }
 
-      if (user.status === "blocked") {
-        return next(new Error("Your account has been blocked."));
+      // Reject blocked and deleted accounts.
+      if (user.status === "blocked" || user.status === "deleted") {
+        return next(
+          new Error(
+            user.status === "deleted"
+              ? "This account is no longer available."
+              : "Your account has been blocked."
+          )
+        );
       }
 
       socket.user = {
@@ -50,8 +57,7 @@ export const initializeSocket = (server) => {
     }
   });
 
-    // SOCKET CONNECTION
-  
+  // SOCKET CONNECTION
   io.on("connection", (socket) => {
     const { userId, role } = socket.user;
 
@@ -59,39 +65,30 @@ export const initializeSocket = (server) => {
       `Socket connected: ${socket.id} | User: ${userId} | Role: ${role}`
     );
 
-        // PERSONAL USER ROOM
-    
+    // PERSONAL USER ROOM
     socket.join(`user:${userId}`);
 
-        // AGENT ROOM
-    
+    // AGENT ROOM
     if (role === "agent") {
       socket.join(`agent:${userId}`);
 
-      console.log(
-        `Agent ${userId} joined room agent:${userId}`
-      );
+      console.log(`Agent ${userId} joined room agent:${userId}`);
     }
 
-        // ADMIN ROOM
-    
+    // ADMIN ROOM
     if (role === "admin") {
       socket.join("admins");
 
-      console.log(
-        `Admin ${userId} joined admin room`
-      );
+      console.log(`Admin ${userId} joined admin room`);
     }
 
-        // JOIN ORDER ROOM
-    
+    // JOIN ORDER ROOM
     socket.on("join_order", async (orderId) => {
       try {
         if (!orderId) {
           socket.emit("socket_error", {
             message: "Order ID is required.",
           });
-
           return;
         }
 
@@ -99,7 +96,6 @@ export const initializeSocket = (server) => {
           socket.emit("socket_error", {
             message: "Invalid order ID.",
           });
-
           return;
         }
 
@@ -109,12 +105,10 @@ export const initializeSocket = (server) => {
           socket.emit("socket_error", {
             message: "Order not found.",
           });
-
           return;
         }
 
-                // CUSTOMER ACCESS
-        
+        // CUSTOMER ACCESS
         if (role === "user") {
           if (
             !order.customer ||
@@ -123,13 +117,11 @@ export const initializeSocket = (server) => {
             socket.emit("socket_error", {
               message: "You are not allowed to track this order.",
             });
-
             return;
           }
         }
 
-                // AGENT ACCESS
-        
+        // AGENT ACCESS
         if (role === "agent") {
           const assignedAgent =
             order.agent || order.pickup?.assignedAgent;
@@ -141,31 +133,21 @@ export const initializeSocket = (server) => {
             socket.emit("socket_error", {
               message: "You are not assigned to this order.",
             });
-
             return;
           }
         }
 
-                // ADMIN ACCESS
-        
+        // Only authorized users reach this point.
         // Admins can join any order room.
-
-                // JOIN ROOM
-        
         socket.join(`order:${orderId}`);
 
-        console.log(
-          `User ${userId} joined order:${orderId}`
-        );
+        console.log(`User ${userId} joined order:${orderId}`);
 
         socket.emit("order_joined", {
           orderId,
         });
       } catch (error) {
-        console.error(
-          "Socket join_order error:",
-          error
-        );
+        console.error("Socket join_order error:", error);
 
         socket.emit("socket_error", {
           message: "Unable to join order room.",
@@ -173,32 +155,24 @@ export const initializeSocket = (server) => {
       }
     });
 
-        // AGENT LOCATION UPDATE
-    
+    // AGENT LOCATION UPDATE
     socket.on("agent_location_update", async (data) => {
       try {
-        // Only agents can send location updates
+        // Only agents can send location updates.
         if (role !== "agent") {
           socket.emit("socket_error", {
             message: "Only agents can send location updates.",
           });
-
           return;
         }
 
-        const {
-          orderId,
-          latitude,
-          longitude,
-        } = data || {};
+        const { orderId, latitude, longitude } = data || {};
 
-                // VALIDATE ORDER ID
-        
+        // VALIDATE ORDER ID
         if (!orderId) {
           socket.emit("socket_error", {
             message: "Order ID is required.",
           });
-
           return;
         }
 
@@ -206,12 +180,10 @@ export const initializeSocket = (server) => {
           socket.emit("socket_error", {
             message: "Invalid order ID.",
           });
-
           return;
         }
 
-                // VALIDATE LATITUDE
-        
+        // VALIDATE LATITUDE
         if (
           typeof latitude !== "number" ||
           latitude < -90 ||
@@ -220,12 +192,10 @@ export const initializeSocket = (server) => {
           socket.emit("socket_error", {
             message: "Invalid latitude.",
           });
-
           return;
         }
 
-                // VALIDATE LONGITUDE
-        
+        // VALIDATE LONGITUDE
         if (
           typeof longitude !== "number" ||
           longitude < -180 ||
@@ -234,24 +204,20 @@ export const initializeSocket = (server) => {
           socket.emit("socket_error", {
             message: "Invalid longitude.",
           });
-
           return;
         }
 
-                // FIND ORDER
-        
+        // FIND ORDER
         const order = await Order.findById(orderId);
 
         if (!order) {
           socket.emit("socket_error", {
             message: "Order not found.",
           });
-
           return;
         }
 
-                // VERIFY AGENT ASSIGNMENT
-        
+        // VERIFY AGENT ASSIGNMENT
         const assignedAgent =
           order.agent || order.pickup?.assignedAgent;
 
@@ -262,12 +228,10 @@ export const initializeSocket = (server) => {
           socket.emit("socket_error", {
             message: "You are not assigned to this order.",
           });
-
           return;
         }
 
-                // CHECK TRACKING STATUS
-        
+        // CHECK TRACKING STATUS
         const allowedStatuses = [
           "assigned",
           "pickup_scheduled",
@@ -279,12 +243,10 @@ export const initializeSocket = (server) => {
           socket.emit("socket_error", {
             message: "Location tracking is not active for this order.",
           });
-
           return;
         }
 
-                // SAVE LOCATION
-        
+        // SAVE LOCATION
         const location = await AgentLocation.findOneAndUpdate(
           { agent: userId },
           {
@@ -304,8 +266,6 @@ export const initializeSocket = (server) => {
           }
         );
 
-                // LOCATION DATA
-        
         const locationData = {
           agentId: userId,
           orderId: order._id.toString(),
@@ -315,20 +275,19 @@ export const initializeSocket = (server) => {
           lastUpdatedAt: location.lastUpdatedAt,
         };
 
-                // SEND LOCATION TO ORDER ROOM
-        
-        io
-          .to(`order:${orderId}`)
-          .emit("location_updated", locationData);
+        // SEND LOCATION TO AUTHORIZED ORDER ROOM
+        io.to(`order:${orderId}`).emit(
+          "location_updated",
+          locationData
+        );
 
-                // SEND LOCATION TO ADMINS
-        
-        io
-          .to("admins")
-          .emit("location_updated", locationData);
+        // SEND LOCATION TO ADMINS
+        io.to("admins").emit(
+          "location_updated",
+          locationData
+        );
 
-                // CONFIRM UPDATE TO AGENT
-        
+        // CONFIRM UPDATE TO AGENT
         socket.emit("location_update_success", {
           orderId: order._id.toString(),
           latitude: location.latitude,
@@ -336,10 +295,7 @@ export const initializeSocket = (server) => {
           lastUpdatedAt: location.lastUpdatedAt,
         });
       } catch (error) {
-        console.error(
-          "Socket agent_location_update error:",
-          error
-        );
+        console.error("Socket agent_location_update error:", error);
 
         socket.emit("socket_error", {
           message: "Unable to update agent location.",
@@ -347,28 +303,24 @@ export const initializeSocket = (server) => {
       }
     });
 
-        // LEAVE ORDER ROOM
-    
+    // LEAVE ORDER ROOM
     socket.on("leave_order", (orderId) => {
-      if (!orderId) {
+      if (!orderId || !mongoose.isValidObjectId(orderId)) {
         return;
       }
 
       socket.leave(`order:${orderId}`);
 
-      console.log(
-        `User ${userId} left order:${orderId}`
-      );
+      console.log(`User ${userId} left order:${orderId}`);
     });
 
-        // DISCONNECT
-    
+    // DISCONNECT
     socket.on("disconnect", async () => {
       console.log(
         `Socket disconnected: ${socket.id} | User: ${userId}`
       );
 
-      // Only agents have live location status
+      // Only agents have live location status.
       if (role !== "agent") {
         return;
       }
@@ -404,9 +356,7 @@ export const initializeSocket = (server) => {
 
 export const getIO = () => {
   if (!io) {
-    throw new Error(
-      "Socket.IO has not been initialized."
-    );
+    throw new Error("Socket.IO has not been initialized.");
   }
 
   return io;

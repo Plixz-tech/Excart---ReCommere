@@ -2,6 +2,7 @@
 import mongoose from "mongoose";
 import modelRepository from "./model.repository.js";
 import Brand from "../../models/Brand.js";
+import broadcastDataChanges from "../../middlewares/realtime/broadcastDataChanges.js";
 
 class ModelService {
   async createModel(data, userId) {
@@ -33,9 +34,7 @@ class ModelService {
     const brand = await Brand.findById(brandId);
 
     if (!brand || !brand.active) {
-      const error = new Error(
-        "Brand not found or inactive."
-      );
+      const error = new Error("Brand not found or inactive.");
       error.statusCode = 400;
       throw error;
     }
@@ -51,7 +50,7 @@ class ModelService {
       throw error;
     }
 
-    return modelRepository.create({
+    const model = await modelRepository.create({
       brand: brandId,
       name,
       image: data.image?.trim() || "",
@@ -59,6 +58,14 @@ class ModelService {
       createdBy: userId || null,
       updatedBy: userId || null,
     });
+
+    broadcastDataChanges({
+      entity: "models",
+      action: "created",
+      recordId: model._id,
+    });
+
+    return model;
   }
 
   async getModels({ brandId, activeOnly = true } = {}) {
@@ -149,9 +156,7 @@ class ModelService {
       const brand = await Brand.findById(data.brand);
 
       if (!brand || !brand.active) {
-        const error = new Error(
-          "Brand not found or inactive."
-        );
+        const error = new Error("Brand not found or inactive.");
         error.statusCode = 400;
         throw error;
       }
@@ -169,7 +174,17 @@ class ModelService {
 
     updates.updatedBy = userId || null;
 
-    return modelRepository.updateById(id, updates);
+    const updatedModel = await modelRepository.updateById(id, updates);
+
+    if (updatedModel) {
+      broadcastDataChanges({
+        entity: "models",
+        action: "updated",
+        recordId: updatedModel._id,
+      });
+    }
+
+    return updatedModel;
   }
 
   async deactivateModel(id, userId) {
@@ -181,7 +196,17 @@ class ModelService {
       throw error;
     }
 
-    return modelRepository.deactivateById(id, userId);
+    const deactivatedModel = await modelRepository.deactivateById(id, userId);
+
+    if (deactivatedModel) {
+      broadcastDataChanges({
+        entity: "models",
+        action: "deactivated",
+        recordId: deactivatedModel._id,
+      });
+    }
+
+    return deactivatedModel;
   }
 }
 
