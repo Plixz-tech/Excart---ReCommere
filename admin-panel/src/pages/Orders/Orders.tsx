@@ -249,8 +249,8 @@ const amount = asAmount(payment.finalAmount, payment.estimatedAmount, source.est
 return amount !== null && amount > 0 ? amount : null;
 })(),
 status: statusFromApi(rawStatus),
-agent: asText(agent.fullName),
-agentBackendId: String(agent._id ?? agent.id ?? source.agent?._id ?? source.pickup?.assignedAgent?._id ?? ""),
+agent: asText(agent.fullName ?? agent.user?.fullName ?? agent.name ?? agent.user?.name, "Unassigned"),
+agentBackendId: String(agent._id ?? agent.id ?? (typeof source.agent === "string" ? source.agent : "") ?? source.pickup?.assignedAgent?._id ?? ""),
 date: formatDate(source.createdAt),
 dateValue: source.createdAt ? String(source.createdAt) : null,
 createdAtLabel: source.createdAt
@@ -398,6 +398,10 @@ const [orders, setOrders] = useState<Order[]>([]);
 const [agents, setAgents] = useState<any[]>([]);
 const [selectedAgentId, setSelectedAgentId] = useState("");
 const [isAssigningAgent, setIsAssigningAgent] = useState(false);
+const [internalNotesDraft, setInternalNotesDraft] = useState("");
+const [isSavingNotes, setIsSavingNotes] = useState(false);
+const [cancelReason, setCancelReason] = useState("");
+const [cancelRemarks, setCancelRemarks] = useState("");
 const [search, setSearch] = useState("");
 const [statusFilter, setStatusFilter] = useState("All");
 const [dateFilter] = useState("All time");
@@ -475,7 +479,11 @@ void fetchOrders();
 const selectedOrder = orders.find((order) => order.id === selectedOrderId);
 useEffect(() => {
 setSelectedAgentId(selectedOrder?.agentBackendId ?? "");
-}, [selectedOrder?.backendId, selectedOrder?.agentBackendId]);
+const existingNotes = selectedOrder?.internalNotes ?? "";
+setInternalNotesDraft(/notification testing/i.test(existingNotes) ? "" : existingNotes === "—" ? "" : existingNotes);
+setCancelReason("");
+setCancelRemarks("");
+}, [selectedOrder?.backendId, selectedOrder?.agentBackendId, selectedOrder?.internalNotes]);
 const hydrateInspectionForm = (record: any) => {
 setInspectionForm({
 screenCondition: record?.screenCondition ?? "",
@@ -641,6 +649,10 @@ setSuccessMessage("");
 };
 const assignAgent = async () => {
 if (!selectedOrder || !selectedAgentId) return;
+if (["in_transit", "payment_completed", "cancelled", "rejected"].includes(selectedOrder.rawStatus)) {
+setLoadError("Agent assignment cannot be changed for an order that is in transit or cancelled.");
+return;
+}
 setIsAssigningAgent(true);
 setLoadError("");
 setSuccessMessage("");
@@ -653,11 +665,64 @@ setOrders((current) => current.map((order) => order.backendId === mapped.backend
 } else {
 await fetchOrders();
 }
-setSuccessMessage("Agent assigned successfully.");
+setSuccessMessage(selectedOrder.agentBackendId ? "Agent reassigned successfully." : "Agent assigned successfully.");
 } catch (error: any) {
 setLoadError(error?.response?.data?.message || error?.message || "Unable to assign agent.");
 } finally {
 setIsAssigningAgent(false);
+}
+};
+const saveInternalNotes = async () => {
+if (!selectedOrder) return;
+setIsSavingNotes(true);
+setLoadError("");
+setSuccessMessage("");
+try {
+const response = await api.patch(`/admin/orders/${selectedOrder.backendId}`, { notes: internalNotesDraft.trim() });
+const updated = response.data?.data;
+if (updated) {
+const mapped = mapApiOrder(updated);
+setOrders((current) => current.map((order) => order.backendId === mapped.backendId ? mapped : order));
+} else {
+await fetchOrders();
+}
+setSuccessMessage("Internal notes saved successfully.");
+} catch (error: any) {
+setLoadError(error?.response?.data?.message || error?.message || "Unable to save internal notes.");
+} finally {
+setIsSavingNotes(false);
+}
+};
+const cancelOrder = async () => {
+if (!selectedOrder) return;
+if (!cancelReason) {
+setLoadError("Please select a cancellation reason before cancelling the order.");
+return;
+}
+setIsSaving(true);
+setLoadError("");
+setSuccessMessage("");
+try {
+const existingNotes = selectedOrder.internalNotes && selectedOrder.internalNotes !== "—" && !/notification testing/i.test(selectedOrder.internalNotes) ? selectedOrder.internalNotes.trim() : "";
+const cancellationDetails = [`Cancellation reason: ${cancelReason}`, cancelRemarks.trim() ? `Remarks: ${cancelRemarks.trim()}` : ""].filter(Boolean).join("\n");
+const cancellationNote = [existingNotes, cancellationDetails].filter(Boolean).join("\n\n");
+// Save the cancellation reason and remarks to the order's existing notes field first.
+await api.patch(`/admin/orders/${selectedOrder.backendId}`, { notes: cancellationNote });
+const response = await api.patch(`/admin/orders/${selectedOrder.backendId}/status`, { status: "cancelled" });
+const updated = response.data?.data;
+if (updated) {
+const mapped = mapApiOrder({ ...updated, notes: updated.notes ?? cancellationNote });
+setOrders((current) => current.map((order) => order.backendId === mapped.backendId ? mapped : order));
+} else {
+await fetchOrders();
+}
+setSuccessMessage("Order cancelled and cancellation details saved.");
+setCancelReason("");
+setCancelRemarks("");
+} catch (error: any) {
+setLoadError(error?.response?.data?.message || error?.message || "Unable to cancel the order or save its cancellation details.");
+} finally {
+setIsSaving(false);
 }
 };
 const updateOrderStatus = async (status: OrderStatus) => {
@@ -739,12 +804,12 @@ return (
 <DetailRow label="Invoice ID" value={order.invoiceFileName ?? "—"} />
 <DetailRow label="Created On" value={order.createdAtLabel} />
 <DetailRow label="Pickup Address" value={order.location} />
-{order.customerAddress.trim().toLowerCase().replace(/\s+/g, " ") !== order.location.trim().toLowerCase().replace(/\s+/g, " ") && <DetailRow label="User Address" value={order.customerAddress} />}
+<DetailRow label="User Address" value={order.location} />
 </DetailSection>
 <DetailSection title="Agent & Pickup Details">
 <p className="mb-2 text-xs font-medium text-stone-500">Assigned Agent</p>
 <div className="space-y-2 rounded-lg border border-stone-200 p-2.5">
-<select value={selectedAgentId} onChange={(event) => setSelectedAgentId(event.target.value)} aria-label="Choose assigned agent" className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 outline-none focus:border-orange-400">
+<select value={selectedAgentId} onChange={(event) => setSelectedAgentId(event.target.value)} disabled={["in_transit", "payment_completed", "cancelled", "rejected"].includes(order.rawStatus)} aria-label="Choose assigned agent" className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 outline-none focus:border-orange-400 disabled:cursor-not-allowed disabled:bg-stone-100">
 <option value="">Unassigned</option>
 {agents.map((agentOption) => {
 const agentId = String(agentOption?._id ?? agentOption?.id ?? "");
@@ -752,8 +817,8 @@ const agentName = agentOption?.fullName ?? agentOption?.user?.fullName ?? agentO
 return <option key={agentId} value={agentId}>{agentName}</option>;
 })}
 </select>
-<p className="text-xs text-stone-500">{order.agentPhone}</p>
-<button type="button" onClick={() => void assignAgent()} disabled={!selectedAgentId || isAssigningAgent || selectedAgentId === order.agentBackendId} className="w-full rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-stone-300">{isAssigningAgent ? "Assigning..." : order.agentBackendId ? "Update Agent" : "Assign Agent"}</button>
+<p className="text-xs text-stone-500">{order.agentPhone}</p>{["in_transit", "payment_completed", "cancelled", "rejected"].includes(order.rawStatus) && <p className="text-xs text-amber-700">Agent assignment is locked for this order status.</p>}
+<button type="button" onClick={() => void assignAgent()} disabled={!selectedAgentId || isAssigningAgent || selectedAgentId === order.agentBackendId || ["in_transit", "payment_completed", "cancelled", "rejected"].includes(order.rawStatus)} className="w-full rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-stone-300">{isAssigningAgent ? "Saving..." : order.agentBackendId ? "Reassign Agent" : "Assign Agent"}</button>
 </div>
 <div className="mt-4">
 <p className="mb-2 text-xs font-medium text-stone-500">Pickup Date</p>
@@ -778,8 +843,8 @@ return <option key={agentId} value={agentId}>{agentName}</option>;
 ["Order Created", order.date, Boolean(order.dateValue)],
 ["Order Status", order.status, ["Picked Up", "In Transit", "Inspection", "Payment Pending", "Ready Stock", "Completed"].includes(order.status)],
 ["Payment Status", order.paymentStatus, order.paymentStatus === "Paid"],
-["Inspection Status", order.inspectionStatus, ["passed", "approved", "completed"].includes(order.inspectionStatus.toLowerCase())],
-["Inventory Status", order.inventoryStatus, ["available", "listed", "ready_stock", "in_stock"].includes(order.inventoryStatus.toLowerCase())],
+["Inspection Status", formatBackendStatus(order.inspectionStatus), ["passed", "approved", "completed"].includes(order.inspectionStatus.toLowerCase().replace(/[_-]+/g, " "))],
+["Inventory Status", formatBackendStatus(order.inventoryStatus), ["available", "listed", "ready stock", "in stock"].includes(order.inventoryStatus.toLowerCase().replace(/[_-]+/g, " "))],
 ] as [string, string, boolean][]).map(([label, value, done], index) => (
 <div key={`${label}-${index}`} className="grid grid-cols-[minmax(0,1fr)_minmax(0,auto)] items-center gap-x-3">
 <span className="text-xs font-medium text-stone-500">{label}</span>
@@ -798,13 +863,13 @@ return <option key={agentId} value={agentId}>{agentName}</option>;
 className="absolute left-[10%] top-3 h-0.5 bg-emerald-500 transition-all"
 style={{
 width: `${(
-["Order Created", "Picked Up", "Payment Pending", "Inspection Pending", "Inventory"].reduce(
+["Order Created", "Picked Up", order.paymentStatus === "Paid" ? "Payment Completed" : "Payment Pending", "Inspection Pending", "Inventory"].reduce(
 (lastDone, _step, index) => {
 const done =
 index === 0 ||
 (index === 1 && ["Picked Up", "In Transit", "Inspection", "Payment Pending", "Ready Stock", "Completed"].includes(order.status)) ||
 (index === 2 && order.paymentStatus === "Paid") ||
-(index === 3 && ["passed", "approved", "completed"].includes(order.inspectionStatus.toLowerCase())) ||
+(index === 3 && ["passed", "approved", "completed"].includes(order.inspectionStatus.toLowerCase().replace(/[_-]+/g, " "))) ||
 (index === 4 && ["Ready Stock", "Completed"].includes(order.status));
 return done ? (index / 4) * 80 : lastDone;
 },
@@ -814,12 +879,12 @@ return done ? (index / 4) * 80 : lastDone;
 }}
 />
 <div className="relative grid grid-cols-5">
-{["Order Created", "Picked Up", "Payment Pending", "Inspection Pending", "Inventory"].map((step, index) => {
+{["Order Created", "Picked Up", order.paymentStatus === "Paid" ? "Payment Completed" : "Payment Pending", "Inspection Pending", "Inventory"].map((step, index) => {
 const done =
 index === 0 ||
 (index === 1 && ["Picked Up", "In Transit", "Inspection", "Payment Pending", "Ready Stock", "Completed"].includes(order.status)) ||
 (index === 2 && order.paymentStatus === "Paid") ||
-(index === 3 && ["passed", "approved", "completed"].includes(order.inspectionStatus.toLowerCase())) ||
+(index === 3 && ["passed", "approved", "completed"].includes(order.inspectionStatus.toLowerCase().replace(/[_-]+/g, " "))) ||
 (index === 4 && ["Ready Stock", "Completed"].includes(order.status));
 return (
 <div key={step} className="flex min-w-0 flex-col items-center px-0.5 text-center">
@@ -837,7 +902,7 @@ return (
 </div>
 </DetailSection>
 <DetailSection title="Activity Timeline">
-<div className="relative max-h-72 overflow-y-auto pr-1">
+<div className={`relative px-1 pb-2 pt-8 ${order.timeline.length > 3 ? "max-h-[360px] overflow-y-auto scroll-py-4" : "overflow-visible"}`}>
 {order.timeline.map((item, index) => {
 const normalizedTitle = item.title.toLowerCase();
 const category = normalizedTitle.includes("payment") ? "Payment"
@@ -880,8 +945,8 @@ return (
 <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
 <DetailSection title="Internal Notes">
 <p className="mb-3 text-xs text-stone-500">Add notes about inspection, customer request, pickup issue, price revision reason, etc.</p>
-<textarea defaultValue={order.internalNotes} rows={4} maxLength={1000} className="w-full resize-y rounded-lg border border-stone-200 px-3 py-2.5 text-sm text-stone-700 outline-none focus:border-orange-400" placeholder="Write your notes here..." />
-<p className="mt-2 text-xs text-blue-600"> These notes will not be visible to the user</p>
+<textarea value={internalNotesDraft} onChange={(event) => setInternalNotesDraft(event.target.value)} rows={4} maxLength={1000} className="w-full resize-y rounded-lg border border-stone-200 px-3 py-2.5 text-sm text-stone-700 outline-none focus:border-orange-400" placeholder="Write your notes here..." />
+<div className="mt-3 flex items-center justify-between gap-3"><p className="text-xs text-blue-600">These notes will not be visible to the user.</p><button type="button" onClick={() => void saveInternalNotes()} disabled={isSavingNotes} className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-stone-300">{isSavingNotes ? "Saving..." : "Save Notes"}</button></div>
 </DetailSection>
 <DetailSection title="Cancel Order">
 <p className="mb-3 text-xs text-stone-500">If you want to cancel this order, please select a reason and add comments.</p>
@@ -894,9 +959,9 @@ return (
 <option>Pickup failed</option>
 <option>Other</option>
 </select>
-<textarea rows={3} maxLength={1000} className="min-h-20 resize-y rounded-lg border border-stone-200 px-3 py-2.5 text-xs text-stone-600 outline-none focus:border-orange-400" placeholder="Provide more details (optional)..." />
+<textarea value={cancelRemarks} onChange={(event) => setCancelRemarks(event.target.value)} rows={3} maxLength={1000} className="min-h-20 resize-y rounded-lg border border-stone-200 px-3 py-2.5 text-xs text-stone-600 outline-none focus:border-orange-400" placeholder="Provide more details (optional)..." />
 </div>
-<button type="button" onClick={() => void updateOrderStatus("Cancelled")} disabled={isSaving} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50">
+<button type="button" onClick={() => void cancelOrder()} disabled={isSaving} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50">
 <XCircle size={15} /> Cancel Order
 </button>
 </DetailSection>
@@ -1109,7 +1174,7 @@ state: order.paymentStatus === "Paid" ? "done" : "pending",
 },
 {
 label: "Inspection Pending",
-state: ["passed", "approved", "completed"].includes(order.inspectionStatus.toLowerCase()) ? "done" : "pending",
+state: ["passed", "approved", "completed"].includes(order.inspectionStatus.toLowerCase().replace(/[_-]+/g, " ")) ? "done" : "pending",
 },
 ].map((item) => (
 <div
