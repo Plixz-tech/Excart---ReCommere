@@ -182,6 +182,13 @@ const inspectionSchema = new mongoose.Schema(
       default: 0,
     },
 
+    // SELLING PRICE
+    sellingPrice: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+
     // INSPECTOR REMARKS
     remarks: {
       type: String,

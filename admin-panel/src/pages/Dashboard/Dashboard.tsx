@@ -209,7 +209,9 @@ export default function Dashboard() {
  ? new Date(order.pickup.scheduledDate).toLocaleDateString("en-IN")
  : "Not scheduled",
  transitStatus: String(
- order.pickup?.status ?? "Not scheduled",
+ order.status === "in_transit"
+ ? "In Transit"
+ : order.pickup?.status ?? "Not scheduled",
  ),
  amount: String(
  order.payment?.finalAmount ??
@@ -236,7 +238,7 @@ export default function Dashboard() {
  );
 
  const transitOrders = orders.filter(
- (order) => order.transitStatus === "In transit to store",
+ (order) => order.transitStatus === "In Transit",
  );
 
  const openOrder = (orderId: string) => {
@@ -265,7 +267,7 @@ export default function Dashboard() {
  </div>
 
  <div className="space-y-3">
- {orders.map((order) => (
+ {transitOrders.map((order) => (
  <button
  type="button"
  key={order.id}
