@@ -601,32 +601,26 @@ export const verifyCustomerAadhaarOtpSchema = z.object({
 // PICKUP VERIFICATION
 
 
+// PICKUP VERIFICATION
+
 export const pickupVerificationSchema = z.object({
-  customerPhotoUrl:
-    z
-      .string()
-      .min(
-        1,
-        "Customer photo is required."
-      ),
+  customerPhotoUrl: z
+    .string()
+    .min(1, "Customer photo is required.")
+    .optional(),
 
-  customerPhotoPublicId:
-    z
-      .string()
-      .optional(),
+  customerPhotoPublicId: z
+    .string()
+    .optional(),
 
-  aadhaarUrl:
-    z
-      .string()
-      .min(
-        1,
-        "Aadhaar document is required."
-      ),
+  aadhaarUrl: z
+    .string()
+    .min(1, "Aadhaar document is required.")
+    .optional(),
 
-  aadhaarPublicId:
-    z
-      .string()
-      .optional(),
+  aadhaarPublicId: z
+    .string()
+    .optional(),
 });
 
 

@@ -195,14 +195,13 @@ export const getDeviceCatalogEvaluation = async (id) => {
       ...section,
     }));
 
-  return {
-    deviceCatalogId: catalog._id,
-    brand: catalog.brand,
-    model: catalog.model,
-    variant: catalog.variant,
-    evaluationConfig,
-    sections,
-  };
+return {
+  deviceCatalogId: catalog._id,
+  brand: catalog.brand,
+  model: catalog.model,
+  variant: catalog.variant,
+  sections,
+};
 };
 
 

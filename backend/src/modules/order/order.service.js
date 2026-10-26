@@ -2785,197 +2785,123 @@ class OrderService {
   // AGENT PICKUP VERIFICATION
 
 
-  async verifyPickup(
-    orderId,
-    agentId,
-    data
-  ) {
-    const order =
-      await orderRepository.findById(
-        orderId
-      );
+ async verifyPickup(orderId, agentId, data) {
+  const order = await orderRepository.findById(orderId);
 
-    if (!order) {
-      const error = new Error(
-        "Order not found."
-      );
-
-      error.statusCode = 404;
-
-      throw error;
-    }
-
-    if (
-      !order.agent ||
-      order.agent._id.toString() !==
-      agentId.toString()
-    ) {
-      const error = new Error(
-        "You are not authorized to verify this pickup."
-      );
-
-      error.statusCode = 403;
-
-      throw error;
-    }
-
-    if (
-      ![
-        "assigned",
-        "pickup_scheduled",
-      ].includes(order.status)
-    ) {
-      const error = new Error(
-        `Pickup verification cannot be completed when order status is "${order.status}".`
-      );
-
-      error.statusCode = 400;
-
-      throw error;
-    }
-
-    const {
-      customerPhotoUrl,
-      customerPhotoPublicId,
-      aadhaarUrl,
-      aadhaarPublicId,
-    } = data;
-
-    if (!customerPhotoUrl) {
-      const error = new Error(
-        "Customer photo is required."
-      );
-
-      error.statusCode = 400;
-
-      throw error;
-    }
-
-    if (!aadhaarUrl) {
-      const error = new Error(
-        "Aadhaar document is required."
-      );
-
-      error.statusCode = 400;
-
-      throw error;
-    }
-
-    const aadhaarVerification =
-      order.pickup?.verification
-        ?.aadhaar?.verification;
-
-    if (
-      aadhaarVerification?.status !==
-      "verified"
-    ) {
-      const error = new Error(
-        "Customer Aadhaar must be verified before pickup."
-      );
-
-      error.statusCode = 400;
-
-      throw error;
-    }
-
-    const verifiedAt =
-      new Date();
-
-    const updatedOrder =
-      await orderRepository.updateById(
-        orderId,
-        {
-          "pickup.verification.customerPhoto":
-          {
-            url:
-              customerPhotoUrl,
-
-            publicId:
-              customerPhotoPublicId ||
-              "",
-
-            uploadedBy:
-              agentId,
-
-            uploadedAt:
-              verifiedAt,
-          },
-
-          "pickup.verification.aadhaar.document":
-          {
-            url:
-              aadhaarUrl,
-
-            publicId:
-              aadhaarPublicId ||
-              "",
-
-            uploadedBy:
-              agentId,
-
-            uploadedAt:
-              verifiedAt,
-          },
-
-          "pickup.verification.status":
-            "verified",
-
-          "pickup.verification.verifiedBy":
-            agentId,
-
-          "pickup.verification.verifiedAt":
-            verifiedAt,
-
-          updatedBy:
-            agentId,
-
-          $push: {
-            timeline: {
-              status:
-                "pickup_verification_completed",
-
-              message:
-                "Customer photo, Aadhaar document, and Aadhaar verification completed.",
-
-              performedBy:
-                agentId,
-            },
-          },
-        }
-      );
-
-    await auditLogger({
-      actor: agentId,
-      action: "PICKUP_VERIFICATION_COMPLETED",
-      module: "order",
-      entityType: "Order",
-      entityId: order._id,
-      description:
-        `Pickup verification for order ${order.orderNumber} was completed by the assigned agent.`,
-      oldValue: {
-        verificationStatus:
-          order.pickup?.verification?.status ||
-          "pending",
-      },
-      newValue: {
-        verificationStatus:
-          "verified",
-        verifiedBy:
-          agentId,
-        verifiedAt,
-      },
-      metadata: {
-        customerPhotoUploaded:
-          true,
-        aadhaarDocumentUploaded:
-          true,
-        aadhaarVerificationStatus:
-          "verified",
-      },
-    });
-
-    return updatedOrder;
+  if (!order) {
+    const error = new Error("Order not found.");
+    error.statusCode = 404;
+    throw error;
   }
+
+  // Ensure the logged-in agent is assigned to this order.
+  if (
+    !order.agent ||
+    order.agent._id.toString() !== agentId.toString()
+  ) {
+    const error = new Error(
+      "You are not authorized to verify this pickup."
+    );
+    error.statusCode = 403;
+    throw error;
+  }
+
+  // Pickup verification is allowed only before pickup completion.
+  if (!["assigned", "pickup_scheduled"].includes(order.status)) {
+    const error = new Error(
+      `Pickup verification cannot be completed when order status is "${order.status}".`
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Read documents already uploaded and saved to the order.
+  const customerPhoto =
+    order.pickup?.verification?.customerPhoto;
+
+  const aadhaarDocument =
+    order.pickup?.verification?.aadhaar?.document;
+
+  if (!customerPhoto?.url) {
+    const error = new Error(
+      "Customer photo must be uploaded before pickup verification."
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!aadhaarDocument?.url) {
+    const error = new Error(
+      "Aadhaar document must be uploaded before pickup verification."
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Aadhaar verification must be completed first.
+  const aadhaarVerification =
+    order.pickup?.verification?.aadhaar?.verification;
+
+  if (aadhaarVerification?.status !== "verified") {
+    const error = new Error(
+      "Customer Aadhaar must be verified before pickup."
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const verifiedAt = new Date();
+
+  // Update verification status without overwriting uploaded documents.
+  const updatedOrder = await orderRepository.updateById(
+    orderId,
+    {
+      "pickup.verification.status": "verified",
+
+      "pickup.verification.verifiedBy": agentId,
+
+      "pickup.verification.verifiedAt": verifiedAt,
+
+      updatedBy: agentId,
+
+      $push: {
+        timeline: {
+          status: "pickup_verification_completed",
+          message:
+            "Customer photo, Aadhaar document, and Aadhaar verification completed.",
+          performedBy: agentId,
+        },
+      },
+    }
+  );
+
+  // Record the verification in the audit log.
+  await auditLogger({
+    actor: agentId,
+    action: "PICKUP_VERIFICATION_COMPLETED",
+    module: "order",
+    entityType: "Order",
+    entityId: order._id,
+    description:
+      `Pickup verification for order ${order.orderNumber} was completed by the assigned agent.`,
+    oldValue: {
+      verificationStatus:
+        order.pickup?.verification?.status || "pending",
+    },
+    newValue: {
+      verificationStatus: "verified",
+      verifiedBy: agentId,
+      verifiedAt,
+    },
+    metadata: {
+      customerPhotoUploaded: true,
+      aadhaarDocumentUploaded: true,
+      aadhaarVerificationStatus: "verified",
+    },
+  });
+
+  return updatedOrder;
+}
 
   // AGENT PICKUP
   
