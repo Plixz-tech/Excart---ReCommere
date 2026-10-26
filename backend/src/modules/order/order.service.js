@@ -3346,10 +3346,16 @@ async processPayment(orderId, paymentData, adminId) {
 
   const paidAt = new Date();
 
+
+const invoiceNumber =
+  `PINV-${order.orderNumber}`;
+
+
   // Prepare completed payment data for PDF generation.
   const paidOrder = order.toObject();
 
   paidOrder.status = "payment_completed";
+  paidOrder.invoiceNumber = invoiceNumber;
   paidOrder.payment = {
     ...paidOrder.payment,
     status: "completed",
@@ -3385,17 +3391,20 @@ async processPayment(orderId, paymentData, adminId) {
     });
 
   const documents = [
-    {
-      type: "purchase_invoice",
-      url:
-        purchaseInvoiceFile.secure_url ||
-        purchaseInvoiceFile.url ||
-        "",
-      publicId: purchaseInvoiceFile.public_id || "",
-      fileName: `Purchase-Invoice-${order.orderNumber}.pdf`,
-      uploadedBy: adminId,
-      uploadedAt: new Date(),
-    },
+
+{
+  type: "purchase_invoice",
+  url:
+    purchaseInvoiceFile.secure_url ||
+    purchaseInvoiceFile.url ||
+    "",
+  publicId: purchaseInvoiceFile.public_id || "",
+  fileName: `Purchase-Invoice-${order.orderNumber}.pdf`,
+  invoiceNumber: invoiceNumber,
+  uploadedBy: adminId,
+  uploadedAt: new Date(),
+},
+
     {
       type: "payment_slip",
       url:

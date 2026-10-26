@@ -21,6 +21,7 @@ CheckCircle2,
 XCircle,
 Truck,
 ContactRound,
+UserCheck,
 ScanFace,
 ReceiptText,
 Receipt,
@@ -65,6 +66,7 @@ createdAtLabel: string;
 customerAddress: string;
 agentPhone: string;
 purchaseInvoiceUrl: string;
+purchaseInvoiceNumber: string;
 pickupDate: string;
 pickupTime: string;
 inventoryStatus: string;
@@ -87,8 +89,17 @@ accessories: Array<{ label: string; value: string }>;
 physicalConditions: Array<{ label: string; value: string }>;
 deviceImages: Array<{ label: string; url: string }>;
 purchaseBillUrl: string;
+documents: Array<{
+id: string;
+type: string;
+title: string;
+url: string;
+fileName: string;
+uploadedAt: string | null;
+status: string;
+}>;
 agentNotes: string;
-timeline: { title: string; date: string; completed: boolean }[];
+timeline: { title: string; description: string; date: string; actor: string; role: string; completed: boolean }[];
 };
 type ApiOrder = Record<string, any>;
 const statusFromApi = (status: string): OrderStatus => {
@@ -152,6 +163,8 @@ if (typeof value === "string" && value.trim() && Number.isFinite(Number(value)))
 }
 return null;
 };
+const orderAgentNameForTimeline = (agent: ApiOrder) =>
+  asText(agent?.fullName ?? agent?.user?.fullName ?? agent?.name ?? agent?.user?.name, "Agent");
 const mapApiOrder = (source: ApiOrder): Order => {
 const customer = source.customer ?? {};
 const agent = source.agent ?? source.pickup?.assignedAgent ?? {};
@@ -183,9 +196,14 @@ const rawPaymentStatus = typeof payment.status === "string" && payment.status.tr
 const purchaseInvoice = Array.isArray(source.documents)
 ? source.documents.find((document: ApiOrder) => document?.type === "purchase_invoice" && (document?.url || document?.fileName))
 : undefined;
+// Keep the actual PDF filename separate from the invoice number shown to the user.
+// The backend should expose invoiceNumber/invoiceNo/number from the generated invoice.
 const invoiceFileName = typeof purchaseInvoice?.fileName === "string" && purchaseInvoice.fileName.trim()
-? `INV-${purchaseInvoice.fileName.replace(/\.pdf$/i, "").replace(/^INV[-_]?/i, "")}`
+? purchaseInvoice.fileName.trim()
 : null;
+const purchaseInvoiceNumber = purchaseInvoice
+? asText(purchaseInvoice.invoiceNumber ?? purchaseInvoice.invoiceNo ?? purchaseInvoice.number, "")
+: "";
 const inspection = source.inspection ?? {};
 const customerEvaluation = device.customerEvaluation ?? source.customerEvaluation ?? source.device?.customerEvaluation ?? {};
 const agentEvaluation = device.agentEvaluation ?? source.agentEvaluation ?? source.device?.agentEvaluation ?? {};
@@ -217,8 +235,55 @@ value: stringifyValue(item),
 }
 return [];
 };
-const documents = Array.isArray(source.documents) ? source.documents : [];
-const purchaseBill = documents.find((document: ApiOrder) =>
+const sourceDocuments = Array.isArray(source.documents) ? source.documents : [];
+const pickupVerification = source.pickup?.verification ?? source.verification ?? {};
+const aadhaarVerification = pickupVerification.aadhaar ?? {};
+const aadhaarFile = aadhaarVerification.document ?? {};
+const aadhaarXml = aadhaarVerification.xml ?? {};
+const customerPhoto = pickupVerification.customerPhoto ?? {};
+const documentTitles: Record<string, string> = {
+  aadhaar: "Aadhaar Document",
+  aadhaar_offline_ekyc: "Aadhaar e-KYC",
+  pan: "PAN Card",
+  device_invoice: "Device Invoice",
+  purchase_invoice: "Purchase Invoice",
+  payment_slip: "Payment Slip",
+  ownership: "Ownership Proof",
+  purchase_proof: "Purchase Proof",
+  purchase_bill: "Purchase Bill",
+  purchase_receipt: "Purchase Receipt",
+  device_purchase_bill: "Device Purchase Bill",
+  other: "Other Document",
+};
+const documentTitle = (type: string) =>
+  documentTitles[type] ?? type.replace(/[_-]+/g, " ").replace(/\\b\\w/g, (letter) => letter.toUpperCase());
+const mappedDocuments = sourceDocuments.map((document: ApiOrder, index: number) => {
+  const type = String(document?.type ?? "other").toLowerCase();
+  return {
+    id: String(document?._id ?? document?.publicId ?? `${type}-${index}`),
+    type,
+    title: documentTitle(type),
+    url: typeof document?.url === "string" ? document.url : "",
+    fileName: typeof document?.fileName === "string" ? document.fileName : "",
+    uploadedAt: document?.uploadedAt ? String(document.uploadedAt) : null,
+    status: document?.url ? "Available" : "Missing",
+  };
+});
+const pickupDocuments = [
+  { type: "live_photo", title: "Live Photo", file: customerPhoto },
+  { type: "aadhaar", title: "Aadhaar Document", file: aadhaarFile },
+  { type: "aadhaar_offline_ekyc", title: "Aadhaar e-KYC", file: aadhaarXml },
+].filter((item) => Boolean(item.file?.url)).map((item) => ({
+  id: `${item.type}-${String(item.file?.publicId ?? item.file?.fileName ?? item.type)}`,
+  type: item.type,
+  title: item.title,
+  url: String(item.file?.url ?? ""),
+  fileName: String(item.file?.fileName ?? ""),
+  uploadedAt: item.file?.uploadedAt ? String(item.file.uploadedAt) : null,
+  status: "Available",
+}));
+const orderDocuments = [...pickupDocuments, ...mappedDocuments];
+const purchaseBill = sourceDocuments.find((document: ApiOrder) =>
 ["purchase_bill", "purchase_receipt", "device_purchase_bill"].includes(String(document?.type ?? "").toLowerCase()) && document?.url
 );
 const imageCandidates = device.images ?? device.deviceImages ?? device.photos ?? source.deviceImages ?? source.devicePhotos ?? inspection.images ?? inspection.deviceImages ?? inspection.photos ?? [];
@@ -229,11 +294,77 @@ url: typeof image === "string" ? image : asText(image?.url ?? image?.secure_url,
 const functionalChecks = labelValueList(agentEvaluation.functionalChecks ?? inspection.functionalChecks ?? inspection.functionalStatus ?? inspection.checks);
 const accessories = labelValueList(customerEvaluation.accessories ?? agentEvaluation.accessories ?? inspection.accessories ?? device.accessories ?? source.accessories);
 const physicalConditions = labelValueList(agentEvaluation.physicalCondition ?? agentEvaluation.physicalConditions ?? inspection.physicalCondition ?? inspection.physicalConditions ?? inspection.conditionDetails);
-const timeline = Array.isArray(source.timeline) ? source.timeline.map((event: ApiOrder) => ({
-title: asText(event.message, String(event.status ?? "Order update").replaceAll("_", " ")),
-date: event.createdAt ? `${formatDate(event.createdAt)}${Number.isNaN(new Date(event.createdAt).getTime()) ? "" : ` · ${new Date(event.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`}` : "—",
-completed: true,
-})) : [];
+const timelineEvents = Array.isArray(source.timeline) ? source.timeline : [];
+const timeline = timelineEvents.length
+? timelineEvents.map((event: ApiOrder) => {
+    const eventStatus = String(event.status ?? event.event ?? event.action ?? "").replaceAll("_", " ");
+    const title = asText(event.message ?? event.title ?? event.description, eventStatus ? formatBackendStatus(eventStatus) : "Order update");
+    const description = asText(event.description ?? event.details, title);
+    const normalized = `${title} ${description} ${eventStatus}`.toLowerCase();
+    const actorValue = event.actor ?? event.performedBy ?? event.user ?? event.updatedBy ?? event.createdBy;
+    const rawActorName = typeof actorValue === "string"
+      ? actorValue
+      : actorValue?.fullName ?? actorValue?.name ?? actorValue?.displayName ?? "";
+    const actorId = typeof actorValue === "string" ? actorValue : String(actorValue?._id ?? actorValue?.id ?? "");
+    const looksLikeId = /^[a-f\\d]{20,}$/i.test(String(rawActorName || actorId).trim());
+    const eventActorRole = String(event.role ?? (typeof actorValue === "object" ? actorValue?.role : "") ?? "").toLowerCase();
+
+    // Resolve responsibility from the activity itself, not from the presence of an actor ID.
+    const selfAssigned = /self.?assign|agent assigned (?:themselves|himself|herself)|assigned (?:themselves|himself|herself)/i.test(normalized)
+      || Boolean(event.selfAssigned ?? event.isSelfAssigned ?? (String(event.assignmentType ?? "").toLowerCase() === "self"));
+    const isAssignment = normalized.includes("assign");
+    const isPaymentCompleted = /(payment|payout).*(completed|successful|processed|paid|recorded)|(?:completed|successful|processed|paid).*(payment|payout)/i.test(normalized);
+    const isPaymentOnly = normalized.includes("payment") || normalized.includes("payout");
+    const isStoreReceipt = /received at store|device received at (?:the )?store|store receipt/i.test(normalized);
+    const isInspection = /inspection|inspect|quality check|approved|approval/i.test(normalized);
+    const isInventory = /inventory|added to stock|stock/i.test(normalized);
+    const isPickup = /pickup|picked up|pick-up|accepted the pickup request/i.test(normalized);
+    const isVerification = /aadhaar|document|verification|customer photo/i.test(normalized);
+    let actor = !looksLikeId && rawActorName ? String(rawActorName) : "";
+    let role = asText(event.role ?? (typeof actorValue === "object" ? actorValue?.role : ""), "");
+
+    if (isAssignment) {
+      if (selfAssigned) { actor = orderAgentNameForTimeline(agent); role = "Agent"; }
+      else { actor = "Admin"; role = "Admin"; }
+    } else if (isStoreReceipt || isInspection) {
+      actor = "Admin"; role = "Admin";
+    } else if (isPickup || isVerification) {
+      actor = orderAgentNameForTimeline(agent); role = "Agent";
+    } else if (isPaymentOnly) {
+      actor = "Admin"; role = "Admin";
+    } else if (isInventory) {
+      actor = "Inventory Team"; role = "Team";
+    } else if (/created order|order created|order was created/i.test(normalized)) {
+      actor = "System"; role = "";
+    } else if (eventActorRole.includes("admin")) {
+      actor = "Admin"; role = "Admin";
+    } else if (eventActorRole.includes("agent")) {
+      actor = orderAgentNameForTimeline(agent); role = "Agent";
+    } else if (!actor) {
+      actor = "System"; role = "";
+    }
+    const eventDate = event.createdAt ?? event.timestamp ?? event.date;
+    return {
+      title,
+      description,
+      date: eventDate
+        ? `${formatDate(eventDate)}${Number.isNaN(new Date(eventDate).getTime()) ? "" : ` · ${new Date(eventDate).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`}`
+        : "—",
+      actor,
+      role,
+      completed: true,
+    };
+  })
+: source.createdAt
+  ? [{
+      title: "Order Created",
+      description: "The order was created.",
+      date: `${formatDate(source.createdAt)}${Number.isNaN(new Date(source.createdAt).getTime()) ? "" : ` · ${new Date(source.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`}`,
+      actor: "System",
+      role: "",
+      completed: true,
+    }]
+  : [];
 return {
 backendId: String(source._id ?? source.id ?? ""),
 deviceBackendId: String(device._id ?? device.id ?? ""),
@@ -260,6 +391,7 @@ createdAtLabel: source.createdAt
 customerAddress: addressText(customerAddress) || "—",
 agentPhone: asText(agent.phone ?? agent.mobile ?? agent.phoneNumber ?? agent.mobileNumber ?? agent.contactNumber ?? agent.user?.phone ?? agent.user?.mobile ?? agent.profile?.phone ?? agent.profile?.mobile),
 purchaseInvoiceUrl: asText(purchaseInvoice?.url, ""),
+purchaseInvoiceNumber,
 pickupDate: formatDate(pickupScheduledAt),
 pickupTime: asText(pickupSlot),
 inventoryStatus: asText(source.inventory?.status ?? source.inventoryStatus),
@@ -293,6 +425,7 @@ accessories,
 physicalConditions,
 deviceImages,
 purchaseBillUrl: asText(purchaseBill?.url, ""),
+documents: orderDocuments,
 agentNotes: asText(inspection.notes ?? inspection.agentNotes ?? inspection.additionalNotes, ""),
 timeline,
 };
@@ -460,6 +593,7 @@ const [isAssigningAgent, setIsAssigningAgent] = useState(false);
 const [internalNotesDraft, setInternalNotesDraft] = useState("");
 const [isSavingNotes, setIsSavingNotes] = useState(false);
 const [cancelReason, setCancelReason] = useState("");
+const [cancelError, setCancelError] = useState("");
 const [cancelRemarks, setCancelRemarks] = useState("");
 const [search, setSearch] = useState("");
 const [statusFilter, setStatusFilter] = useState("All");
@@ -646,7 +780,7 @@ repaired: Boolean(record?.repairHistory?.repaired),
 remarks: record?.repairHistory?.remarks ?? "",
 },
 overallGrade: record?.overallGrade ?? "",
-sellingPrice: record?.sellingPrice ?? "",
+sellingPrice: record?.sellingPrice ?? record?.estimatedPrice ?? "",
 warrantyType: record?.warranty?.type ? "warranty" : (record?.warrantyType ?? "no_warranty"),
 warrantyProvider: record?.warranty?.provider ?? record?.warrantyProvider ?? "",
 warrantyDuration: record?.warranty?.duration ?? record?.warrantyDuration ?? "",
@@ -717,7 +851,7 @@ functionalTests,
 accessories: inspectionForm.accessories,
 repairHistory: inspectionForm.repairHistory,
 ...(inspectionForm.overallGrade ? { overallGrade: inspectionForm.overallGrade } : {}),
-...(inspectionForm.sellingPrice !== "" ? { sellingPrice: Number(inspectionForm.sellingPrice) } : {}),
+...(inspectionForm.sellingPrice !== "" ? { sellingPrice: Number(inspectionForm.sellingPrice), estimatedPrice: Number(inspectionForm.sellingPrice) } : {}),
 warrantyType: inspectionForm.warrantyType,
 warranty: inspectionForm.warrantyType === "warranty" ? { type: inspectionForm.warrantyType, provider: inspectionForm.warrantyProvider, duration: inspectionForm.warrantyDuration, validUntil: inspectionForm.warrantyValidUntil || null } : { type: "no_warranty", provider: "", duration: "", validUntil: null },
 warrantyProvider: inspectionForm.warrantyProvider,
@@ -731,7 +865,14 @@ setInspectionRecord(updated);
 hydrateInspectionForm(updated);
 }
 if (inspectionCompletionRequested) {
-await api.patch(`/admin/inspections/${inspectionRecord._id}/complete`, {});
+const estimatedPrice = Number(inspectionForm.sellingPrice);
+if (!Number.isFinite(estimatedPrice) || estimatedPrice <= 0) {
+  setInspectionStep("Overall Condition");
+  setInspectionLoadError("Enter a valid selling price before completing the inspection.");
+  setInspectionSaving(false);
+  return;
+}
+await api.patch(`/admin/inspections/${inspectionRecord._id}/complete`, { estimatedPrice, sellingPrice: estimatedPrice });
 // This workflow requests the Ready Stock transition immediately after inspection completion.
 // The existing backend status endpoint performs the approved/ready_stock transition.
 await api.patch(`/admin/inspections/${inspectionRecord._id}/status`, { status: "approved" });
@@ -775,11 +916,17 @@ setSelectedOrderId(order.id);
 setActiveTab("Overview");
 setShowAllDeviceImages(false);
 setSuccessMessage("");
+setLoadError("");
+};
+const isAgentReassignmentLocked = (order: Order) => {
+  const status = String(order.rawStatus ?? "").toLowerCase().replace(/[\s-]+/g, "_");
+  const progressedStatuses = ["picked_up", "pickup_completed", "in_transit", "payment_pending", "payment_completed", "inspection_pending", "inspection_in_progress", "under_inspection", "inspection_completed", "ready_stock", "ready_for_sale", "in_stock", "completed", "cancelled", "rejected"];
+  return progressedStatuses.includes(status) || Boolean((order as any).pickedUpAt || (order as any).pickupCompletedAt || (order as any).deviceReceivedAt);
 };
 const assignAgent = async () => {
 if (!selectedOrder || !selectedAgentId) return;
-if (["in_transit", "payment_completed", "cancelled", "rejected"].includes(selectedOrder.rawStatus)) {
-setLoadError("Agent assignment cannot be changed for an order that is in transit or cancelled.");
+if (isAgentReassignmentLocked(selectedOrder)) {
+setLoadError("Agent assignment is locked after pickup. This order can no longer be reassigned.");
 return;
 }
 setIsAssigningAgent(true);
@@ -824,11 +971,12 @@ setIsSavingNotes(false);
 };
 const cancelOrder = async () => {
 if (!selectedOrder) return;
-if (!cancelReason) {
-setLoadError("Please select a cancellation reason before cancelling the order.");
+if (!cancelReason.trim()) {
+setCancelError("Please select a cancellation reason before cancelling the order.");
 return;
 }
 setIsSaving(true);
+setCancelError("");
 setLoadError("");
 setSuccessMessage("");
 try {
@@ -848,8 +996,9 @@ await fetchOrders();
 setSuccessMessage("Order cancelled and cancellation details saved.");
 setCancelReason("");
 setCancelRemarks("");
+setCancelError("");
 } catch (error: any) {
-setLoadError(error?.response?.data?.message || error?.message || "Unable to cancel the order or save its cancellation details.");
+setCancelError(error?.response?.data?.message || error?.message || "Unable to cancel the order or save its cancellation details.");
 } finally {
 setIsSaving(false);
 }
@@ -858,8 +1007,16 @@ const selectFilter = (value: string) => {
 setStatusFilter(value);
 setPage(1);
 };
+const hasPurchaseInvoice = (order: Order) => Boolean(order.purchaseInvoiceUrl || order.invoiceFileName);
+const showInvoiceUnavailable = () => {
+window.alert("Invoice is not available yet. It will be available after payment is completed.");
+};
 const downloadInvoice = async () => {
 if (!selectedOrder) return;
+if (!hasPurchaseInvoice(selectedOrder)) {
+showInvoiceUnavailable();
+return;
+}
 try {
 // Prefer the actual invoice document URL returned by the backend.
 if (selectedOrder.purchaseInvoiceUrl) {
@@ -898,7 +1055,7 @@ return (
 <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr_0.95fr_1.1fr_0.9fr]">
 <DetailSection title="Order Information">
 <DetailRow label="Order ID" value={order.id} />
-<DetailRow label="Invoice ID" value={order.invoiceFileName ?? "—"} />
+<DetailRow label="Invoice ID" value={hasPurchaseInvoice(order) ? (order.purchaseInvoiceNumber || "Invoice generated") : "No invoice generated"} />
 <DetailRow label="Created On" value={order.createdAtLabel} />
 <DetailRow label="Pickup Address" value={order.location} />
 <DetailRow label="User Address" value={order.location} />
@@ -906,7 +1063,7 @@ return (
 <DetailSection title="Agent & Pickup Details">
 <p className="mb-2 text-xs font-medium text-stone-500">Assigned Agent</p>
 <div className="space-y-2 rounded-lg border border-stone-200 p-2.5">
-<select value={selectedAgentId} onChange={(event) => setSelectedAgentId(event.target.value)} disabled={["in_transit", "payment_completed", "cancelled", "rejected"].includes(order.rawStatus)} aria-label="Choose assigned agent" className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 outline-none focus:border-orange-400 disabled:cursor-not-allowed disabled:bg-stone-100">
+<select value={selectedAgentId} onChange={(event) => setSelectedAgentId(event.target.value)} disabled={isAgentReassignmentLocked(order)} aria-label="Choose assigned agent" className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 outline-none focus:border-orange-400 disabled:cursor-not-allowed disabled:bg-stone-100">
 <option value="">Unassigned</option>
 {agents.map((agentOption) => {
 const agentId = String(agentOption?._id ?? agentOption?.id ?? "");
@@ -914,8 +1071,8 @@ const agentName = agentOption?.fullName ?? agentOption?.user?.fullName ?? agentO
 return <option key={agentId} value={agentId}>{agentName}</option>;
 })}
 </select>
-<p className="text-xs text-stone-500">{order.agentPhone}</p>{["in_transit", "payment_completed", "cancelled", "rejected"].includes(order.rawStatus) && <p className="text-xs text-amber-700">Agent assignment is locked for this order status.</p>}
-<button type="button" onClick={() => void assignAgent()} disabled={!selectedAgentId || isAssigningAgent || selectedAgentId === order.agentBackendId || ["in_transit", "payment_completed", "cancelled", "rejected"].includes(order.rawStatus)} className="w-full rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-stone-300">{isAssigningAgent ? "Saving..." : order.agentBackendId ? "Reassign Agent" : "Assign Agent"}</button>
+<p className="text-xs text-stone-500">{order.agentPhone}</p>{isAgentReassignmentLocked(order) && <p className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800"><span>Agent reassignment unavailable</span><span className="text-amber-500">·</span><span>Order status:</span><strong className="font-semibold">{({ picked_up: "Picked Up", pickup_completed: "Picked Up", in_transit: "In Transit", payment_pending: "Payment Pending", payment_completed: "In Transit", inspection_pending: "Inspection Pending", inspection_in_progress: "Inspection In Progress", under_inspection: "Under Inspection", inspection_completed: "Inspection Completed", approved: "Ready for Stock", ready_stock: "Ready for Stock", ready_for_sale: "Ready for Sale", in_stock: "In Stock", completed: "Completed", cancelled: "Cancelled", rejected: "Cancelled" } as Record<string, string>)[String(order.rawStatus ?? "").toLowerCase().replace(/[\s-]+/g, "_")] ?? formatBackendStatus(String(order.rawStatus ?? "in progress"))}</strong></p>}
+<button type="button" onClick={() => void assignAgent()} disabled={!selectedAgentId || isAssigningAgent || selectedAgentId === order.agentBackendId || isAgentReassignmentLocked(order)} className="w-full rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-stone-300">{isAssigningAgent ? "Saving..." : order.agentBackendId ? "Reassign Agent" : "Assign Agent"}</button>
 </div>
 <div className="mt-4">
 <p className="mb-2 text-xs font-medium text-stone-500">Pickup Date</p>
@@ -940,8 +1097,8 @@ return <option key={agentId} value={agentId}>{agentName}</option>;
 ["Order Created", order.date, Boolean(order.dateValue)],
 ["Order Status", order.status, ["Picked Up", "In Transit", "Inspection", "Payment Pending", "Ready Stock", "Completed"].includes(order.status)],
 ["Payment Status", order.paymentStatus, order.paymentStatus === "Paid"],
-["Inspection Status", formatBackendStatus(order.inspectionStatus), ["passed", "approved", "completed"].includes(order.inspectionStatus.toLowerCase().replace(/[_-]+/g, " "))],
-["Inventory Status", formatBackendStatus(order.inventoryStatus), ["available", "listed", "ready stock", "in stock"].includes(order.inventoryStatus.toLowerCase().replace(/[_-]+/g, " "))],
+["Inspection Status", formatBackendStatus(order.inspectionStatus), ["passed", "approved", "completed", "inspection_completed"].includes(order.inspectionStatus.toLowerCase().replace(/[_-]+/g, " "))],
+["Inventory Status", formatBackendStatus(order.inventoryStatus), ["available", "listed", "ready stock", "ready_stock", "in stock", "in_stock", "added"].includes(order.inventoryStatus.toLowerCase().replace(/[_-]+/g, " "))],
 ] as [string, string, boolean][]).map(([label, value, done], index) => (
 <div key={`${label}-${index}`} className="grid grid-cols-[minmax(0,1fr)_minmax(0,auto)] items-center gap-x-3">
 <span className="text-xs font-medium text-stone-500">{label}</span>
@@ -1049,17 +1206,19 @@ return (
 <p className="mb-3 text-xs text-stone-500">If you want to cancel this order, please select a reason and add comments.</p>
 <label className="mb-2 block text-xs text-stone-500">Reason for cancellation<span className="text-red-500">*</span></label>
 <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.5fr)]">
-<select defaultValue="" className="h-10 rounded-lg border border-stone-200 bg-white px-3 text-xs text-stone-600 outline-none focus:border-orange-400">
-<option value="" disabled>Select reason</option>
-<option>Customer requested cancellation</option>
-<option>Device not available</option>
-<option>Pickup failed</option>
-<option>Other</option>
+<select value={cancelReason} onChange={(event) => { setCancelReason(event.target.value); setCancelError(""); }} aria-invalid={Boolean(cancelError)} aria-describedby={cancelError ? "cancel-order-error" : undefined} className={`h-10 rounded-lg border bg-white px-3 text-xs text-stone-600 outline-none focus:border-orange-400 ${cancelError ? "border-red-300" : "border-stone-200"}`}>
+<option value="">Select reason</option>
+<option value="Customer requested cancellation">Customer requested cancellation</option>
+<option value="Device not available">Device not available</option>
+<option value="Pickup failed">Pickup failed</option>
+<option value="Other">Other</option>
 </select>
 <textarea value={cancelRemarks} onChange={(event) => setCancelRemarks(event.target.value)} rows={3} maxLength={1000} className="min-h-20 resize-y rounded-lg border border-stone-200 px-3 py-2.5 text-xs text-stone-600 outline-none focus:border-orange-400" placeholder="Provide more details (optional)..." />
 </div>
-<button type="button" onClick={() => void cancelOrder()} disabled={isSaving} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50">
-<XCircle size={15} /> Cancel Order
+{cancelError && <p id="cancel-order-error" role="alert" className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{cancelError}</p>}
+{successMessage && successMessage.toLowerCase().includes("cancel") && <p role="status" className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{successMessage}</p>}
+<button type="button" onClick={() => void cancelOrder()} disabled={isSaving} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60">
+<XCircle size={15} /> {isSaving ? "Cancelling..." : "Cancel Order"}
 </button>
 </DetailSection>
 </div>
@@ -1497,7 +1656,7 @@ const done = (step: string) => {
 if (step === "Basic Information") return Boolean(selectedOrder?.device && selectedOrder?.customer);
 if (step === "Physical Condition") return Boolean(inspectionForm.bodyCondition && inspectionForm.batteryHealth !== "");
 if (step === "Display") return Boolean(inspectionForm.screenCondition);
-if (step === "Functional Check") return Object.values(inspectionForm.functionalTests).length > 0 && Object.values(inspectionForm.functionalTests).every((v) => typeof v === "boolean");
+if (step === "Functional Check") return functionalLabels.every(({ key }) => typeof inspectionForm.functionalTests[key] === "boolean");
 if (step === "Accessories") return ["charger", "cable", "earphones", "box", "bill"].every((key) => typeof inspectionForm.accessories?.[key] === "boolean");
 if (step === "Warranty Status") return inspectionForm.warrantyType === "no_warranty" || Boolean(inspectionForm.warrantyProvider && inspectionForm.warrantyDuration && inspectionForm.warrantyValidUntil);
 if (step === "Overall Condition") return Boolean(inspectionForm.overallGrade && inspectionForm.sellingPrice !== "" && Number(inspectionForm.sellingPrice) > 0);
@@ -1517,7 +1676,24 @@ return (
 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-50 text-orange-500"><ClipboardCheck size={24} /></div>
 <h3 className="mt-3 text-sm font-semibold text-stone-900">No inspection record yet</h3>
 <p className="mt-1 max-w-md text-xs leading-5 text-stone-500">Start inspection after the device has been received at the store. The results will be saved against this order.</p>
-{selectedOrder?.rawStatus === "inspection_pending" ? (
+{["in_transit", "payment_completed"].includes(String(selectedOrder?.rawStatus ?? "").toLowerCase()) ? (
+<button type="button" disabled={inspectionSaving} onClick={async () => {
+  if (!selectedOrder) return;
+  setInspectionSaving(true); setInspectionLoadError(""); setInspectionMessage("");
+  try {
+    const response = await api.patch(`/admin/orders/${selectedOrder.backendId}/receive`, {});
+    const updated = response.data?.data;
+    if (updated) {
+      const mapped = mapApiOrder(updated);
+      setOrders((current) => current.map((item) => item.backendId === mapped.backendId ? mapped : item));
+    } else { await fetchOrders(); }
+    setInspectionMessage("Device received at store. Inspection can now be started.");
+    await loadInspection();
+  } catch (error: any) {
+    setInspectionLoadError(error?.response?.data?.message || error?.message || "Unable to receive device. Please confirm the receive-device API endpoint is available.");
+  } finally { setInspectionSaving(false); }
+}} className="mt-4 inline-flex h-9 items-center gap-2 rounded-md bg-orange-500 px-4 text-xs font-semibold text-white hover:bg-orange-600 disabled:opacity-60">{inspectionSaving ? "Receiving..." : "Receive Device"}</button>
+) : selectedOrder?.rawStatus === "inspection_pending" ? (
 <button type="button" disabled={inspectionSaving} onClick={() => void startInspection()} className="mt-4 inline-flex h-9 items-center gap-2 rounded-md bg-orange-500 px-4 text-xs font-semibold text-white hover:bg-orange-600 disabled:opacity-60">{inspectionSaving ? "Starting..." : "Start Inspection"}</button>
 ) : <p className="mt-3 text-xs text-stone-500">Current order status: {selectedOrder?.rawStatus?.replaceAll("_", " ") ?? "—"}</p>}
 </div>
@@ -1783,393 +1959,320 @@ return (
 </div>
 );
 }
-case "Documents":
+case "Documents": {
+const documentCards = [
+  {
+    type: "aadhaar",
+    title: "Aadhaar Card",
+    description: "Customer identity document",
+    icon: ContactRound,
+    color: "orange",
+    aliases: ["aadhaar", "aadhaar_offline_ekyc"],
+  },
+  {
+    type: "live_photo",
+    title: "Live Photo",
+    description: "Customer photo captured at pickup",
+    icon: ScanFace,
+    color: "purple",
+    aliases: ["live_photo"],
+  },
+  {
+    type: "device_invoice",
+    title: "Device Invoice",
+    description: "Invoice or proof provided for the device",
+    icon: ReceiptText,
+    color: "blue",
+    aliases: ["device_invoice", "purchase_bill", "purchase_receipt", "device_purchase_bill", "purchase_proof", "ownership"],
+  },
+  {
+    type: "purchase_invoice",
+    title: "Purchase Invoice",
+    description: "Generated order purchase invoice",
+    icon: FileText,
+    color: "red",
+    aliases: ["purchase_invoice"],
+  },
+  {
+    type: "payment_slip",
+    title: "Payment Slip",
+    description: "Generated payment confirmation",
+    icon: Receipt,
+    color: "green",
+    aliases: ["payment_slip"],
+  },
+];
+const iconColors: Record<string, string> = {
+  orange: "bg-orange-100 text-orange-500",
+  purple: "bg-purple-100 text-purple-500",
+  blue: "bg-blue-100 text-blue-500",
+  red: "bg-red-100 text-red-500",
+  green: "bg-emerald-100 text-emerald-600",
+};
+const normalizeDocumentType = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+const orderDocuments = Array.isArray(order.documents) ? order.documents : [];
+const getDocumentForCard = (card: typeof documentCards[number]) =>
+  orderDocuments.find((document) => card.aliases.some((alias) => normalizeDocumentType(alias) === normalizeDocumentType(document.type)) && Boolean(document.url));
 return (
 <DetailSection title="Documents">
-<p className="mb-3 text-xs text-stone-500">
-View all mandatory documents related to this order.
-</p>
-<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-{[
-{
-title: "Aadhaar Card",
-description: "User Aadhaar card for identity verification",
-status: "Verified",
-icon: ContactRound,
-color: "orange",
-},
-{
-title: "Live Photo",
-description: "Live photo of the user at the time of pickup",
-status: "Verified",
-icon: ScanFace,
-color: "purple",
-},
-{
-title: "Device Invoice",
-description: "User Aadhaar card for identity verification",
-status: "Verified",
-icon: ReceiptText,
-color: "blue",
-},
-{
-title: "Purchase Invoice",
-description: "Invoice generated for this order",
-status: "Generated",
-icon: FileText,
-color: "red",
-},
-{
-title: "Payment Slip",
-description: "Payment confirmation slip for this order",
-status: "Verified",
-icon: Receipt,
-color: "green",
-},
-].map((document) => {
-const Icon = document.icon;
-const iconColors: Record<string, string> = {
-orange: "bg-orange-100 text-orange-500",
-purple: "bg-purple-100 text-purple-500",
-blue: "bg-blue-100 text-blue-500",
-red: "bg-red-100 text-red-500",
-green: "bg-emerald-100 text-emerald-600",
-};
-return (
-<div
-key={document.title}
-className="flex min-h-[164px] flex-col items-center rounded-lg border border-stone-200 bg-white px-3 py-3 text-center"
->
-<div
-className={`mb-2 flex h-11 w-11 items-center justify-center rounded-md ${iconColors[document.color]}`}
->
-<Icon size={25} strokeWidth={1.8} />
-</div>
-<h3 className="text-xs font-semibold text-stone-900">
-{document.title}
-</h3>
-<p className="mt-1 min-h-[27px] max-w-[125px] text-[9px] leading-3 text-stone-500">
-{document.description}
-</p>
-<span
-className={`mt-2 inline-flex items-center gap-1 rounded px-2 py-0.5 text-[9px] font-medium ${document.status === "Verified"
-? "bg-emerald-50 text-emerald-600"
-: "bg-blue-50 text-blue-600"
-}`}
->
-<CheckCircle2 size={10} />
-{document.status}
-</span>
-<button
-type="button"
-onClick={() =>
-window.alert(
-`${document.title} download is not connected yet.`
-)
+  <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+    <p className="text-sm text-stone-600">Documents attached to this order, loaded from the backend.</p>
+    <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">{orderDocuments.filter((document) => Boolean(document.url)).length} available</span>
+  </div>
+  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+    {documentCards.map((document) => {
+      const Icon = document.icon;
+      const uploadedDocument = getDocumentForCard(document);
+      const isAvailable = Boolean(uploadedDocument?.url);
+      const status = isAvailable ? "Available" : "Not uploaded";
+      return (
+        <div key={document.type} className="group flex min-h-[238px] min-w-0 flex-col items-center rounded-xl border border-stone-200 bg-white px-5 py-5 text-center shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md">
+          <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-xl ${iconColors[document.color]} ring-1 ring-black/5`}>
+            <Icon size={29} strokeWidth={1.8} />
+          </div>
+          <h3 className="text-base font-semibold tracking-tight text-stone-900">{document.title}</h3>
+          <p className="mt-2 min-h-[40px] max-w-[230px] text-sm leading-5 text-stone-500">{document.description}</p>
+          <div className="mt-3 flex min-h-[62px] w-full flex-col items-center">
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${isAvailable ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" : "bg-stone-100 text-stone-600 ring-1 ring-stone-200"}`}>
+              {isAvailable ? <CheckCircle2 size={12} /> : <Clock3 size={12} />}
+              {status}
+            </span>
+            <p className="mt-2 min-h-[18px] text-xs text-stone-400">
+              {uploadedDocument?.uploadedAt ? `Uploaded ${formatDate(uploadedDocument.uploadedAt)}` : "\u00a0"}
+            </p>
+          </div>
+          {isAvailable ? (
+            <a href={uploadedDocument!.url} target="_blank" rel="noopener noreferrer" className="mt-auto flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white text-sm font-semibold text-stone-700 shadow-sm transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700 group-hover:border-stone-300">
+              <Download size={15} /> View / Download
+            </a>
+          ) : (
+            <span className="mt-auto flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-stone-300 bg-stone-50 text-sm font-medium text-stone-500">
+              <Clock3 size={15} />
+              No file attached
+            </span>
+          )}
+        </div>
+      );
+    })}
+  </div>
+  {orderDocuments.some((document) => Boolean(document.url) && !documentCards.some((card) => card.aliases.some((alias) => normalizeDocumentType(alias) === normalizeDocumentType(document.type)))) && (
+    <div className="mt-5">
+      <h4 className="mb-3 text-base font-semibold text-stone-800">Other uploaded documents</h4>
+      <div className="divide-y divide-stone-100 rounded-lg border border-stone-200">
+        {orderDocuments.filter((document) => Boolean(document.url) && !documentCards.some((card) => card.aliases.some((alias) => normalizeDocumentType(alias) === normalizeDocumentType(document.type)))).map((document) => (
+          <div key={document.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-2">
+              <FileText size={20} className="shrink-0 text-stone-400" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-stone-800">{document.title}</p>
+                <p className="truncate text-xs text-stone-500">{document.fileName || document.type}{document.uploadedAt ? ` · ${formatDate(document.uploadedAt)}` : ""}</p>
+              </div>
+            </div>
+            <a href={document.url} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700">
+              <Download size={15} /> View / Download
+            </a>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+  <div className="mt-6 flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50/80 px-5 py-4">
+    <Info size={21} className="mt-0.5 shrink-0 text-blue-600" />
+    <div>
+      <p className="text-sm font-semibold text-stone-800">Document status</p>
+      <p className="mt-1 text-sm leading-5 text-stone-600">Availability reflects files returned by the backend. A file being available does not by itself mean that identity verification or document approval is complete.</p>
+    </div>
+  </div>
+</DetailSection>
+);
 }
-className="mt-3 flex h-8 w-full items-center justify-center gap-1 rounded-md border border-stone-200 bg-white text-[10px] font-medium text-stone-600 shadow-sm transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600"
->
-<Download size={12} />
-Download
-</button>
-</div>
-);
-})}
-</div>
-<div className="mt-4 flex items-start gap-3 rounded-lg border border-blue-100 bg-indigo-50 px-4 py-3">
-<Info
-size={18}
-className="mt-0.5 shrink-0 text-blue-500"
-/>
-<div>
-<p className="text-xs font-semibold text-stone-700">
-Note:
-</p>
-<p className="text-[10px] leading-4 text-stone-500">
-These documents are mandatory and must be verified
-before completing the inspection.
-</p>
-</div>
-</div>
-</DetailSection>
-);
-return (
-<DetailSection title="Order Documents">
-<div className="flex flex-col items-center py-10 text-center">
-<div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50 text-orange-500">
-<FileText size={28} />
-</div>
-<h3 className="mt-4 text-sm font-semibold text-stone-900">No documents attached</h3>
-<p className="mt-2 max-w-sm text-sm leading-6 text-stone-500">
-Invoices and verification documents can be displayed here when the document workflow is implemented.
-</p>
-</div>
-</DetailSection>
-);
-case "Timeline":
+case "Timeline": {
+const timelineIconFor = (title: string) => {
+  const value = title.toLowerCase();
+  if (value.includes("payment") || value.includes("payout")) return Wallet;
+  if (value.includes("inspection") || value.includes("inspect") || value.includes("quality check")) return ClipboardCheck;
+  if (value.includes("inventory") || value.includes("stock")) return ShoppingBag;
+  if (value.includes("received at store") || value.includes("device received")) return ContactRound;
+  if (value.includes("pickup") || value.includes("picked up") || value.includes("transit") || value.includes("deliver")) return Truck;
+  if (value.includes("assign") || value.includes("accepted the pickup request")) return UserCheck;
+  if (value.includes("cancel") || value.includes("reject")) return XCircle;
+  if (value.includes("verify") || value.includes("aadhaar") || value.includes("document")) return ScanFace;
+  if (value.includes("created") || value.includes("order created")) return FileText;
+  return History;
+};
+const timelineToneFor = (title: string) => {
+  const value = title.toLowerCase();
+  if (value.includes("cancel") || value.includes("reject")) return "red";
+  if (value.includes("inspection") || value.includes("inspect") || value.includes("quality check")) return "orange";
+  if (value.includes("inventory") || value.includes("stock")) return "purple";
+  if (value.includes("received at store") || value.includes("device received") || value.includes("transit") || value.includes("deliver")) return "blue";
+  return "emerald";
+};
+const timelineTones: Record<string, { icon: string; badge: string }> = {
+  emerald: { icon: "border-emerald-400 bg-emerald-50 text-emerald-600", badge: "bg-emerald-50 text-emerald-700" },
+  blue: { icon: "border-blue-400 bg-blue-50 text-blue-600", badge: "bg-blue-50 text-blue-700" },
+  orange: { icon: "border-orange-400 bg-orange-50 text-orange-600", badge: "bg-orange-50 text-orange-700" },
+  purple: { icon: "border-purple-400 bg-purple-50 text-purple-600", badge: "bg-purple-50 text-purple-700" },
+  red: { icon: "border-red-400 bg-red-50 text-red-600", badge: "bg-red-50 text-red-700" },
+};
+const splitTimelineDate = (date: string) => {
+  const [datePart, timePart] = date.split(" · ");
+  return { datePart: datePart || "—", timePart: timePart || "" };
+};
 return (
 <DetailSection title="Timeline">
-<p className="mb-4 text-sm text-stone-500">
-Track the progress of this order
-</p>
-<div className="relative">
-{[
-{
-title: "Created Order",
-description: "Order has been created by the user.",
-date: "18-06-2026",
-time: "10:30 AM",
-actor: "System",
-role: "",
-icon: FileText,
-color: "emerald",
-},
-{
-title: "Order Picked Up",
-description: "The device has been picked up from the customer.",
-date: "20-06-2026",
-time: "12:30 PM",
-actor: order.agent === "Not assigned" ? "Agent" : order.agent,
-role: "Agent",
-icon: PackageCheck,
-color: "emerald",
-},
-{
-title: "Payment Completed",
-description: "Payment has been completed to the customer at the time of pickup.",
-date: "20-06-2026",
-time: "01:30 PM",
-actor: "System",
-role: "Admin",
-icon: Wallet,
-color: "emerald",
-},
-{
-title: "Device Received at Store",
-description: "The device has been received at the store.",
-date: "20-06-2026",
-time: "02:30 PM",
-actor: "Store Team",
-role: "",
-icon: PackageCheck,
-color: "blue",
-},
-{
-title: "Inspection Completed",
-description: "All quality checks and inspection have been completed.",
-date: "21-06-2026",
-time: "10:30 AM",
-actor: order.agent === "Not assigned" ? "Agent" : order.agent,
-role: "Agent",
-icon: ClipboardCheck,
-color: "orange",
-},
-{
-title: "Added to Stock",
-description: "The device has been added to inventory and is ready for sale.",
-date: "21-06-2026",
-time: "11:30 AM",
-actor: "Inventory",
-role: "Team",
-icon: PackageCheck,
-color: "purple",
-},
-].map((item, index) => {
-const TimelineIcon = item.icon;
-const colors: Record<string, string> = {
-emerald: "border-emerald-400 bg-emerald-50 text-emerald-600",
-blue: "border-blue-400 bg-blue-50 text-blue-600",
-orange: "border-orange-400 bg-orange-50 text-orange-600",
-purple: "border-purple-400 bg-purple-50 text-purple-600",
-};
-const actorColors: Record<string, string> = {
-emerald: "bg-emerald-50 text-emerald-700",
-blue: "bg-blue-50 text-blue-700",
-orange: "bg-orange-50 text-orange-700",
-purple: "bg-purple-50 text-purple-700",
-};
-return (
-<div
-key={item.title}
-className="relative grid grid-cols-[36px_minmax(0,1fr)] gap-x-3 lg:grid-cols-[36px_minmax(0,1.8fr)_minmax(160px,0.65fr)_minmax(145px,0.55fr)] lg:gap-x-4"
->
-{/* Timeline connector */}
-{index !== 5 && (
-<span className="absolute bottom-0 left-[17px] top-9 w-px bg-stone-200" />
-)}
-{/* Event icon */}
-<div className="relative z-10 flex justify-center pt-3">
-<span
-className={`flex h-8 w-8 items-center justify-center rounded-full border ${colors[item.color]}`}
->
-<TimelineIcon size={16} strokeWidth={1.8} />
-</span>
-</div>
-{/* Event details */}
-<div className="min-w-0 border-b border-stone-100 py-3 sm:py-3.5">
-<p className="text-sm font-semibold leading-5 text-stone-800">
-{item.title}
-</p>
-<p className="mt-1 text-xs leading-5 text-stone-500 sm:text-sm">
-{item.description}
-</p>
-</div>
-{/* Date and time: positioned closer to the event details */}
-<div className="col-start-2 flex flex-wrap gap-x-3 gap-y-1 pb-3 text-xs text-stone-600 lg:col-start-3 lg:flex-col lg:justify-center lg:gap-1 lg:border-b lg:border-stone-100 lg:py-3">
-<span className="flex items-center gap-1.5 whitespace-nowrap">
-<History size={13} className="shrink-0 text-stone-400" />
-{item.date}
-</span>
-<span className="flex items-center gap-1.5 whitespace-nowrap">
-<Clock3 size={13} className="shrink-0 text-stone-400" />
-{item.time}
-</span>
-</div>
-{/* Actor/status badge: consistent width and alignment */}
-<div className="col-start-2 flex items-center pb-3 lg:col-start-4 lg:justify-center lg:border-b lg:border-stone-100 lg:py-3">
-<span
-className={`inline-flex min-h-[36px] w-full max-w-[180px] flex-col items-center justify-center rounded-lg px-3 py-2 text-xs font-medium leading-4 ${actorColors[item.color]}`}
-title={`${item.actor}${item.role ? ` - ${item.role}` : ""}`}
->
-<span className="w-full whitespace-normal break-words text-center">
-{item.actor}
-</span>
-{item.role && (
-<span className="mt-0.5 text-[10px] font-normal leading-3">
-{item.role}
-</span>
-)}
-</span>
-</div>
-</div>
-);
-})}
-</div>
+  <p className="mb-4 text-sm text-stone-500">Track the progress of this order</p>
+  {order.timeline.length ? (
+    <div className="relative">
+      {order.timeline.map((item, index) => {
+        const TimelineIcon = timelineIconFor(item.title);
+        const tone = timelineTones[timelineToneFor(item.title)] || timelineTones.emerald;
+        const { datePart, timePart } = splitTimelineDate(item.date);
+        return (
+          <div key={`${item.title}-${item.date}-${index}`} className="relative grid grid-cols-[36px_minmax(0,1fr)] gap-x-3 sm:grid-cols-[36px_minmax(0,1fr)_170px_180px] sm:gap-x-4">
+            {index !== order.timeline.length - 1 && <span className="absolute bottom-0 left-[16px] top-9 w-px bg-stone-200" />}
+            <div className="relative z-10 flex justify-center pt-2">
+              <span className={`flex h-8 w-8 items-center justify-center rounded-full border ${tone.icon}`}>
+                <TimelineIcon size={16} strokeWidth={1.8} />
+              </span>
+            </div>
+            <div className="min-w-0 border-b border-stone-100 py-2.5 sm:py-3">
+              <p className="text-sm font-semibold leading-5 text-stone-800">{item.title}</p>
+              <p className="mt-1 text-sm leading-5 text-stone-500">{item.description}</p>
+            </div>
+            <div className="col-start-2 flex flex-col gap-1 border-b border-stone-100 pb-3 text-xs text-stone-600 sm:col-start-3 sm:justify-center sm:py-3">
+              <span className="flex items-center gap-2"><History size={13} className="shrink-0 text-stone-400" />{datePart}</span>
+              {timePart && <span className="flex items-center gap-2"><Clock3 size={13} className="shrink-0 text-stone-400" />{timePart}</span>}
+            </div>
+            <div className="col-start-2 flex items-center border-b border-stone-100 pb-3 sm:col-start-4 sm:justify-center sm:py-3">
+              <span className={`inline-flex min-h-9 w-full max-w-[180px] flex-col items-center justify-center rounded-lg px-3 py-2 text-xs font-medium leading-4 ${tone.badge}`}>
+                <span className="w-full break-words text-center">{item.actor || "System"}</span>
+                {item.role && item.role !== "—" && <span className="mt-0.5 text-[10px] font-normal">{item.role}</span>}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  ) : (
+    <div className="py-8 text-sm text-stone-500">No activity recorded yet.</div>
+  )}
 </DetailSection>
 );
-case "Inventory & Sales":
+}
+case "Inventory & Sales": {
+const inventoryStatusRaw = String(order.inventoryStatus ?? "").trim();
+const normalizedInventoryStatus = inventoryStatusRaw.toLowerCase().replace(/[ _-]+/g, " ");
+const inventoryRecord = (selectedOrder as any)?.inventory ?? (selectedOrder as any)?.inventoryRecord ?? {};
+const isInStock = ["in stock", "available", "listed", "ready stock", "in inventory", "added to stock"].includes(normalizedInventoryStatus)
+  || order.status === "Ready Stock"
+  || Boolean(inventoryRecord.addedAt || inventoryRecord.receivedAt || inventoryRecord.stockedAt);
+const inventoryAddedAt = inventoryRecord.addedAt ?? inventoryRecord.receivedAt ?? inventoryRecord.createdAt ?? inventoryRecord.stockedAt;
+const inventorySku = inventoryRecord.sku ?? inventoryRecord.SKU ?? inventoryRecord.inventoryId ?? inventoryRecord._id ?? "";
+const quantityValue = inventoryRecord.quantity ?? inventoryRecord.stockQuantity ?? inventoryRecord.availableQuantity;
+const stockQuantity = typeof quantityValue === "number" && Number.isFinite(quantityValue)
+  ? quantityValue
+  : isInStock ? 1 : 0;
+const listedPrice = inventoryRecord.listedPrice ?? inventoryRecord.sellingPrice ?? inventoryRecord.mrp;
+const soldAt = inventoryRecord.soldAt ?? inventoryRecord.soldDate;
+const zohoItemId = inventoryRecord.zohoItemId ?? inventoryRecord.zoho?.itemId ?? "";
+const zohoInvoiceId = inventoryRecord.zohoInvoiceId ?? inventoryRecord.zoho?.invoiceId ?? "";
+const salesStatus = inventoryRecord.salesStatus ?? inventoryRecord.listingStatus ?? "";
+const syncHistory = Array.isArray(inventoryRecord.zohoSyncHistory) ? inventoryRecord.zohoSyncHistory : [];
+const displayTimestamp = (value: unknown) => {
+  if (!value) return "—";
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return "—";
+  return `${formatDate(date)} ${date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}`;
+};
 return (
 <div className="space-y-3">
-{/* Inventory, Zoho Books sync, and sales overview */}
-<div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3">
-<DetailSection title="Inventory Information" className="h-full">
-<div className="space-y-0">
-<div className="flex items-center justify-between gap-3 border-b border-stone-100 py-2">
-<span className="text-xs text-stone-500">Inventory ID (SKU)</span>
-<span className="inline-flex items-center gap-1 text-xs font-medium text-stone-700">
-INV-{order.id.replace(/[^0-9]/g, "").slice(-4)}-00125
-<PackageCheck size={13} className="text-blue-500" />
-</span>
-</div>
-<DetailRow label="Availability" value={order.status === "Completed" ? "In Stock" : "Pending"} />
-<DetailRow label="Added to Inventory" value={order.status === "Completed" ? "21-06-2026 11:30 AM" : "Not added yet"} />
-<DetailRow label="IMEI Number" value={order.imei} />
-<div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-purple-50/70 px-3 py-3">
-<span className="text-sm font-semibold text-stone-700">Purchase Price</span>
-<span className="text-sm font-bold text-stone-700">{formatAmount(order.amount)}</span>
-</div>
-</div>
-</DetailSection>
-<DetailSection title="Zoho Books Sync" className="h-full">
-<div className="space-y-0">
-<div className="flex items-center justify-between gap-3 border-b border-stone-100 py-2">
-<span className="text-xs text-stone-500">Zoho Item ID</span>
-<span className="text-xs font-medium text-stone-700">ZB-{order.id.replace(/[^0-9]/g, "").slice(-4)}896</span>
-</div>
-<div className="flex items-start justify-between gap-3 border-b border-stone-100 py-2">
-<span className="shrink-0 text-xs text-stone-500">Item Name in Zoho</span>
-<span className="max-w-[65%] text-right text-xs font-medium text-stone-700">{order.device} {order.variant}</span>
-</div>
-<div className="flex items-center justify-between gap-3 border-b border-stone-100 py-2">
-<span className="text-xs text-stone-500">Last Synced</span>
-<span className="text-xs text-stone-700">{order.status === "Completed" ? "21-06-2026 11:35 AM" : "Not synced"}</span>
-</div>
-<div className={`mt-3 rounded-lg px-3 py-2.5 ${order.status === "Completed" ? "bg-emerald-50" : "bg-blue-50"}`}>
-<div className={`flex items-center gap-1.5 text-xs font-semibold ${order.status === "Completed" ? "text-emerald-700" : "text-blue-700"}`}>
-<CheckCircle2 size={13} />
-{order.status === "Completed" ? "Successfully synced to Zoho Books" : "Awaiting inventory confirmation"}
-</div>
-<button
-type="button"
-onClick={() => window.alert("Zoho Books integration is not connected in this sample view.")}
-className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-blue-700 hover:underline"
->
-View Item in Zoho Books <ChevronRight size={11} />
-</button>
-</div>
-</div>
-</DetailSection>
-<DetailSection title="Sales in Zoho Books" className="h-full">
-<div className="space-y-0">
-<div className="flex items-center justify-between gap-3 border-b border-stone-100 py-2">
-<span className="text-xs text-stone-500">Sales Status</span>
-<span className={`inline-flex items-center gap-1 text-xs font-medium ${order.status === "Completed" ? "text-emerald-600" : "text-stone-500"}`}>
-<span className={`h-1.5 w-1.5 rounded-full ${order.status === "Completed" ? "bg-emerald-500" : "bg-stone-400"}`} />
-{order.status === "Completed" ? "Available" : "Not listed"}
-</span>
-</div>
-<DetailRow label="Listed Price (MRP)" value={order.amount === null ? "—" : formatAmount(Math.round(order.amount * 1.3))} />
-<DetailRow label="Linked Zoho Invoice" value="—" />
-<DetailRow label="Sold Date" value="—" />
-<div className="mt-3 flex gap-2 rounded-lg bg-sky-50 px-3 py-2.5">
-<Info size={14} className="mt-0.5 shrink-0 text-blue-500" />
-<div>
-<p className="text-xs font-medium text-blue-700">Item is available for sale</p>
-<p className="mt-0.5 text-[10px] leading-4 text-stone-500">Once sold in Zoho Books, the status will update here.</p>
-</div>
-</div>
-</div>
-</DetailSection>
-</div>
-{/* Zoho sync history */}
-<DetailSection title="Zoho Sync History">
-<div className="overflow-x-auto">
-<table className="w-full min-w-[700px] border-collapse text-left">
-<thead>
-<tr className="border-y border-stone-100 bg-stone-50">
-{["Date & Time", "Action", "Zoho Item ID", "Status", "Synced By", "Remarks"].map((heading) => (
-<th key={heading} className="px-3 py-2 text-[11px] font-semibold text-stone-600">{heading}</th>
-))}
-</tr>
-</thead>
-<tbody>
-{[
-{
-date: order.status === "Completed" ? "21-06-2026 11:35 AM" : "—",
-action: order.status === "Completed" ? "Item created in Zoho Books" : "Waiting for inventory",
-itemId: order.status === "Completed" ? `ZB-${order.id.replace(/[^0-9]/g, "").slice(-4)}896` : "—",
-status: order.status === "Completed" ? "Success" : "Pending",
-syncedBy: "System",
-remarks: order.status === "Completed" ? "Item created in Zoho Books" : "Inventory record not created",
-},
-{
-date: "21-06-2026 11:30 AM",
-action: "Sync initiated",
-itemId: order.status === "Completed" ? `ZB-${order.id.replace(/[^0-9]/g, "").slice(-4)}896` : "—",
-status: order.status === "Completed" ? "Success" : "Pending",
-syncedBy: "System",
-remarks: order.status === "Completed" ? "Initial sync completed" : "Awaiting required details",
-},
-].map((entry, index) => (
-<tr key={`${entry.action}-${index}`} className="border-b border-stone-100 last:border-b-0">
-<td className="whitespace-nowrap px-3 py-2 text-[10px] text-stone-500">{entry.date}</td>
-<td className="px-3 py-2 text-xs text-stone-600">{entry.action}</td>
-<td className="whitespace-nowrap px-3 py-2 text-xs text-stone-600">{entry.itemId}</td>
-<td className="px-3 py-2">
-<span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold ${entry.status === "Success" ? "bg-emerald-50 text-emerald-700" : "bg-orange-50 text-orange-700"}`}>
-<CheckCircle2 size={10} /> {entry.status}
-</span>
-</td>
-<td className="px-3 py-2 text-[10px] text-stone-500">{entry.syncedBy}</td>
-<td className="px-3 py-2 text-[10px] text-stone-500">{entry.remarks}</td>
-</tr>
-))}
-</tbody>
-</table>
-</div>
-</DetailSection>
+  <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3">
+    <DetailSection title="Inventory Information" className="h-full">
+      <div className="space-y-0">
+        <DetailRow label="Inventory ID (SKU)" value={inventorySku ? String(inventorySku) : "Not assigned"} />
+        <DetailRow label="Availability" value={isInStock ? "In Stock" : inventoryStatusRaw ? formatBackendStatus(inventoryStatusRaw) : "Not added yet"} />
+        <DetailRow label="Stock Quantity" value={String(stockQuantity)} />
+        <DetailRow label="Added to Inventory" value={displayTimestamp(inventoryAddedAt)} />
+        <DetailRow label="IMEI Number" value={order.imei} />
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-purple-50/70 px-3 py-3">
+          <span className="text-sm font-semibold text-stone-700">Purchase Price</span>
+          <span className="text-sm font-bold text-stone-700">{order.amount === null ? "—" : formatAmount(order.amount)}</span>
+        </div>
+      </div>
+    </DetailSection>
+
+    <DetailSection title="Zoho Books Sync" className="h-full">
+      <div className="space-y-0">
+        <DetailRow label="Zoho Item ID" value={zohoItemId ? String(zohoItemId) : "Not connected"} />
+        <DetailRow label="Item Name in Zoho" value={zohoItemId ? `${order.device}${order.variant && order.variant !== "—" ? ` ${order.variant}` : ""}` : "Available after integration"} />
+        <DetailRow label="Last Synced" value={inventoryRecord.zohoLastSyncedAt ? displayTimestamp(inventoryRecord.zohoLastSyncedAt) : "Not synced"} />
+        <div className="mt-3 rounded-lg bg-blue-50 px-3 py-3">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-700">
+            <Info size={13} />
+            Zoho Books integration planned
+          </div>
+          <p className="mt-1 text-xs leading-5 text-blue-700/80">Sync details will appear here after Zoho Books is connected.</p>
+        </div>
+      </div>
+    </DetailSection>
+
+    <DetailSection title="Sales in Zoho Books" className="h-full">
+      <div className="space-y-0">
+        <DetailRow label="Sales Status" value={salesStatus ? formatBackendStatus(String(salesStatus)) : "Not listed"} />
+        <DetailRow label="Listed Price (MRP)" value={listedPrice !== undefined && listedPrice !== null && listedPrice !== "" ? formatAmount(Number(listedPrice)) : "Not configured"} />
+        <DetailRow label="Linked Zoho Invoice" value={zohoInvoiceId ? String(zohoInvoiceId) : "—"} />
+        <DetailRow label="Sold Date" value={soldAt ? displayTimestamp(soldAt) : "—"} />
+        <div className="mt-3 rounded-lg bg-blue-50 px-3 py-3">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-blue-700">
+            <Info size={13} />
+            {isInStock ? "Item is available for sale" : "Item is not yet in stock"}
+          </div>
+          <p className="mt-1 text-[10px] leading-4 text-stone-500">Sales and invoice details will update when the relevant workflow is connected.</p>
+        </div>
+      </div>
+    </DetailSection>
+  </div>
+
+  <DetailSection title="Zoho Sync History">
+    {syncHistory.length > 0 ? (
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-left text-xs">
+          <thead className="bg-stone-50 text-stone-600">
+            <tr>
+              <th className="px-3 py-3 font-medium">Date &amp; Time</th>
+              <th className="px-3 py-3 font-medium">Action</th>
+              <th className="px-3 py-3 font-medium">Zoho Item ID</th>
+              <th className="px-3 py-3 font-medium">Status</th>
+              <th className="px-3 py-3 font-medium">Synced By</th>
+              <th className="px-3 py-3 font-medium">Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            {syncHistory.map((entry: ApiOrder, index: number) => (
+              <tr key={String(entry._id ?? entry.id ?? `${entry.action ?? "sync"}-${index}`)} className="border-t border-stone-100 text-stone-600">
+                <td className="px-3 py-3">{displayTimestamp(entry.createdAt ?? entry.syncedAt ?? entry.date)}</td>
+                <td className="px-3 py-3">{asText(entry.action ?? entry.event, "—")}</td>
+                <td className="px-3 py-3">{asText(entry.zohoItemId ?? entry.itemId, "—")}</td>
+                <td className="px-3 py-3"><span className={`rounded px-2 py-1 text-[10px] font-medium ${String(entry.status ?? "").toLowerCase() === "success" || String(entry.status ?? "").toLowerCase() === "synced" ? "bg-emerald-50 text-emerald-700" : "bg-orange-50 text-orange-700"}`}>{asText(entry.status, "Pending")}</span></td>
+                <td className="px-3 py-3">{asText(entry.syncedByName ?? entry.syncedBy?.fullName ?? entry.syncedBy, "—")}</td>
+                <td className="px-3 py-3">{asText(entry.remarks ?? entry.message, "—")}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : (
+      <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-stone-500"><History size={18} /></div>
+        <p className="mt-3 text-sm font-medium text-stone-700">No sync history yet</p>
+        <p className="mt-1 max-w-md text-xs leading-5 text-stone-500">Zoho sync activity will be recorded here after the integration is enabled. No sample history is shown.</p>
+      </div>
+    )}
+  </DetailSection>
 </div>
 );
+}
 default:
 return null;
 }
@@ -2185,6 +2288,8 @@ type="button"
 onClick={() => {
 setSelectedOrderId(null);
 setActiveTab("Overview");
+setSuccessMessage("");
+setLoadError("");
 }}
 className="inline-flex items-center gap-2 rounded-md py-1 text-sm font-semibold text-stone-600 transition hover:text-orange-600"
 >
@@ -2226,10 +2331,10 @@ Back to Orders
 : "Inspection Pending"}
 </span>
 </div>
-<p className="mt-1 text-sm font-medium text-orange-600">#INV-{selectedOrder.id.match(/(\d+)$/)?.[1] ?? ""}</p>
+<p className="mt-1 text-sm font-medium text-orange-600">{hasPurchaseInvoice(selectedOrder) ? (selectedOrder.purchaseInvoiceNumber || "Invoice generated") : "No invoice generated"}</p>
 </div>
 <div className="flex shrink-0 items-center gap-2">
-<button type="button" onClick={() => window.print()} className="inline-flex h-9 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 text-sm font-medium text-stone-600 hover:bg-stone-50"><FileText size={15} /> Print</button>
+<button type="button" onClick={() => { if (!hasPurchaseInvoice(selectedOrder)) { showInvoiceUnavailable(); return; } window.print(); }} className="inline-flex h-9 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 text-sm font-medium text-stone-600 hover:bg-stone-50"><FileText size={15} /> Print</button>
 <button type="button" onClick={() => void downloadInvoice()} className="inline-flex h-9 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 text-sm font-medium text-stone-600 hover:border-orange-300 hover:bg-orange-50"><Download size={15} /> Download Invoice</button>
 </div>
 </div>
@@ -2273,6 +2378,7 @@ Back to Orders
 </div>
 </nav>
 </div>
+{((loadError && !loadError.toLowerCase().includes("cancellation reason")) || (successMessage && !successMessage.toLowerCase().includes("cancel"))) && <div role={loadError ? "alert" : "status"} className={`rounded-lg border px-4 py-3 text-sm ${loadError ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>{loadError || successMessage}</div>}
 {renderTabContent(selectedOrder)}
 <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-stone-200 bg-white/95 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] backdrop-blur lg:left-[240px] sm:px-6">
 <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-3">
@@ -2283,6 +2389,8 @@ type="button"
 onClick={() => {
 setSelectedOrderId(null);
 setActiveTab("Overview");
+setSuccessMessage("");
+setLoadError("");
 }}
 className="rounded-lg border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-600 hover:bg-stone-50"
 >
@@ -2296,8 +2404,7 @@ await saveInspection();
 return;
 }
 await fetchOrders();
-setSelectedOrderId(null);
-setActiveTab("Overview");
+setSuccessMessage("Order details refreshed successfully.");
 }}
 className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600"
 >
