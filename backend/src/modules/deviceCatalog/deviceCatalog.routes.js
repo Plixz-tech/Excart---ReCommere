@@ -15,6 +15,7 @@ import {
   findMatchingDeviceCatalogController,
   updateDeviceCatalogController,
   deleteDeviceCatalogController,
+  getDeviceCatalogEvaluationController,
 } from "./deviceCatalog.controller.js";
 
 import {
@@ -31,6 +32,14 @@ const router = express.Router();
 router.get(
   "/",
   getActiveDeviceCatalogController
+);
+
+// GET DEVICE EVALUATION CONFIGURATION
+
+router.get(
+  "/:id/evaluation",
+  validateParams(deviceCatalogIdSchema),
+  getDeviceCatalogEvaluationController
 );
 
 // FIND SPECIFIC DEVICE VARIANT

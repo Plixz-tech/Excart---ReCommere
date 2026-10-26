@@ -9,6 +9,7 @@ import {
   findMatchingDeviceCatalog,
   updateDeviceCatalog,
   deleteDeviceCatalog,
+  getDeviceCatalogEvaluation,
 } from "./deviceCatalog.service.js";
 
 // CREATE
@@ -131,6 +132,22 @@ export const deleteDeviceCatalogController =
         200,
         null,
         "Device catalog deleted successfully."
+      )
+    );
+  });
+
+export const getDeviceCatalogEvaluationController =
+  asyncHandler(async (req, res) => {
+    const evaluation =
+      await getDeviceCatalogEvaluation(
+        req.params.id
+      );
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        evaluation,
+        "Device evaluation configuration fetched successfully."
       )
     );
   });

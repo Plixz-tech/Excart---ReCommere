@@ -100,10 +100,17 @@ export const updateInspectionSchema = z.object({
     .nullable()
     .optional(),
 
-  estimatedPrice: z.coerce
-    .number()
-    .min(0)
-    .optional(),
+
+estimatedPrice: z.coerce
+  .number()
+  .min(0)
+  .optional(),
+
+sellingPrice: z.coerce
+  .number()
+  .min(0)
+  .optional(),
+
 
   remarks: z.string().trim().optional(),
 });

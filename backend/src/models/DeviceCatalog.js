@@ -66,25 +66,102 @@ const deviceCatalogSchema = new mongoose.Schema(
 
 // EVALUATION CONFIGURATION
 
+
 evaluationConfig: {
-  battery: {
-    type: String,
-    enum: ["percentage", "status", "none"],
-    default: "none",
+  screenCondition: {
+    enabled: { type: Boolean, default: true },
+    options: {
+      type: [String],
+      default: ["Excellent", "Good", "Average", "Poor"],
+    },
   },
 
-  biometric: {
-    type: String,
-    enum: [
-      "face_id",
-      "touch_id",
-      "fingerprint",
-      "fingerprint_face",
-      "none",
-    ],
-    default: "none",
+  displayIssues: {
+    enabled: { type: Boolean, default: true },
+    allowMultiple: { type: Boolean, default: true },
+    options: {
+      type: [String],
+      default: [
+        "No issues",
+        "Light spots",
+        "Yellow tint",
+        "Flickering",
+        "Touch not working",
+      ],
+    },
+  },
+
+  bodyCondition: {
+    enabled: { type: Boolean, default: true },
+    options: {
+      type: [String],
+      default: ["Excellent", "Good", "Average", "Poor"],
+    },
+  },
+
+  batteryHealth: {
+    enabled: { type: Boolean, default: true },
+    inputType: {
+      type: String,
+      enum: ["percentage", "status", "none"],
+      default: "percentage",
+    },
+    options: {
+      type: [String],
+      default: [
+        "100%",
+        "99–95%",
+        "94–90%",
+        "89–85%",
+        "84–80%",
+        "Below 80%",
+      ],
+    },
+  },
+
+  repairHistory: {
+    enabled: { type: Boolean, default: true },
+    options: {
+      type: [String],
+      default: [
+        "Original / Not Repaired",
+        "Repaired",
+        "Refurbished",
+      ],
+    },
+  },
+
+  accessories: {
+    enabled: { type: Boolean, default: true },
+    allowMultiple: { type: Boolean, default: true },
+    options: {
+      type: [String],
+      default: [
+        "Charger",
+        "Earphones",
+        "Original box",
+        "Bill / Invoice",
+      ],
+    },
+  },
+
+  functionalChecks: {
+    enabled: { type: Boolean, default: true },
+    options: {
+      type: [String],
+      default: [
+        "Camera",
+        "Speaker",
+        "Microphone",
+        "Buttons",
+        "Fingerprint / Face ID",
+        "Touch",
+        "Wi-Fi & Bluetooth",
+      ],
+    },
   },
 },
+
 
     // STATUS
 

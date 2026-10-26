@@ -4,6 +4,7 @@ import * as deviceCatalogRepository from "./deviceCatalog.repository.js";
 
 // CREATE
 
+
 export const createDeviceCatalog = async (
   data,
   userId
@@ -74,15 +75,38 @@ export const createDeviceCatalog = async (
 
     agentCommission:
       Number(data.agentCommission ?? 0),
+
+    // EVALUATION CONFIGURATION
     evaluationConfig: {
+      screenCondition:
+        data.evaluationConfig?.screenCondition,
+
+      displayIssues:
+        data.evaluationConfig?.displayIssues,
+
+      bodyCondition:
+        data.evaluationConfig?.bodyCondition,
+
+      batteryHealth:
+        data.evaluationConfig?.batteryHealth,
+
+      repairHistory:
+        data.evaluationConfig?.repairHistory,
+
+      accessories:
+        data.evaluationConfig?.accessories,
+
+      functionalChecks:
+        data.evaluationConfig?.functionalChecks,
+
+      // BACKWARD COMPATIBILITY
       battery:
-        data.evaluationConfig?.battery ??
-        "none",
+        data.evaluationConfig?.battery ?? "none",
 
       biometric:
-        data.evaluationConfig?.biometric ??
-        "none",
+        data.evaluationConfig?.biometric ?? "none",
     },
+
     active:
       data.active !== undefined
         ? data.active
@@ -94,12 +118,94 @@ export const createDeviceCatalog = async (
   });
 };
 
+
 // GET ACTIVE CATALOG
 
 export const getActiveDeviceCatalog =
   async () => {
     return deviceCatalogRepository.findActive();
   };
+
+
+
+export const getDeviceCatalogEvaluation = async (id) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, "Invalid device catalog ID.");
+  }
+
+  const catalog = await deviceCatalogRepository.findById(id);
+
+  if (!catalog) {
+    throw new ApiError(404, "Device catalog not found.");
+  }
+
+  const evaluationConfig =
+    catalog.evaluationConfig?.toObject?.() ??
+    catalog.evaluationConfig?.toJSON?.() ??
+    catalog.evaluationConfig ??
+    {};
+
+  const sections = [
+    {
+      key: "screenCondition",
+      title: "Screen Condition",
+      type: "single_select",
+      ...(evaluationConfig.screenCondition ?? {}),
+    },
+    {
+      key: "displayIssues",
+      title: "Display Issues",
+      type: "multi_select",
+      ...(evaluationConfig.displayIssues ?? {}),
+    },
+    {
+      key: "bodyCondition",
+      title: "Body Condition",
+      type: "single_select",
+      ...(evaluationConfig.bodyCondition ?? {}),
+    },
+    {
+      key: "batteryHealth",
+      title: "Battery Health",
+      type: "single_select",
+      ...(evaluationConfig.batteryHealth ?? {}),
+    },
+    {
+      key: "repairHistory",
+      title: "Repair / Refurbished",
+      type: "single_select",
+      ...(evaluationConfig.repairHistory ?? {}),
+    },
+    {
+      key: "accessories",
+      title: "Accessories",
+      type: "multi_select",
+      ...(evaluationConfig.accessories ?? {}),
+    },
+    {
+      key: "functionalChecks",
+      title: "Functional Checks",
+      type: "functional_checks",
+      ...(evaluationConfig.functionalChecks ?? {}),
+    },
+  ]
+    .filter((section) => section.enabled !== false)
+    .map(({ key, ...section }) => ({
+      key,
+      ...section,
+    }));
+
+  return {
+    deviceCatalogId: catalog._id,
+    brand: catalog.brand,
+    model: catalog.model,
+    variant: catalog.variant,
+    evaluationConfig,
+    sections,
+  };
+};
+
+
 
 // GET ALL CATALOG
 
@@ -172,14 +278,13 @@ export const findMatchingDeviceCatalog =
 
 // UPDATE
 
+
 export const updateDeviceCatalog = async (
   id,
   data,
   userId
 ) => {
-  if (
-    !mongoose.Types.ObjectId.isValid(id)
-  ) {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new ApiError(
       400,
       "Invalid device catalog ID."
@@ -187,9 +292,7 @@ export const updateDeviceCatalog = async (
   }
 
   const existing =
-    await deviceCatalogRepository.findById(
-      id
-    );
+    await deviceCatalogRepository.findById(id);
 
   if (!existing) {
     throw new ApiError(
@@ -203,44 +306,35 @@ export const updateDeviceCatalog = async (
   };
 
   if (data.brand !== undefined) {
-    updateData.brand =
-      data.brand.trim();
+    updateData.brand = data.brand.trim();
   }
 
   if (data.brandImage !== undefined) {
-    updateData.brandImage =
-      data.brandImage.trim();
+    updateData.brandImage = data.brandImage.trim();
   }
 
   if (data.model !== undefined) {
-    updateData.model =
-      data.model.trim();
+    updateData.model = data.model.trim();
   }
 
   if (data.modelImage !== undefined) {
-    updateData.modelImage =
-      data.modelImage.trim();
+    updateData.modelImage = data.modelImage.trim();
   }
 
   if (data.variant !== undefined) {
-    updateData.variant =
-      data.variant.trim();
+    updateData.variant = data.variant.trim();
   }
 
   if (data.storage !== undefined) {
-    updateData.storage =
-      data.storage.trim();
+    updateData.storage = data.storage.trim();
   }
 
   if (data.ram !== undefined) {
-    updateData.ram =
-      data.ram.trim();
+    updateData.ram = data.ram.trim();
   }
 
   if (data.valuationPrice !== undefined) {
-    if (
-      Number(data.valuationPrice) < 0
-    ) {
+    if (Number(data.valuationPrice) < 0) {
       throw new ApiError(
         400,
         "Valuation price cannot be negative."
@@ -252,9 +346,7 @@ export const updateDeviceCatalog = async (
   }
 
   if (data.agentCommission !== undefined) {
-    if (
-      Number(data.agentCommission) < 0
-    ) {
+    if (Number(data.agentCommission) < 0) {
       throw new ApiError(
         400,
         "Agent commission cannot be negative."
@@ -264,21 +356,56 @@ export const updateDeviceCatalog = async (
     updateData.agentCommission =
       Number(data.agentCommission);
   }
-  if (data.evaluationConfig !== undefined) {
-    updateData.evaluationConfig = {
-      battery:
-        data.evaluationConfig.battery ??
-        "none",
 
-      biometric:
-        data.evaluationConfig.biometric ??
-        "none",
+  // MERGE EVALUATION CONFIGURATION
+  if (data.evaluationConfig !== undefined) {
+    const currentConfig =
+      existing.evaluationConfig?.toObject?.() ??
+      existing.evaluationConfig?.toJSON?.() ??
+      existing.evaluationConfig ??
+      {};
+
+    const incomingConfig = data.evaluationConfig;
+
+    const sectionNames = [
+      "screenCondition",
+      "displayIssues",
+      "bodyCondition",
+      "batteryHealth",
+      "repairHistory",
+      "accessories",
+      "functionalChecks",
+    ];
+
+    const mergedConfig = {
+      ...currentConfig,
+      ...incomingConfig,
     };
+
+    for (const sectionName of sectionNames) {
+      if (incomingConfig[sectionName] !== undefined) {
+        mergedConfig[sectionName] = {
+          ...(currentConfig[sectionName] ?? {}),
+          ...incomingConfig[sectionName],
+        };
+      }
+    }
+
+    mergedConfig.battery =
+      incomingConfig.battery ??
+      currentConfig.battery ??
+      "none";
+
+    mergedConfig.biometric =
+      incomingConfig.biometric ??
+      currentConfig.biometric ??
+      "none";
+
+    updateData.evaluationConfig = mergedConfig;
   }
 
   if (data.active !== undefined) {
-    updateData.active =
-      data.active;
+    updateData.active = data.active;
   }
 
   return deviceCatalogRepository.updateById(
@@ -286,6 +413,7 @@ export const updateDeviceCatalog = async (
     updateData
   );
 };
+
 
 // DELETE
 

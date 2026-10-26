@@ -605,6 +605,7 @@ const [isLoading, setIsLoading] = useState(true);
 const [isSaving, setIsSaving] = useState(false);
 const [loadError, setLoadError] = useState("");
 const [successMessage, setSuccessMessage] = useState("");
+const [invoiceNotice, setInvoiceNotice] = useState("");
 const [inspectionRecord, setInspectionRecord] = useState<any | null>(null);
 const [inspectionLoading, setInspectionLoading] = useState(false);
 const [inspectionSaving, setInspectionSaving] = useState(false);
@@ -1008,10 +1009,11 @@ setPage(1);
 };
 const hasPurchaseInvoice = (order: Order) => Boolean(order.purchaseInvoiceUrl || order.invoiceFileName);
 const showInvoiceUnavailable = () => {
-window.alert("Invoice is not available yet. It will be available after payment is completed.");
+setInvoiceNotice("Invoice is not available yet. It will be available after payment is completed.");
 };
 const downloadInvoice = async () => {
 if (!selectedOrder) return;
+setInvoiceNotice("");
 if (!hasPurchaseInvoice(selectedOrder)) {
 showInvoiceUnavailable();
 return;
@@ -1043,7 +1045,7 @@ link.click();
 link.remove();
 URL.revokeObjectURL(blobUrl);
 } catch (error: any) {
-window.alert(error?.response?.data?.message || error?.message || "Unable to download the invoice. Please check that an invoice has been generated for this order.");
+setInvoiceNotice(error?.response?.data?.message || error?.message || "Unable to download the invoice. Please check that an invoice has been generated for this order.");
 }
 };
 const renderTabContent = (order: Order) => {
@@ -1054,7 +1056,7 @@ return (
 <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr_0.95fr_1.1fr_0.9fr]">
 <DetailSection title="Order Information">
 <DetailRow label="Order ID" value={order.id} />
-<DetailRow label="Invoice ID" value={hasPurchaseInvoice(order) ? (order.purchaseInvoiceNumber || "Invoice generated") : "No invoice generated"} />
+<DetailRow label="Invoice ID" value={hasPurchaseInvoice(order) ? (order.purchaseInvoiceNumber || "Invoice number unavailable") : "No invoice generated"} />
 <DetailRow label="Created On" value={order.createdAtLabel} />
 <DetailRow label="Pickup Address" value={order.location} />
 <DetailRow label="User Address" value={order.location} />
@@ -2330,10 +2332,11 @@ Back to Orders
 : "Inspection Pending"}
 </span>
 </div>
-<p className="mt-1 text-sm font-medium text-orange-600">{hasPurchaseInvoice(selectedOrder) ? (selectedOrder.purchaseInvoiceNumber || "Invoice generated") : "No invoice generated"}</p>
+<p className="mt-1 text-sm font-medium text-orange-600">{hasPurchaseInvoice(selectedOrder) ? (selectedOrder.purchaseInvoiceNumber || "Invoice number unavailable") : "No invoice generated"}</p>
 </div>
-<div className="flex shrink-0 items-center gap-2">
-<button type="button" onClick={() => { if (!hasPurchaseInvoice(selectedOrder)) { showInvoiceUnavailable(); return; } window.print(); }} className="inline-flex h-9 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 text-sm font-medium text-stone-600 hover:bg-stone-50"><FileText size={15} /> Print</button>
+<div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+{invoiceNotice && <p role="status" aria-live="polite" className="w-full text-right text-xs font-medium text-amber-700">{invoiceNotice}</p>}
+<button type="button" onClick={() => { if (!hasPurchaseInvoice(selectedOrder)) { showInvoiceUnavailable(); return; } setInvoiceNotice(""); window.print(); }} className="inline-flex h-9 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 text-sm font-medium text-stone-600 hover:bg-stone-50"><FileText size={15} /> Print</button>
 <button type="button" onClick={() => void downloadInvoice()} className="inline-flex h-9 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 text-sm font-medium text-stone-600 hover:border-orange-300 hover:bg-orange-50"><Download size={15} /> Download Invoice</button>
 </div>
 </div>
