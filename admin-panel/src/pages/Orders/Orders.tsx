@@ -313,7 +313,6 @@ const timeline = timelineEvents.length
     const selfAssigned = /self.?assign|agent assigned (?:themselves|himself|herself)|assigned (?:themselves|himself|herself)/i.test(normalized)
       || Boolean(event.selfAssigned ?? event.isSelfAssigned ?? (String(event.assignmentType ?? "").toLowerCase() === "self"));
     const isAssignment = normalized.includes("assign");
-    const isPaymentCompleted = /(payment|payout).*(completed|successful|processed|paid|recorded)|(?:completed|successful|processed|paid).*(payment|payout)/i.test(normalized);
     const isPaymentOnly = normalized.includes("payment") || normalized.includes("payout");
     const isStoreReceipt = /received at store|device received at (?:the )?store|store receipt/i.test(normalized);
     const isInspection = /inspection|inspect|quality check|approved|approval/i.test(normalized);
