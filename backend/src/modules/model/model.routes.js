@@ -1,4 +1,3 @@
-
 import express from "express";
 import modelController from "./model.controller.js";
 import {
@@ -44,6 +43,16 @@ router.patch(
   validateModelId,
   updateModelValidator,
   modelController.updateModel
+);
+
+// Admin only: permanently delete an unused model.
+// Keep this route distinct from DELETE /:id, which deactivates the model.
+router.delete(
+  "/:id/permanent",
+  protect,
+  authorize("admin"),
+  validateModelId,
+  modelController.deleteModelPermanently
 );
 
 // Admin only: deactivate a model

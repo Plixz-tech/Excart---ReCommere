@@ -1,9 +1,9 @@
+
 import mongoose from "mongoose";
 import ApiError from "../../utils/errors/ApiError.js";
 import * as deviceCatalogRepository from "./deviceCatalog.repository.js";
 
 // CREATE
-
 
 export const createDeviceCatalog = async (
   data,
@@ -75,6 +75,15 @@ export const createDeviceCatalog = async (
 
     agentCommission:
       Number(data.agentCommission ?? 0),
+
+    // CONDITION DEDUCTIONS
+    conditionDeductions: (
+      data.conditionDeductions ?? []
+    ).map((deduction) => ({
+      name: deduction.name.trim(),
+      amount: Number(deduction.amount),
+      active: deduction.active ?? true,
+    })),
 
     // EVALUATION CONFIGURATION
     evaluationConfig: {
@@ -354,6 +363,16 @@ export const updateDeviceCatalog = async (
 
     updateData.agentCommission =
       Number(data.agentCommission);
+  }
+
+  // UPDATE CONDITION DEDUCTIONS
+  if (data.conditionDeductions !== undefined) {
+    updateData.conditionDeductions =
+      data.conditionDeductions.map((deduction) => ({
+        name: deduction.name.trim(),
+        amount: Number(deduction.amount),
+        active: deduction.active ?? true,
+      }));
   }
 
   // MERGE EVALUATION CONFIGURATION

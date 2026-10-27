@@ -1,4 +1,3 @@
-
 import modelService from "./model.service.js";
 
 class ModelController {
@@ -122,6 +121,20 @@ class ModelController {
       return res.status(200).json({
         success: true,
         message: "Model deactivated successfully.",
+        data: model,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteModelPermanently(req, res, next) {
+    try {
+      const model = await modelService.deleteModelPermanently(req.params.id);
+
+      return res.status(200).json({
+        success: true,
+        message: "Model permanently deleted.",
         data: model,
       });
     } catch (error) {

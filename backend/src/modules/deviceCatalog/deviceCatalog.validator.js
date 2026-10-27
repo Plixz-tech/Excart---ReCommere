@@ -83,6 +83,26 @@ const evaluationConfigSchema = z
   })
   .optional();
 
+// CONDITION DEDUCTIONS
+
+const conditionDeductionSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Deduction name is required."),
+
+  amount: z.coerce
+    .number()
+    .finite("Deduction amount must be a valid number.")
+    .min(0, "Deduction amount cannot be negative."),
+
+  active: z.boolean().optional(),
+});
+
+const conditionDeductionsSchema = z
+  .array(conditionDeductionSchema)
+  .optional();
+
 // CREATE DEVICE CATALOG
 
 export const createDeviceCatalogSchema = z.object({
@@ -108,12 +128,16 @@ export const createDeviceCatalogSchema = z.object({
 
   valuationPrice: z.coerce
     .number()
+    .finite("Valuation price must be a valid number.")
     .min(0, "Valuation price cannot be negative."),
 
   agentCommission: z.coerce
     .number()
+    .finite("Agent commission must be a valid number.")
     .min(0, "Agent commission cannot be negative.")
     .default(0),
+
+  conditionDeductions: conditionDeductionsSchema,
 
   evaluationConfig: evaluationConfigSchema,
 
@@ -147,13 +171,17 @@ export const updateDeviceCatalogSchema = z.object({
 
   valuationPrice: z.coerce
     .number()
+    .finite("Valuation price must be a valid number.")
     .min(0, "Valuation price cannot be negative.")
     .optional(),
 
   agentCommission: z.coerce
     .number()
+    .finite("Agent commission must be a valid number.")
     .min(0, "Agent commission cannot be negative.")
     .optional(),
+
+  conditionDeductions: conditionDeductionsSchema,
 
   evaluationConfig: evaluationConfigSchema,
 

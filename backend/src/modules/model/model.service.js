@@ -1,7 +1,7 @@
-
 import mongoose from "mongoose";
 import modelRepository from "./model.repository.js";
 import Brand from "../../models/Brand.js";
+import DeviceCatalog from "../../models/DeviceCatalog.js";
 import broadcastDataChanges from "../../middlewares/realtime/broadcastDataChanges.js";
 
 class ModelService {
@@ -207,6 +207,59 @@ class ModelService {
     }
 
     return deactivatedModel;
+  }
+
+  async deleteModelPermanently(id) {
+    const model = await modelRepository.findById(id);
+
+    if (!model) {
+      const error = new Error("Model not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const brandName = model.brand?.name;
+    if (!brandName) {
+      const error = new Error(
+        "This model's brand could not be verified. It cannot be deleted."
+      );
+      error.statusCode = 409;
+      throw error;
+    }
+
+    // DeviceCatalog stores brand and model names, so prevent deleting
+    // a model that is still used by a catalog entry.
+    const escapeRegex = (value) =>
+      value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const catalogEntry = await DeviceCatalog.findOne({
+      brand: { $regex: `^\\s*${escapeRegex(brandName)}\\s*$`, $options: "i" },
+      model: { $regex: `^\\s*${escapeRegex(model.name)}\\s*$`, $options: "i" },
+    });
+
+    if (catalogEntry) {
+      const error = new Error(
+        "This model is used in the device catalog. Remove or update those catalog entries before deleting it."
+      );
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const deletedModel = await modelRepository.deleteById(id);
+
+    if (!deletedModel) {
+      const error = new Error("Model could not be deleted.");
+      error.statusCode = 500;
+      throw error;
+    }
+
+    broadcastDataChanges({
+      entity: "models",
+      action: "deleted",
+      recordId: deletedModel._id,
+    });
+
+    return deletedModel;
   }
 }
 

@@ -1,9 +1,9 @@
+
 import mongoose from "mongoose";
 
 const deviceCatalogSchema = new mongoose.Schema(
   {
     // BRAND
-
     brand: {
       type: String,
       required: true,
@@ -17,7 +17,6 @@ const deviceCatalogSchema = new mongoose.Schema(
     },
 
     // MODEL
-
     model: {
       type: String,
       required: true,
@@ -31,7 +30,6 @@ const deviceCatalogSchema = new mongoose.Schema(
     },
 
     // VARIANT DETAILS
-
     variant: {
       type: String,
       default: "",
@@ -51,7 +49,6 @@ const deviceCatalogSchema = new mongoose.Schema(
     },
 
     // PRICING
-
     valuationPrice: {
       type: Number,
       required: true,
@@ -64,107 +61,158 @@ const deviceCatalogSchema = new mongoose.Schema(
       default: 0,
     },
 
-// EVALUATION CONFIGURATION
+    // CONDITION-BASED PRICE DEDUCTIONS
+    conditionDeductions: {
+      type: [
+        new mongoose.Schema(
+          {
+            name: {
+              type: String,
+              required: true,
+              trim: true,
+            },
 
+            amount: {
+              type: Number,
+              required: true,
+              min: 0,
+            },
 
-evaluationConfig: {
-  screenCondition: {
-    enabled: { type: Boolean, default: true },
-    options: {
-      type: [String],
-      default: ["Excellent", "Good", "Average", "Poor"],
-    },
-  },
-
-  displayIssues: {
-    enabled: { type: Boolean, default: true },
-    allowMultiple: { type: Boolean, default: true },
-    options: {
-      type: [String],
-      default: [
-        "No issues",
-        "Light spots",
-        "Yellow tint",
-        "Flickering",
-        "Touch not working",
+            active: {
+              type: Boolean,
+              default: true,
+            },
+          },
+          { _id: false }
+        ),
       ],
+      default: [],
     },
-  },
 
-  bodyCondition: {
-    enabled: { type: Boolean, default: true },
-    options: {
-      type: [String],
-      default: ["Excellent", "Good", "Average", "Poor"],
-    },
-  },
+    // EVALUATION CONFIGURATION
+    evaluationConfig: {
+      screenCondition: {
+        enabled: {
+          type: Boolean,
+          default: true,
+        },
+        options: {
+          type: [String],
+          default: ["Excellent", "Good", "Average", "Poor"],
+        },
+      },
 
-  batteryHealth: {
-    enabled: { type: Boolean, default: true },
-    inputType: {
-      type: String,
-      enum: ["percentage", "status", "none"],
-      default: "percentage",
-    },
-    options: {
-      type: [String],
-      default: [
-        "100%",
-        "99–95%",
-        "94–90%",
-        "89–85%",
-        "84–80%",
-        "Below 80%",
-      ],
-    },
-  },
+      displayIssues: {
+        enabled: {
+          type: Boolean,
+          default: true,
+        },
+        allowMultiple: {
+          type: Boolean,
+          default: true,
+        },
+        options: {
+          type: [String],
+          default: [
+            "No issues",
+            "Light spots",
+            "Yellow tint",
+            "Flickering",
+            "Touch not working",
+          ],
+        },
+      },
 
-  repairHistory: {
-    enabled: { type: Boolean, default: true },
-    options: {
-      type: [String],
-      default: [
-        "Original / Not Repaired",
-        "Repaired",
-        "Refurbished",
-      ],
-    },
-  },
+      bodyCondition: {
+        enabled: {
+          type: Boolean,
+          default: true,
+        },
+        options: {
+          type: [String],
+          default: ["Excellent", "Good", "Average", "Poor"],
+        },
+      },
 
-  accessories: {
-    enabled: { type: Boolean, default: true },
-    allowMultiple: { type: Boolean, default: true },
-    options: {
-      type: [String],
-      default: [
-        "Charger",
-        "Earphones",
-        "Original box",
-        "Bill / Invoice",
-      ],
-    },
-  },
+      batteryHealth: {
+        enabled: {
+          type: Boolean,
+          default: true,
+        },
+        inputType: {
+          type: String,
+          enum: ["percentage", "status", "none"],
+          default: "percentage",
+        },
+        options: {
+          type: [String],
+          default: [
+            "100%",
+            "99–95%",
+            "94–90%",
+            "89–85%",
+            "84–80%",
+            "Below 80%",
+          ],
+        },
+      },
 
-  functionalChecks: {
-    enabled: { type: Boolean, default: true },
-    options: {
-      type: [String],
-      default: [
-        "Camera",
-        "Speaker",
-        "Microphone",
-        "Buttons",
-        "Fingerprint / Face ID",
-        "Touch",
-        "Wi-Fi & Bluetooth",
-      ],
-    },
-  },
-},
+      repairHistory: {
+        enabled: {
+          type: Boolean,
+          default: true,
+        },
+        options: {
+          type: [String],
+          default: [
+            "Original / Not Repaired",
+            "Repaired",
+            "Refurbished",
+          ],
+        },
+      },
 
+      accessories: {
+        enabled: {
+          type: Boolean,
+          default: true,
+        },
+        allowMultiple: {
+          type: Boolean,
+          default: true,
+        },
+        options: {
+          type: [String],
+          default: [
+            "Charger",
+            "Earphones",
+            "Original box",
+            "Bill / Invoice",
+          ],
+        },
+      },
+
+      functionalChecks: {
+        enabled: {
+          type: Boolean,
+          default: true,
+        },
+        options: {
+          type: [String],
+          default: [
+            "Camera",
+            "Speaker",
+            "Microphone",
+            "Buttons",
+            "Fingerprint / Face ID",
+            "Touch",
+            "Wi-Fi & Bluetooth",
+          ],
+        },
+      },
+    },
 
     // STATUS
-
     active: {
       type: Boolean,
       default: true,
@@ -172,7 +220,6 @@ evaluationConfig: {
     },
 
     // AUDIT
-
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
