@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { X } from "lucide-react";
@@ -14,6 +13,8 @@ const pageTitles: Record<string, string> = {
   "/inspections": "Inspections",
   "/inventory": "Inventory Management",
   "/catalog": "Device Catalog",
+  "/catalog/brands": "Brands",
+  "/catalog/models": "Models",
   "/reports": "Reports & Analytics",
   "/settings": "Settings",
 };

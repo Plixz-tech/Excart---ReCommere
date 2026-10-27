@@ -36,17 +36,28 @@ router.get(
   brandController.getBrandById
 );
 
-// Admin only: update a brand
+// Admin only: update brand details or logo
 router.patch(
   "/:id",
   protect,
   authorize("admin"),
+  upload.single("image"),
   validateBrandId,
   updateBrandValidator,
   brandController.updateBrand
 );
 
-// Admin only: deactivate a brand
+// Admin only: permanently delete a brand
+// Keep this route before the generic /:id DELETE route.
+router.delete(
+  "/:id/permanent",
+  protect,
+  authorize("admin"),
+  validateBrandId,
+  brandController.permanentlyDeleteBrand
+);
+
+// Admin only: deactivate a brand (existing behavior)
 router.delete(
   "/:id",
   protect,

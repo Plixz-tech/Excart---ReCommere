@@ -619,28 +619,29 @@ export const updateProfile = async (
   data,
   file
 ) => {
-  const updateData = {};
+const updateData = {};
 
-  if (data.fullName !== undefined) {
-    updateData.fullName =
-      data.fullName;
-  }
+if (data.fullName !== undefined) {
+  updateData.fullName = data.fullName;
+}
 
-  if (file) {
-    const result =
-      await uploadBufferToCloudinary(
-        file.buffer,
-        {
-          folder:
-            "excart/profile-images",
-          resource_type:
-            "image",
-        }
-      );
+// Add this block
+if (data.email !== undefined) {
+  updateData.email = data.email.trim().toLowerCase();
+}
 
-    updateData.profileImage =
-      result.secure_url;
-  }
+if (file) {
+  const result =
+    await uploadBufferToCloudinary(
+      file.buffer,
+      {
+        folder: "excart/profile-images",
+        resource_type: "image",
+      }
+    );
+
+  updateData.profileImage = result.secure_url;
+}
 
   const updatedUser =
     await updateUser(

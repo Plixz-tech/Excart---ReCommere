@@ -853,16 +853,22 @@ repairHistory: inspectionForm.repairHistory,
 ...(inspectionForm.overallGrade ? { overallGrade: inspectionForm.overallGrade } : {}),
 ...(inspectionForm.sellingPrice !== "" ? { sellingPrice: Number(inspectionForm.sellingPrice), estimatedPrice: Number(inspectionForm.sellingPrice) } : {}),
 warrantyType: inspectionForm.warrantyType,
-warranty: inspectionForm.warrantyType === "warranty" ? { type: inspectionForm.warrantyType, provider: inspectionForm.warrantyProvider, duration: inspectionForm.warrantyDuration, validUntil: inspectionForm.warrantyValidUntil || null } : { type: "no_warranty", provider: "", duration: "", validUntil: null },
-warrantyProvider: inspectionForm.warrantyProvider,
-warrantyDuration: inspectionForm.warrantyDuration,
-warrantyValidUntil: inspectionForm.warrantyValidUntil || null,
-remarks: inspectionForm.remarks,
+warranty: inspectionForm.warrantyType === "warranty"
+  ? {
+      type: "warranty",
+      provider: inspectionForm.warrantyProvider.trim(),
+      duration: inspectionForm.warrantyDuration,
+      validUntil: inspectionForm.warrantyValidUntil || null,
+    }
+  : { type: "no_warranty", provider: "", duration: "", validUntil: null },
+warrantyProvider: inspectionForm.warrantyType === "warranty" ? inspectionForm.warrantyProvider.trim() : "",
+warrantyDuration: inspectionForm.warrantyType === "warranty" ? inspectionForm.warrantyDuration : "",
+warrantyValidUntil: inspectionForm.warrantyType === "warranty" ? (inspectionForm.warrantyValidUntil || null) : null,
+remarks: inspectionForm.remarks.trim(),
 });
 const updated = response.data?.data;
 if (updated) {
 setInspectionRecord(updated);
-hydrateInspectionForm(updated);
 }
 if (inspectionCompletionRequested) {
 const estimatedPrice = Number(inspectionForm.sellingPrice);
@@ -898,7 +904,14 @@ last7.setDate(today.getDate() - 7);
 return orders.filter((order) => {
 const matchesSearch = !query || [order.id, order.customer, order.phone, order.device, order.agent, order.variant]
 .some((value) => value !== "—" && value.toLowerCase().includes(query));
-const matchesStatus = statusFilter === "All" || order.rawStatus === statusFilter;
+const normalizedOrderStatus = String(order.rawStatus ?? "").toLowerCase().replace(/[\s-]+/g, "_");
+      // Group all inspection-stage backend statuses under the single Under Inspection filter.
+      const inspectionStatuses = ["inspection_pending", "inspection_in_progress", "under_inspection"];
+      const matchesStatus =
+        statusFilter === "All" ||
+        (statusFilter === "under_inspection"
+          ? inspectionStatuses.includes(normalizedOrderStatus)
+          : normalizedOrderStatus === statusFilter);
 const sourceDate = order.dateValue ? new Date(order.dateValue) : null;
 const validDate = sourceDate !== null && !Number.isNaN(sourceDate.getTime());
 const matchesDate = dateFilter === "All time" ||
@@ -1659,7 +1672,7 @@ if (step === "Physical Condition") return Boolean(inspectionForm.bodyCondition &
 if (step === "Display") return Boolean(inspectionForm.screenCondition);
 if (step === "Functional Check") return functionalLabels.every(({ key }) => typeof inspectionForm.functionalTests[key] === "boolean");
 if (step === "Accessories") return ["charger", "cable", "earphones", "box", "bill"].every((key) => typeof inspectionForm.accessories?.[key] === "boolean");
-if (step === "Warranty Status") return inspectionForm.warrantyType === "no_warranty" || Boolean(inspectionForm.warrantyProvider && inspectionForm.warrantyDuration && inspectionForm.warrantyValidUntil);
+if (step === "Warranty Status") return inspectionForm.warrantyType === "no_warranty" || Boolean(inspectionForm.warrantyDuration && inspectionForm.warrantyValidUntil);
 if (step === "Overall Condition") return Boolean(inspectionForm.overallGrade && inspectionForm.sellingPrice !== "" && Number(inspectionForm.sellingPrice) > 0);
 if (step === "Add to Inventory") return inspectionStatus === "approved";
 return false;
@@ -2482,10 +2495,17 @@ aria-label="Filter orders"
 className="cursor-pointer bg-transparent text-sm font-medium outline-none"
 >
 <option value="All">Filter</option>
-{Array.from(new Set(orders.map((order) => order.rawStatus).filter(Boolean))).sort().map((status) => (
-<option key={status} value={status}>
-{formatBackendStatus(status)}
-</option>
+{[
+  { value: "assigned", label: "Assigned" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "in_transit", label: "In Transit" },
+  { value: "under_inspection", label: "Under Inspection" },
+  { value: "picked_up", label: "Picked Up" },
+  { value: "payment_pending", label: "Payment Pending" },
+  { value: "pickup_scheduled", label: "Pickup Scheduled" },
+  { value: "ready_stock", label: "Ready Stock" },
+].map((option) => (
+  <option key={option.value} value={option.value}>{option.label}</option>
 ))}
 </select>
 </label>

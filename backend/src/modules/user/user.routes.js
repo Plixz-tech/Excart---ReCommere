@@ -23,6 +23,14 @@ router.get(
 );
 
 router.get(
+  "/:id/details",
+  protect,
+  authorize("admin"),
+  validateParams(userIdSchema),
+  userController.getUserDetails
+);
+
+router.get(
   "/:id",
   protect,
   authorize("admin"),

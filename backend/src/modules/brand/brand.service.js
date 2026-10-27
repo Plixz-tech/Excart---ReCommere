@@ -62,8 +62,10 @@ class BrandService {
       throw error;
     }
 
-    if (data.name !== undefined) {
-      const name = data.name.trim();
+    const updates = { ...data };
+
+    if (updates.name !== undefined) {
+      const name = updates.name?.trim();
 
       if (!name) {
         const error = new Error("Brand name cannot be empty.");
@@ -73,19 +75,19 @@ class BrandService {
 
       const existingBrand = await brandRepository.findByName(name);
 
-      if (existingBrand && existingBrand._id.toString() !== id) {
+      if (
+        existingBrand &&
+        existingBrand._id.toString() !== id.toString()
+      ) {
         const error = new Error("This brand name is already in use.");
         error.statusCode = 409;
         throw error;
       }
 
-      data.name = name;
+      updates.name = name;
     }
 
-    const updates = {
-      ...data,
-      updatedBy: userId || null,
-    };
+    updates.updatedBy = userId || null;
 
     const updatedBrand = await brandRepository.updateById(id, updates);
 
@@ -123,6 +125,37 @@ class BrandService {
     }
 
     return updatedBrand;
+  }
+
+  async permanentlyDeleteBrand(id) {
+    const brand = await brandRepository.findById(id);
+
+    if (!brand) {
+      const error = new Error("Brand not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const { modelCount, catalogCount } =
+      await brandRepository.findReferences(brand);
+
+    if (modelCount > 0 || catalogCount > 0) {
+      const error = new Error(
+        "This brand cannot be deleted because it is used by existing models or catalog entries. Deactivate it instead."
+      );
+      error.statusCode = 409;
+      throw error;
+    }
+
+    await brandRepository.deleteById(id);
+
+    broadcastDataChanges({
+      entity: "brands",
+      action: "deleted",
+      recordId: brand._id,
+    });
+
+    return brand;
   }
 }
 

@@ -19,3 +19,6 @@ export const updateUserStatus = async (userId, status) => {
 export const deleteUser = async (userId) => {
   return await userRepository.deleteUser(userId);
 };
+export const getUserDetails = async (userId) => {
+  return await userRepository.getUserDetails(userId);
+};

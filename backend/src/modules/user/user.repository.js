@@ -1,10 +1,12 @@
+
 import mongoose from "mongoose";
 import ApiError from "../../utils/errors/ApiError.js";
 import User from "../../models/User.js";
 import { getPagination } from "../../utils/pagination/paginate.js";
+import Order from "../../models/Order.js";
+import PayoutAccount from "../../models/PayoutAccount.js";
 
 // Get All Users
-
 export const getUsers = async (queryParams) => {
   const filter = {
     role: "user",
@@ -72,9 +74,7 @@ export const getUsers = async (queryParams) => {
   };
 };
 
-
 // Get User By ID
-
 export const getUserById = async (userId) => {
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     throw new ApiError(400, "Invalid user ID.");
@@ -95,9 +95,7 @@ export const getUserById = async (userId) => {
   return user;
 };
 
-
 // Update User
-
 export const updateUser = async (userId, data) => {
   // Validate ObjectId
   if (!mongoose.Types.ObjectId.isValid(userId)) {
@@ -161,8 +159,8 @@ export const updateUser = async (userId, data) => {
   return updatedUser;
 };
 
+// Update User Status
 export const updateUserStatus = async (userId, status) => {
-  // Validate ObjectId
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     throw new ApiError(400, "Invalid user ID.");
   }
@@ -193,13 +191,12 @@ export const updateUserStatus = async (userId, status) => {
   return user;
 };
 
+// Delete User
 export const deleteUser = async (userId) => {
-  // Validate ObjectId
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     throw new ApiError(400, "Invalid user ID.");
   }
 
-  // Check if user exists
   const user = await User.findOne({
     _id: userId,
     role: "user",
@@ -215,4 +212,91 @@ export const deleteUser = async (userId) => {
   await user.save();
 
   return;
+};
+
+// Get User Details
+export const getUserDetails = async (userId) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new ApiError(400, "Invalid user ID.");
+  }
+
+  const user = await User.findOne({
+    _id: userId,
+    role: "user",
+    status: { $ne: "deleted" },
+  })
+    .select(
+      "fullName phone email profileImage role status isPhoneVerified address lastLogin createdAt updatedAt"
+    )
+    .lean();
+
+  if (!user) {
+    throw new ApiError(404, "User not found.");
+  }
+
+  const [orders, payoutAccount] = await Promise.all([
+    Order.find({ customer: userId })
+      .select(
+        "orderNumber status device payment pickup.verification.customerPhoto pickup.verification.aadhaar.document pickup.verification.aadhaar.xml createdAt updatedAt"
+      )
+      .populate("device")
+      .sort({ createdAt: -1 })
+      .lean(),
+
+    PayoutAccount.findOne({
+      user: userId,
+      status: "active",
+    })
+      .select("+bankAccountNumber -cashfreeBeneficiaryId")
+      .lean(),
+  ]);
+
+  const completedPayments = orders.filter(
+    (order) => order.payment?.status === "completed"
+  );
+
+  const totalPaid = completedPayments.reduce(
+    (total, order) =>
+      total + (Number(order.payment?.finalAmount) || 0),
+    0
+  );
+
+  const maskAccountNumber = (value) => {
+    if (!value) return "";
+    if (value.length <= 4) return "****";
+
+    return `${"*".repeat(
+      Math.min(value.length - 4, 8)
+    )}${value.slice(-4)}`;
+  };
+
+  const safePayoutAccount = payoutAccount
+    ? {
+        type: payoutAccount.type,
+        accountHolderName: payoutAccount.accountHolderName,
+        bankAccountNumber: maskAccountNumber(
+          payoutAccount.bankAccountNumber
+        ),
+        bankIfsc: payoutAccount.bankIfsc,
+        upiId: payoutAccount.upiId,
+        isVerified: payoutAccount.isVerified,
+        verifiedAt: payoutAccount.verifiedAt,
+        status: payoutAccount.status,
+        createdAt: payoutAccount.createdAt,
+      }
+    : null;
+
+  return {
+    user,
+    stats: {
+      totalOrders: orders.length,
+      completedOrders: orders.filter(
+        (order) => order.status === "completed"
+      ).length,
+      totalPaid,
+      paidOrders: completedPayments.length,
+    },
+    orders,
+    payoutAccount: safePayoutAccount,
+  };
 };

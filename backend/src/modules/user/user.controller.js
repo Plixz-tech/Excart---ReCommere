@@ -74,3 +74,17 @@ export const deleteUser = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getUserDetails = async (req, res, next) => {
+  try {
+    const result = await userService.getUserDetails(req.params.id);
+
+    return res.status(200).json({
+      success: true,
+      message: "User details fetched successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

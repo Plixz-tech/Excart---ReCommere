@@ -284,11 +284,6 @@ const orderSchema = new mongoose.Schema(
             type: String,
             default: "",
           },
-          invoiceNumber: {
-            type: String,
-            default: "",
-            trim: true,
-          },
 
           uploadedBy: {
             type: mongoose.Schema.Types.ObjectId,
@@ -577,6 +572,12 @@ const orderSchema = new mongoose.Schema(
         fileName: {
           type: String,
           default: "",
+        },
+
+        invoiceNumber: {
+          type: String,
+          default: "",
+          trim: true,
         },
 
         uploadedBy: {
