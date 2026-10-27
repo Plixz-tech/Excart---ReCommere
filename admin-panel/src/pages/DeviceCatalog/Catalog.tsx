@@ -50,6 +50,12 @@ type Catalog = {
   valuationPrice: number;
   agentCommission: number;
   conditionDeductions?: Deduction[];
+  evaluationConfig?: Record<string, {
+    enabled?: boolean;
+    options?: string[];
+    allowMultiple?: boolean;
+    inputType?: string;
+  }>;
   active: boolean;
 };
 
@@ -74,91 +80,80 @@ type DeductionOption = {
   active: boolean;
 };
 
+type EvaluationSectionConfig = {
+  key: string;
+  title: string;
+  type?: string;
+  enabled?: boolean;
+  options: string[];
+  allowMultiple?: boolean;
+  inputType?: string;
+};
+
 type EvaluationRule = {
   key: string;
   title: string;
+  type?: string;
+  enabled?: boolean;
+  allowMultiple?: boolean;
+  inputType?: string;
   options: DeductionOption[];
 };
 
 const ITEMS_PER_PAGE = 8;
 
-const EVALUATION_SECTIONS = [
-  {
-    key: "screenCondition",
-    title: "Screen Condition",
-    options: ["Excellent", "Good", "Average", "Poor"],
-  },
-  {
-    key: "displayIssues",
-    title: "Display Issues",
-    options: [
-      "No issues",
-      "Light spots",
-      "Yellow tint",
-      "Flickering",
-      "Touch not working",
-    ],
-  },
-  {
-    key: "bodyCondition",
-    title: "Body Condition",
-    options: ["Excellent", "Good", "Average", "Poor"],
-  },
-  {
-    key: "batteryHealth",
-    title: "Battery Health",
-    options: [
-      "100%",
-      "90–95%",
-      "84–90%",
-      "80–84%",
-      "Below 80%",
-    ],
-  },
-  {
-    key: "repairHistory",
-    title: "Repair / Refurbished",
-    options: [
-      "Original / Not Repaired",
-      "Repaired",
-      "Refurbished",
-    ],
-  },
-  {
-    key: "accessories",
-    title: "Accessories",
-    options: [
-      "Cable with charger",
-      "Earphones",
-      "Box",
-      "Bill / Invoice",
-    ],
-  },
-  {
-    key: "functionalChecks",
-    title: "Functional Checks",
-    options: [
-      "Camera",
-      "Speaker",
-      "Microphone",
-      "Buttons",
-      "Fingerprint / Face ID",
-      "Touchscreen",
-      "Wi-Fi & Bluetooth",
-    ],
-  },
-] as const;
+const createRules = (
+  sections: EvaluationSectionConfig[],
+  deductions: Deduction[] = [],
+  savedConfig?: Catalog["evaluationConfig"]
+): EvaluationRule[] =>
+  sections.map((section) => {
+    const configuredOptions = savedConfig?.[section.key]?.options;
+    const optionNames = Array.isArray(configuredOptions) && configuredOptions.length
+      ? configuredOptions
+      : section.options;
 
-const emptyRules = (): EvaluationRule[] =>
-  EVALUATION_SECTIONS.map((section) => ({
-    key: section.key,
-    title: section.title,
-    options: section.options.map((option) => ({
-      option,
-      amount: 0,
-      active: true,
-    })),
+    return {
+      key: section.key,
+      title: section.title,
+      type: section.type,
+      enabled: savedConfig?.[section.key]?.enabled ?? section.enabled ?? true,
+      allowMultiple: savedConfig?.[section.key]?.allowMultiple ?? section.allowMultiple,
+      inputType: savedConfig?.[section.key]?.inputType ?? section.inputType,
+      options: optionNames.map((option) => {
+        const saved = deductions.find((deduction) => deduction.name === option);
+        return {
+          option,
+          amount: saved?.amount ?? 0,
+          active: saved?.active ?? true,
+        };
+      }),
+    };
+  });
+
+const unwrapEvaluationSections = (response: unknown): EvaluationSectionConfig[] => {
+  const root = response as { data?: unknown; sections?: unknown } | undefined;
+  const outer = root?.data && typeof root.data === "object"
+    ? root.data as { data?: unknown; sections?: unknown }
+    : root;
+  const payload = outer?.data && typeof outer.data === "object"
+    ? outer.data as { sections?: unknown }
+    : outer;
+  const sections = payload?.sections;
+
+  if (!Array.isArray(sections)) return [];
+
+  return sections.filter((section): section is EvaluationSectionConfig => {
+    if (!section || typeof section !== "object") return false;
+    const value = section as Partial<EvaluationSectionConfig>;
+    return typeof value.key === "string" &&
+      typeof value.title === "string" &&
+      Array.isArray(value.options);
+  }).map((section) => ({
+    ...section,
+    options: section.options.filter((option): option is string => typeof option === "string"),
   }));
+};
 
 function unwrapRows<T>(response: ApiResponse<T[]>): T[] {
   const data = response?.data;
@@ -227,6 +222,7 @@ export default function Catalog() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [models, setModels] = useState<Model[]>([]);
   const [catalogs, setCatalogs] = useState<Catalog[]>([]);
+  const [evaluationSections, setEvaluationSections] = useState<EvaluationSectionConfig[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -243,6 +239,8 @@ export default function Catalog() {
   const [editing, setEditing] = useState<Catalog | null>(null);
   const [deleteTarget, setDeleteTarget] =
     useState<Catalog | null>(null);
+  const [deactivateTarget, setDeactivateTarget] =
+    useState<Catalog | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
 
@@ -255,7 +253,7 @@ export default function Catalog() {
   const [active, setActive] = useState(true);
 
   const [rules, setRules] =
-    useState<EvaluationRule[]>(emptyRules);
+    useState<EvaluationRule[]>([]);
 
   const [expandedRule, setExpandedRule] =
     useState<string | null>("screenCondition");
@@ -268,15 +266,18 @@ export default function Catalog() {
         brandsResponse,
         modelsResponse,
         catalogResponse,
+        evaluationResponse,
       ] = await Promise.all([
         api.get<ApiResponse<Brand[]>>("/brands"),
         api.get<ApiResponse<Model[]>>("/models"),
         api.get<ApiResponse<Catalog[]>>("/device-catalog/all"),
+        api.get("/device-catalog/evaluation/default"),
       ]);
 
       setBrands(unwrapRows<Brand>(brandsResponse.data));
       setModels(unwrapRows<Model>(modelsResponse.data));
       setCatalogs(unwrapRows<Catalog>(catalogResponse.data));
+      setEvaluationSections(unwrapEvaluationSections(evaluationResponse.data));
     } catch (error) {
       setNotice({
         type: "error",
@@ -371,8 +372,8 @@ export default function Catalog() {
     setValuationPrice("");
     setAgentCommission("0");
     setActive(true);
-    setRules(emptyRules());
-    setExpandedRule("screenCondition");
+    setRules(createRules(evaluationSections));
+    setExpandedRule(evaluationSections[0]?.key ?? null);
   };
 
   const openCreate = () => {
@@ -405,26 +406,9 @@ export default function Catalog() {
     setActive(item.active);
 
     const existing = item.conditionDeductions || [];
+    setRules(createRules(evaluationSections, existing, item.evaluationConfig));
 
-    setRules(
-      EVALUATION_SECTIONS.map((section) => ({
-        key: section.key,
-        title: section.title,
-        options: section.options.map((option) => {
-          const saved = existing.find(
-            (deduction) => deduction.name === option
-          );
-
-          return {
-            option,
-            amount: saved?.amount ?? 0,
-            active: saved?.active ?? true,
-          };
-        }),
-      }))
-    );
-
-    setExpandedRule("screenCondition");
+    setExpandedRule(evaluationSections[0]?.key ?? null);
     setFormOpen(true);
   };
 
@@ -526,6 +510,19 @@ export default function Catalog() {
       agentCommission: commission,
       active,
       conditionDeductions,
+      evaluationConfig: Object.fromEntries(
+        rules.map((section) => [
+          section.key,
+          {
+            enabled: section.enabled ?? true,
+            options: section.options.map((option) => option.option),
+            ...(section.allowMultiple !== undefined
+              ? { allowMultiple: section.allowMultiple }
+              : {}),
+            ...(section.inputType ? { inputType: section.inputType } : {}),
+          },
+        ])
+      ),
     };
 
     setSaving(true);
@@ -565,37 +562,36 @@ export default function Catalog() {
     }
   };
 
-  const toggleStatus = async (item: Catalog) => {
+  const toggleStatus = async (item: Catalog, nextActive: boolean) => {
     setProcessingId(item._id);
 
     try {
-      await api.patch(
-        `/device-catalog/${item._id}`,
-        { active: !item.active }
-      );
+      await api.patch(`/device-catalog/${item._id}`, { active: nextActive });
 
       setCatalogs((current) =>
         current.map((row) =>
-          row._id === item._id
-            ? { ...row, active: !item.active }
-            : row
+          row._id === item._id ? { ...row, active: nextActive } : row
         )
       );
 
+      if (!nextActive) setDeactivateTarget(null);
       setNotice({
         type: "success",
-        text: item.active
-          ? "Device variant deactivated."
-          : "Device variant activated.",
+        text: nextActive
+          ? "Device variant activated."
+          : "Device variant deactivated.",
       });
     } catch (error) {
-      setNotice({
-        type: "error",
-        text: getErrorMessage(error),
-      });
+      setNotice({ type: "error", text: getErrorMessage(error) });
     } finally {
       setProcessingId(null);
     }
+  };
+
+  const handleDeactivate = async () => {
+    // Deactivation is only allowed through the explicit confirmation modal.
+    if (!deactivateTarget || !deactivateTarget.active) return;
+    await toggleStatus(deactivateTarget, false);
   };
 
   const deleteCatalog = async () => {
@@ -905,7 +901,13 @@ export default function Catalog() {
 
                         <button
                           type="button"
-                          onClick={() => void toggleStatus(item)}
+                          onClick={() => {
+                            if (item.active) {
+                              setDeactivateTarget(item);
+                            } else {
+                              void toggleStatus(item, true);
+                            }
+                          }}
                           disabled={processingId === item._id}
                           title={
                             item.active ? "Deactivate" : "Activate"
@@ -1144,7 +1146,7 @@ export default function Catalog() {
                           setValuationPrice(event.target.value)
                         }
                         placeholder="25000"
-                        className={inputClass}
+                        className={`${inputClass} appearance-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
                       />
                     </label>
 
@@ -1159,7 +1161,7 @@ export default function Catalog() {
                         onChange={(event) =>
                           setAgentCommission(event.target.value)
                         }
-                        className={inputClass}
+                        className={`${inputClass} appearance-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
                       />
                     </label>
                   </div>
@@ -1249,22 +1251,20 @@ export default function Catalog() {
                                         type="number"
                                         min="0"
                                         step="1"
-                                        value={option.amount}
-                                        onChange={(event) =>
+                                        value={option.amount === 0 ? "" : String(option.amount)}
+                                        onChange={(event) => {
+                                          const rawValue = event.target.value;
                                           updateRule(
                                             section.key,
                                             option.option,
                                             {
-                                              amount: Math.max(
-                                                0,
-                                                Number(
-                                                  event.target.value
-                                                )
-                                              ),
+                                              // Keep zero visually empty while the user edits,
+                                              // so Backspace can clear the field completely.
+                                              amount: rawValue === "" ? 0 : Math.max(0, Number(rawValue) || 0),
                                             }
-                                          )
-                                        }
-                                        className="w-full rounded-lg border border-stone-200 py-2 pl-7 pr-2 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-50"
+                                          );
+                                        }}
+                                        className="w-full appearance-none [appearance:textfield] rounded-lg border border-stone-200 py-2 pl-7 pr-2 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                       />
                                     </div>
                                   </label>
@@ -1382,6 +1382,54 @@ export default function Catalog() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* DEACTIVATION CONFIRMATION */}
+      {deactivateTarget && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-stone-950/45 p-3 backdrop-blur-[3px] sm:p-4"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !processingId) {
+              setDeactivateTarget(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="deactivate-catalog-title"
+            className="my-auto w-full max-w-sm rounded-2xl border border-stone-200 bg-white p-4 shadow-[0_24px_80px_rgba(28,25,23,0.24)] sm:p-5"
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-orange-600">
+              <Ban size={20} />
+            </div>
+            <h2 id="deactivate-catalog-title" className="mt-4 text-base font-bold text-stone-900">
+              Deactivate {getModelName(deactivateTarget, models)}?
+            </h2>
+            <p className="mt-2 text-sm leading-5 text-stone-500">
+              This catalog entry will no longer be available for new selections. You can reactivate it later.
+            </p>
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDeactivateTarget(null)}
+                disabled={processingId === deactivateTarget._id}
+                className="flex-1 rounded-xl border border-stone-200 px-3 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDeactivate()}
+                disabled={processingId === deactivateTarget._id}
+                className="flex-1 rounded-xl bg-orange-500 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {processingId === deactivateTarget._id ? "Deactivating..." : "Deactivate"}
+              </button>
+            </div>
           </div>
         </div>
       )}

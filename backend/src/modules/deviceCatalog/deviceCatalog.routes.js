@@ -16,6 +16,7 @@ import {
   updateDeviceCatalogController,
   deleteDeviceCatalogController,
   getDeviceCatalogEvaluationController,
+  getDefaultDeviceCatalogEvaluationController
 } from "./deviceCatalog.controller.js";
 
 import {
@@ -32,6 +33,15 @@ const router = express.Router();
 router.get(
   "/",
   getActiveDeviceCatalogController
+);
+
+// GET DEFAULT DEVICE EVALUATION CONFIGURATION
+
+router.get(
+  "/evaluation/default",
+  protect,
+  authorize("admin"),
+  getDefaultDeviceCatalogEvaluationController
 );
 
 // GET DEVICE EVALUATION CONFIGURATION

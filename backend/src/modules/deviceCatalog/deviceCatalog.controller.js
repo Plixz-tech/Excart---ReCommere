@@ -10,6 +10,7 @@ import {
   updateDeviceCatalog,
   deleteDeviceCatalog,
   getDeviceCatalogEvaluation,
+  getDefaultDeviceCatalogEvaluation,
 } from "./deviceCatalog.service.js";
 
 // CREATE
@@ -132,6 +133,22 @@ export const deleteDeviceCatalogController =
         200,
         null,
         "Device catalog deleted successfully."
+      )
+    );
+  });
+
+  // GET DEFAULT EVALUATION CONFIGURATION
+
+export const getDefaultDeviceCatalogEvaluationController =
+  asyncHandler(async (req, res) => {
+    const evaluation =
+      await getDefaultDeviceCatalogEvaluation();
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        evaluation,
+        "Default device evaluation configuration fetched successfully."
       )
     );
   });

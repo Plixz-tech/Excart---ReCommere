@@ -2,6 +2,7 @@
 import mongoose from "mongoose";
 import ApiError from "../../utils/errors/ApiError.js";
 import * as deviceCatalogRepository from "./deviceCatalog.repository.js";
+import DeviceCatalog from "../../models/DeviceCatalog.js";
 
 // CREATE
 
@@ -135,7 +136,69 @@ export const getActiveDeviceCatalog =
     return deviceCatalogRepository.findActive();
   };
 
+// GET DEFAULT EVALUATION CONFIGURATION
 
+export const getDefaultDeviceCatalogEvaluation = async () => {
+  const evaluationConfig = new DeviceCatalog().evaluationConfig;
+
+  const config =
+    evaluationConfig?.toObject?.() ??
+    evaluationConfig?.toJSON?.() ??
+    evaluationConfig ??
+    {};
+
+  const sections = [
+    {
+      key: "screenCondition",
+      title: "Screen Condition",
+      type: "single_select",
+      ...(config.screenCondition ?? {}),
+    },
+    {
+      key: "displayIssues",
+      title: "Display Issues",
+      type: "multi_select",
+      ...(config.displayIssues ?? {}),
+    },
+    {
+      key: "bodyCondition",
+      title: "Body Condition",
+      type: "single_select",
+      ...(config.bodyCondition ?? {}),
+    },
+    {
+      key: "batteryHealth",
+      title: "Battery Health",
+      type: "single_select",
+      ...(config.batteryHealth ?? {}),
+    },
+    {
+      key: "repairHistory",
+      title: "Repair / Refurbished",
+      type: "single_select",
+      ...(config.repairHistory ?? {}),
+    },
+    {
+      key: "accessories",
+      title: "Accessories",
+      type: "multi_select",
+      ...(config.accessories ?? {}),
+    },
+    {
+      key: "functionalChecks",
+      title: "Functional Checks",
+      type: "functional_checks",
+      ...(config.functionalChecks ?? {}),
+    },
+  ]
+    .filter((section) => section.enabled !== false)
+    .map(({ key, ...section }) => ({
+      key,
+      ...section,
+    }));
+
+  return { sections };
+};
 
 export const getDeviceCatalogEvaluation = async (id) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {

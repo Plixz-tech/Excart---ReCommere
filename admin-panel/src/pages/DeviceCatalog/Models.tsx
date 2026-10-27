@@ -1011,12 +1011,12 @@ export default function Models() {
           if (event.target === event.currentTarget && !processingAction) setDeactivateTarget(null);
         }}>
           <section role="dialog" aria-modal="true" aria-labelledby="deactivate-model-title" className="w-full max-w-sm rounded-2xl border border-stone-200 bg-white p-5 shadow-2xl">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><Ban size={20} /></div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><Ban size={20} /></div>
             <h2 id="deactivate-model-title" className="mt-4 text-base font-bold text-stone-900">Deactivate {deactivateTarget.name}?</h2>
             <p className="mt-2 text-sm leading-5 text-stone-500">This model won't be available for new selections. You can reactivate it later.</p>
             <div className="mt-5 flex gap-2">
               <button type="button" onClick={() => setDeactivateTarget(null)} disabled={processingAction} className="flex-1 rounded-xl border border-stone-200 px-3 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 disabled:opacity-50">Cancel</button>
-              <button type="button" onClick={() => void handleDeactivate()} disabled={processingAction} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="button" onClick={() => void handleDeactivate()} disabled={processingAction} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60">
                 {processingAction && <RefreshCw size={15} className="animate-spin" />}{processingAction ? "Deactivating…" : "Deactivate"}
               </button>
             </div>

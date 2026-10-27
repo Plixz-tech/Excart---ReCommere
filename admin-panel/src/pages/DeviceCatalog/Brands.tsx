@@ -578,12 +578,12 @@ export default function Brands() {
       {deleteTarget && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-stone-950/45 p-3 backdrop-blur-[2px] sm:p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeleteTarget(null); }}>
           <div role="dialog" aria-modal="true" aria-labelledby="deactivate-brand-title" className="my-auto w-full max-w-sm rounded-2xl border border-stone-200 bg-white p-4 shadow-2xl sm:p-5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><Ban size={20} /></div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><Ban size={20} /></div>
             <h2 id="deactivate-brand-title" className="mt-4 text-base font-bold text-stone-900">Deactivate {deleteTarget.name}?</h2>
             <p className="mt-2 text-sm leading-5 text-stone-500">This brand will no longer be available for new selections. You can reactivate it later.</p>
             <div className="mt-5 flex gap-2">
               <button type="button" onClick={() => setDeleteTarget(null)} className="flex-1 rounded-xl border border-stone-200 px-3 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-50">Cancel</button>
-              <button type="button" onClick={() => void handleDeactivate()} className="flex-1 rounded-xl bg-amber-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700">Deactivate</button>
+              <button type="button" onClick={() => void handleDeactivate()} className="flex-1 rounded-xl bg-orange-500 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600">Deactivate</button>
             </div>
           </div>
         </div>
