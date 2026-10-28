@@ -29,13 +29,6 @@ const deviceCatalogSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // VARIANT DETAILS
-    variant: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
     storage: {
       type: String,
       default: "",
@@ -60,12 +53,18 @@ const deviceCatalogSchema = new mongoose.Schema(
       min: 0,
       default: 0,
     },
-
+  
     // CONDITION-BASED PRICE DEDUCTIONS
     conditionDeductions: {
       type: [
         new mongoose.Schema(
           {
+            conditionType: {
+              type: String,
+              trim: true,
+              default: undefined,
+            },
+
             name: {
               type: String,
               required: true,
@@ -88,6 +87,7 @@ const deviceCatalogSchema = new mongoose.Schema(
       ],
       default: [],
     },
+
 
     // EVALUATION CONFIGURATION
     evaluationConfig: {
