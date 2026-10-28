@@ -707,37 +707,42 @@ export default function Catalog() {
       )}
 
       {/* SUMMARY */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {[
-          {
-            title: "Total entries",
-            value: catalogs.length,
-            tone: "text-stone-900",
-          },
-          {
-            title: "Active entries",
-            value: activeCount,
-            tone: "text-emerald-700",
-          },
-          {
-            title: "Inactive entries",
-            value: catalogs.length - activeCount,
-            tone: "text-stone-500",
-          },
-        ].map((stat) => (
-          <div
-            key={stat.title}
-            className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"
-          >
-            <p className="text-sm font-semibold text-stone-500">
-              {stat.title}
-            </p>
+      {/* Summary cards — aligned with the Brands and Models design */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+            <Smartphone size={19} strokeWidth={1.8} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-stone-500">Total Catalog</p>
+            <p className="mt-0.5 text-2xl font-semibold leading-none tracking-tight text-stone-900">{catalogs.length}</p>
+            <p className="mt-1 text-[11px] text-stone-400">All configured variants</p>
+          </div>
+        </div>
 
-            <p className={`mt-3 text-3xl font-bold ${stat.tone}`}>
-              {stat.value}
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+            <CheckCircle2 size={19} strokeWidth={1.8} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-stone-500">Active Catalog</p>
+            <p className="mt-0.5 text-2xl font-semibold leading-none tracking-tight text-emerald-700">{activeCount}</p>
+            <p className="mt-1 text-[11px] text-stone-400">
+              {catalogs.length > 0 ? `${Math.round((activeCount / catalogs.length) * 100)}% of catalog entries` : "No variants configured yet"}
             </p>
           </div>
-        ))}
+        </div>
+
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+            <Ban size={19} strokeWidth={1.8} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-stone-500">InActive Catalog</p>
+            <p className="mt-0.5 text-2xl font-semibold leading-none tracking-tight text-stone-600">{catalogs.length - activeCount}</p>
+            <p className="mt-1 text-[11px] text-stone-400">Currently unavailable</p>
+          </div>
+        </div>
       </div>
 
       {/* CATALOG TABLE */}
