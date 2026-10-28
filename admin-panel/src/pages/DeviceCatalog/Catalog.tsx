@@ -923,15 +923,20 @@ export default function Catalog() {
                           onClick={() => {
                             if (item.active) {
                               setDeactivateTarget(item);
-                            } else {
-                              void toggleStatus(item, true);
                             }
                           }}
-                          disabled={processingId === item._id}
+                          disabled={!item.active || processingId === item._id}
                           title={
-                            item.active ? "Deactivate" : "Activate"
+                            item.active
+                              ? "Deactivate"
+                              : "Inactive — reactivate through Edit"
                           }
-                          className="rounded-lg p-2 text-amber-600 hover:bg-amber-50 disabled:opacity-50"
+                          aria-label={
+                            item.active
+                              ? `Deactivate ${getModelName(item, models)}`
+                              : `${getModelName(item, models)} is inactive. Reactivate through Edit`
+                          }
+                          className="rounded-lg p-2 text-amber-600 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           {processingId === item._id ? (
                             <RefreshCw
