@@ -256,17 +256,35 @@ export default function Brands() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-[0_3px_14px_rgba(28,25,23,0.035)]">
-          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Total brands</p>
-          <p className="mt-2 text-2xl font-bold text-stone-900">{brands.length}</p>
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+            <Tags size={19} strokeWidth={1.8} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-stone-500">Total Brands</p>
+            <p className="mt-0.5 text-2xl font-semibold leading-none tracking-tight text-stone-900">{brands.length}</p>
+            <p className="mt-1 text-[11px] text-stone-400">All configured brands</p>
+          </div>
         </div>
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-[0_3px_14px_rgba(28,25,23,0.035)]">
-          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Active brands</p>
-          <p className="mt-2 text-2xl font-bold text-emerald-700">{brands.filter((brand) => brand.active).length}</p>
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+            <CheckCircle2 size={19} strokeWidth={1.8} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-stone-500">Active Brands</p>
+            <p className="mt-0.5 text-2xl font-semibold leading-none tracking-tight text-emerald-700">{brands.filter((brand) => brand.active).length}</p>
+            <p className="mt-1 text-[11px] text-stone-400">Available in the catalog</p>
+          </div>
         </div>
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-[0_3px_14px_rgba(28,25,23,0.035)]">
-          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Inactive brands</p>
-          <p className="mt-2 text-2xl font-bold text-stone-500">{brands.filter((brand) => !brand.active).length}</p>
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+            <Ban size={19} strokeWidth={1.8} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-stone-500">InActive Brands</p>
+            <p className="mt-0.5 text-2xl font-semibold leading-none tracking-tight text-stone-600">{brands.filter((brand) => !brand.active).length}</p>
+            <p className="mt-1 text-[11px] text-stone-400">Currently unavailable</p>
+          </div>
         </div>
       </div>
 
@@ -547,7 +565,7 @@ export default function Brands() {
               <div className="flex items-center justify-between rounded-xl border border-stone-100 bg-stone-50/70 px-3.5 py-3">
                 <div>
                   <p className="text-sm font-semibold text-stone-800">Brand status</p>
-                  <p className="mt-0.5 text-xs text-stone-500">Inactive brands won't be available for new selections.</p>
+                  <p className="mt-0.5 text-xs text-stone-500">InActive Brands won't be available for new selections.</p>
                 </div>
                 <button
                   type="button"

@@ -399,8 +399,8 @@ export default function Catalog() {
 
     setBrandId(selectedBrand?._id || "");
     setModelId(selectedModel?._id || "");
-    setStorage(item.storage || "");
-    setRam(item.ram || "");
+    setStorage((item.storage || "").replace(/\s*GB\s*$/i, "").trim());
+    setRam((item.ram || "").replace(/\s*GB\s*$/i, "").trim());
     setValuationPrice(String(item.valuationPrice ?? ""));
     setAgentCommission(String(item.agentCommission ?? 0));
     setActive(item.active);
@@ -458,6 +458,20 @@ export default function Catalog() {
       return;
     }
 
+    const storageValue = storage.trim();
+    const ramValue = ram.trim();
+
+    if (
+      (storageValue !== "" && !/^\d+$/.test(storageValue)) ||
+      (ramValue !== "" && !/^\d+$/.test(ramValue))
+    ) {
+      setNotice({
+        type: "error",
+        text: "Enter numbers only for Storage and RAM. GB is added automatically.",
+      });
+      return;
+    }
+
     const price = Number(valuationPrice);
     const commission = Number(agentCommission);
 
@@ -504,8 +518,8 @@ export default function Catalog() {
       brandImage: selectedBrand.image || "",
       model: selectedModel.name,
       modelImage: selectedModel.image || "",
-      storage: storage.trim(),
-      ram: ram.trim(),
+      storage: storageValue ? `${storageValue} GB` : "",
+      ram: ramValue ? `${ramValue} GB` : "",
       valuationPrice: price,
       agentCommission: commission,
       active,
@@ -660,7 +674,7 @@ export default function Catalog() {
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus size={18} />
-          Add catalog entry
+          Add catalog
         </button>
       </div>
 
@@ -1001,7 +1015,7 @@ export default function Catalog() {
                 <h2 className="mt-1 text-xl font-bold text-stone-900">
                   {editing
                     ? "Edit catalog entry"
-                    : "Add catalog entry"}
+                    : "Add catalog"}
                 </h2>
 
                 <p className="mt-1 text-sm text-stone-500">
@@ -1099,26 +1113,52 @@ export default function Catalog() {
 
                     <label className={labelClass}>
                       Storage
-                      <input
-                        value={storage}
-                        onChange={(event) =>
-                          setStorage(event.target.value)
-                        }
-                        placeholder="e.g. 256GB"
-                        className={inputClass}
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={storage}
+                          onChange={(event) =>
+                            setStorage(event.target.value)
+                          }
+                          placeholder="e.g. 128"
+                          aria-invalid={storage.trim() !== "" && !/^\d+$/.test(storage.trim())}
+                          className={`${inputClass} pr-12`}
+                        />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-stone-400">
+                          GB
+                        </span>
+                      </div>
+                      {storage.trim() !== "" && !/^\d+$/.test(storage.trim()) && (
+                        <span className="mt-1 block text-xs text-red-600">
+                          Add numbers only; GB is added automatically.
+                        </span>
+                      )}
                     </label>
 
                     <label className={labelClass}>
                       RAM
-                      <input
-                        value={ram}
-                        onChange={(event) =>
-                          setRam(event.target.value)
-                        }
-                        placeholder="e.g. 8GB"
-                        className={inputClass}
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={ram}
+                          onChange={(event) =>
+                            setRam(event.target.value)
+                          }
+                          placeholder="e.g. 6"
+                          aria-invalid={ram.trim() !== "" && !/^\d+$/.test(ram.trim())}
+                          className={`${inputClass} pr-12`}
+                        />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-stone-400">
+                          GB
+                        </span>
+                      </div>
+                      {ram.trim() !== "" && !/^\d+$/.test(ram.trim()) && (
+                        <span className="mt-1 block text-xs text-red-600">
+                          Add numbers only; GB is added automatically.
+                        </span>
+                      )}
                     </label>
                   </div>
                 </section>
@@ -1251,6 +1291,7 @@ export default function Catalog() {
                                         type="number"
                                         min="0"
                                         step="1"
+                                        placeholder="e.g. 500"
                                         value={option.amount === 0 ? "" : String(option.amount)}
                                         onChange={(event) => {
                                           const rawValue = event.target.value;
@@ -1330,26 +1371,33 @@ export default function Catalog() {
                 </section>
 
                 {/* STATUS */}
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 p-4">
-                  <input
-                    type="checkbox"
-                    checked={active}
-                    onChange={(event) =>
-                      setActive(event.target.checked)
-                    }
-                    className="mt-1 h-4 w-4 accent-orange-500"
-                  />
+                <div className="flex items-center justify-between rounded-xl border border-stone-100 bg-stone-50/70 px-3.5 py-3">
+                  <div>
+                    <p className="text-sm font-semibold text-stone-800">
+                      Catalog status
+                    </p>
+                    <p className="mt-0.5 text-xs text-stone-500">
+                      Inactive catalog entries won't be available for new evaluations.
+                    </p>
+                  </div>
 
-                  <span>
-                    <span className="block text-sm font-semibold text-stone-800">
-                      Active catalog entry
-                    </span>
-
-                    <span className="mt-1 block text-xs text-stone-500">
-                      Inactive entries won't be available for new evaluations.
-                    </span>
-                  </span>
-                </label>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-label="Catalog status"
+                    aria-checked={active}
+                    onClick={() => setActive((value) => !value)}
+                    className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${
+                      active ? "bg-orange-500" : "bg-stone-300"
+                    }`}
+                  >
+                    <span
+                      className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                        active ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-col-reverse gap-2 border-t border-stone-100 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
