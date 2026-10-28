@@ -1,3 +1,4 @@
+
 import reviewRepository from "./review.repository.js";
 import orderRepository from "../order/order.repository.js";
 import ApiError from "../../utils/errors/ApiError.js";
@@ -50,24 +51,17 @@ class ReviewService {
       );
     }
 
-   const reviewableStatuses = [
-  "payment_pending",
-  "payment_completed",
-  "in_transit",
-  "inspection_pending",
-  "inspection_in_progress",
-  "inspection_completed",
-  "approved",
-  "ready_stock",
-  "completed",
-];
-
-if (!reviewableStatuses.includes(order.status)) {
-  throw new ApiError(
-    400,
-    "Review can only be submitted after the order is picked up"
-  );
-}
+    const reviewableStatuses = [
+      "payment_pending",
+      "payment_completed",
+      "in_transit",
+      "inspection_pending",
+      "inspection_in_progress",
+      "inspection_completed",
+      "approved",
+      "ready_stock",
+      "completed",
+    ];
 
     if (!reviewableStatuses.includes(order.status)) {
       throw new ApiError(
