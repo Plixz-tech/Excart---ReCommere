@@ -1,3 +1,4 @@
+
 import Model from "../../models/Model.js";
 
 class ModelRepository {
@@ -44,6 +45,11 @@ class ModelRepository {
       active: false,
       updatedBy: userId,
     });
+  }
+
+  // Permanently delete a model by its ID
+  async deleteById(id) {
+    return Model.findByIdAndDelete(id);
   }
 }
 
