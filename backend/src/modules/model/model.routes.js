@@ -1,3 +1,4 @@
+
 import express from "express";
 import modelController from "./model.controller.js";
 import {
@@ -8,7 +9,7 @@ import {
 
 import protect from "../../middlewares/auth/protect.js";
 import authorize from "../../middlewares/auth/authorize.js";
-import upload from "../../middlewares/upload.js";
+import { uploadImages } from "../../middlewares/upload.js";
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ router.post(
   "/",
   protect,
   authorize("admin"),
-  upload.single("image"),
+  uploadImages.single("image"),
   createModelValidator,
   modelController.createModel
 );
@@ -39,14 +40,13 @@ router.patch(
   "/:id",
   protect,
   authorize("admin"),
-  upload.single("image"),
+  uploadImages.single("image"),
   validateModelId,
   updateModelValidator,
   modelController.updateModel
 );
 
-// Admin only: permanently delete an unused model.
-// Keep this route distinct from DELETE /:id, which deactivates the model.
+// Admin only: permanently delete an unused model
 router.delete(
   "/:id/permanent",
   protect,
