@@ -1,7 +1,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Plus,
   Search,
   Pencil,
   Ban,
@@ -15,6 +14,7 @@ import {
   ChevronUp,
   IndianRupee,
   Settings2,
+  PackagePlus,
 } from "lucide-react";
 import { api } from "../../api/axios";
 
@@ -34,6 +34,7 @@ type Model = {
 };
 
 type Deduction = {
+  conditionType?: string;
   name: string;
   amount: number;
   active: boolean;
@@ -88,6 +89,8 @@ type EvaluationSectionConfig = {
   options: string[];
   allowMultiple?: boolean;
   inputType?: string;
+  /** Optional backend-provided brand names for sections that apply only to certain brands. */
+  supportedBrands?: string[];
 };
 
 type EvaluationRule = {
@@ -97,31 +100,75 @@ type EvaluationRule = {
   enabled?: boolean;
   allowMultiple?: boolean;
   inputType?: string;
+  /** Optional backend-provided brand names for sections that apply only to certain brands. */
+  supportedBrands?: string[];
   options: DeductionOption[];
 };
 
 const ITEMS_PER_PAGE = 8;
 
+
 const createRules = (
   sections: EvaluationSectionConfig[],
   deductions: Deduction[] = [],
   savedConfig?: Catalog["evaluationConfig"]
-): EvaluationRule[] =>
-  sections.map((section) => {
+): EvaluationRule[] => {
+  const legacyDeductions = deductions.filter(
+    (deduction) => !deduction.conditionType
+  );
+
+  const legacyNameCounts = new Map<string, number>();
+
+  legacyDeductions.forEach((deduction) => {
+    legacyNameCounts.set(
+      deduction.name,
+      (legacyNameCounts.get(deduction.name) ?? 0) + 1
+    );
+  });
+
+  return sections.map((section) => {
     const configuredOptions = savedConfig?.[section.key]?.options;
-    const optionNames = Array.isArray(configuredOptions) && configuredOptions.length
-      ? configuredOptions
-      : section.options;
+
+    const optionNames =
+      Array.isArray(configuredOptions) && configuredOptions.length
+        ? configuredOptions
+        : section.options;
 
     return {
       key: section.key,
       title: section.title,
       type: section.type,
-      enabled: savedConfig?.[section.key]?.enabled ?? section.enabled ?? true,
-      allowMultiple: savedConfig?.[section.key]?.allowMultiple ?? section.allowMultiple,
-      inputType: savedConfig?.[section.key]?.inputType ?? section.inputType,
+      enabled:
+        savedConfig?.[section.key]?.enabled ?? section.enabled ?? true,
+      allowMultiple:
+        savedConfig?.[section.key]?.allowMultiple ?? section.allowMultiple,
+      inputType:
+        savedConfig?.[section.key]?.inputType ?? section.inputType,
+      supportedBrands: Array.isArray(section.supportedBrands)
+        ? section.supportedBrands
+        : undefined,
+
       options: optionNames.map((option) => {
-        const saved = deductions.find((deduction) => deduction.name === option);
+        const categorizedMatch = deductions.find(
+          (deduction) =>
+            deduction.conditionType === section.key &&
+            deduction.name === option
+        );
+
+        const legacyMatches = legacyDeductions.filter(
+          (deduction) => deduction.name === option
+        );
+
+        // Only use a legacy amount when the name is unambiguous
+        // across the entire legacy deduction list.
+        const legacyMatch =
+          legacyMatches.length === 1 &&
+          legacyNameCounts.get(option) === 1
+            ? legacyMatches[0]
+            : undefined;
+
+        const saved = categorizedMatch ?? legacyMatch;
+
         return {
           option,
           amount: saved?.amount ?? 0,
@@ -130,6 +177,8 @@ const createRules = (
       }),
     };
   });
+};
+
 
 const unwrapEvaluationSections = (response: unknown): EvaluationSectionConfig[] => {
   const root = response as { data?: unknown; sections?: unknown } | undefined;
@@ -247,6 +296,7 @@ export default function Catalog() {
   const [brandId, setBrandId] = useState("");
   const [modelId, setModelId] = useState("");
   const [storage, setStorage] = useState("");
+  const [storageUnit, setStorageUnit] = useState<"GB" | "TB">("GB");
   const [ram, setRam] = useState("");
   const [valuationPrice, setValuationPrice] = useState("");
   const [agentCommission, setAgentCommission] = useState("0");
@@ -318,6 +368,30 @@ export default function Catalog() {
     [models, brandId]
   );
 
+  const selectedBrand = useMemo(
+    () => brands.find((brand) => brand._id === brandId),
+    [brands, brandId]
+  );
+
+  // Brand applicability is supplied by the backend evaluation configuration.
+  // Sections with no supportedBrands restriction remain available to all brands.
+  const visibleRules = useMemo(() => {
+    const brandName = selectedBrand?.name?.trim().toLowerCase() ?? "";
+
+    return rules.filter((section) => {
+      const supportedBrands = section.supportedBrands?.filter(
+        (value) => typeof value === "string" && value.trim().length > 0
+      ) ?? [];
+
+      if (supportedBrands.length === 0) return true;
+      if (!selectedBrand) return false;
+
+      return supportedBrands.some(
+        (supportedBrand) => supportedBrand.trim().toLowerCase() === brandName
+      );
+    });
+  }, [rules, selectedBrand]);
+
   const filteredCatalogs = useMemo(() => {
     const term = search.trim().toLowerCase();
 
@@ -368,6 +442,7 @@ export default function Catalog() {
     setBrandId("");
     setModelId("");
     setStorage("");
+    setStorageUnit("GB");
     setRam("");
     setValuationPrice("");
     setAgentCommission("0");
@@ -399,7 +474,10 @@ export default function Catalog() {
 
     setBrandId(selectedBrand?._id || "");
     setModelId(selectedModel?._id || "");
-    setStorage((item.storage || "").replace(/\s*GB\s*$/i, "").trim());
+    const savedStorage = (item.storage || "").trim();
+    const storageMatch = savedStorage.match(/^(\d+(?:\.\d+)?)\s*(TB|GB)?$/i);
+    setStorage(storageMatch ? storageMatch[1] : savedStorage);
+    setStorageUnit(storageMatch?.[2]?.toUpperCase() === "TB" ? "TB" : "GB");
     setRam((item.ram || "").replace(/\s*GB\s*$/i, "").trim());
     setValuationPrice(String(item.valuationPrice ?? ""));
     setAgentCommission(String(item.agentCommission ?? 0));
@@ -433,17 +511,24 @@ export default function Catalog() {
     );
   };
 
-  const enabledDeductionTotal = rules.reduce(
-    (sum, section) =>
-      sum +
-      section.options.reduce(
-        (total, option) =>
-          total +
-          (option.active ? Number(option.amount || 0) : 0),
-        0
-      ),
-    0
-  );
+const enabledDeductionTotal = visibleRules.reduce(
+  (total, section) => {
+    if (section.enabled === false) return total;
+
+    const activeAmounts = section.options
+      .filter((option) => option.active)
+      .map((option) => Number(option.amount))
+      .filter((amount) => Number.isFinite(amount) && amount > 0);
+
+    const sectionDeduction =
+      section.allowMultiple
+        ? activeAmounts.reduce((sum, amount) => sum + amount, 0)
+        : Math.max(0, ...activeAmounts);
+
+    return total + sectionDeduction;
+  },
+  0
+);
 
   const saveCatalog = async (
     event: React.FormEvent<HTMLFormElement>
@@ -467,7 +552,7 @@ export default function Catalog() {
     ) {
       setNotice({
         type: "error",
-        text: "Enter numbers only for Storage and RAM. GB is added automatically.",
+        text: "Enter numbers only for Storage and RAM. The selected storage unit and GB for RAM are added automatically.",
       });
       return;
     }
@@ -504,13 +589,38 @@ export default function Catalog() {
       return;
     }
 
-    const conditionDeductions = rules.flatMap(
-      (section) =>
-        section.options.map((option) => ({
-          name: option.option,
-          amount: Number(option.amount),
-          active: option.active,
-        }))
+    const visibleSectionKeys = new Set(visibleRules.map((section) => section.key));
+
+    // Never send deduction values for sections that do not apply to this brand.
+    const conditionDeductions = visibleRules.flatMap((section) =>
+      section.options.map((option) => ({
+        conditionType: section.key,
+        name: option.option,
+        amount: Number(option.amount),
+        active: option.active,
+      }))
+    );
+
+    const evaluationConfig = Object.fromEntries(
+      rules.map((section) => {
+        const applicable = visibleSectionKeys.has(section.key);
+        return [
+          section.key,
+          {
+            enabled: applicable ? (section.enabled ?? true) : false,
+            options: applicable
+              ? section.options.map((option) => option.option)
+              : [],
+            ...(section.allowMultiple !== undefined
+              ? { allowMultiple: section.allowMultiple }
+              : {}),
+            ...(section.inputType ? { inputType: section.inputType } : {}),
+            ...(section.supportedBrands?.length
+              ? { supportedBrands: section.supportedBrands }
+              : {}),
+          },
+        ];
+      })
     );
 
     const payload = {
@@ -518,25 +628,13 @@ export default function Catalog() {
       brandImage: selectedBrand.image || "",
       model: selectedModel.name,
       modelImage: selectedModel.image || "",
-      storage: storageValue ? `${storageValue} GB` : "",
+      storage: storageValue ? `${storageValue} ${storageUnit}` : "",
       ram: ramValue ? `${ramValue} GB` : "",
       valuationPrice: price,
       agentCommission: commission,
       active,
       conditionDeductions,
-      evaluationConfig: Object.fromEntries(
-        rules.map((section) => [
-          section.key,
-          {
-            enabled: section.enabled ?? true,
-            options: section.options.map((option) => option.option),
-            ...(section.allowMultiple !== undefined
-              ? { allowMultiple: section.allowMultiple }
-              : {}),
-            ...(section.inputType ? { inputType: section.inputType } : {}),
-          },
-        ])
-      ),
+      evaluationConfig,
     };
 
     setSaving(true);
@@ -673,7 +771,7 @@ export default function Catalog() {
           }
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Plus size={18} />
+          <PackagePlus size={18} strokeWidth={1.9} />
           Add catalog
         </button>
       </div>
@@ -709,7 +807,7 @@ export default function Catalog() {
       {/* SUMMARY */}
       {/* Summary cards — aligned with the Brands and Models design */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/90 bg-white px-4 py-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)] transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_8px_22px_rgba(15,23,42,0.07)]">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
             <Smartphone size={19} strokeWidth={1.8} />
           </div>
@@ -720,7 +818,7 @@ export default function Catalog() {
           </div>
         </div>
 
-        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/90 bg-white px-4 py-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)] transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_8px_22px_rgba(15,23,42,0.07)]">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
             <CheckCircle2 size={19} strokeWidth={1.8} />
           </div>
@@ -733,7 +831,7 @@ export default function Catalog() {
           </div>
         </div>
 
-        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/90 bg-white px-4 py-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)] transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_8px_22px_rgba(15,23,42,0.07)]">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
             <Ban size={19} strokeWidth={1.8} />
           </div>
@@ -746,8 +844,8 @@ export default function Catalog() {
       </div>
 
       {/* CATALOG TABLE */}
-      <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-stone-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_4px_20px_rgba(15,23,42,0.045)]">
+        <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-bold text-stone-900">
               Catalog entries
@@ -828,7 +926,7 @@ export default function Catalog() {
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-stone-100">
+            <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
                   <td
@@ -867,7 +965,7 @@ export default function Catalog() {
                 paginatedCatalogs.map((item) => (
                   <tr
                     key={item._id}
-                    className="transition hover:bg-orange-50/30"
+                    className="transition hover:bg-orange-50/35"
                   >
                     <td className="px-5 py-3">
                       <p className="font-semibold text-stone-900">
@@ -966,7 +1064,7 @@ export default function Catalog() {
         </div>
 
         {/* PAGINATION */}
-        <div className="flex flex-col gap-3 border-t border-stone-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <p className="text-sm text-stone-500">
             Showing{" "}
             {filteredCatalogs.length === 0
@@ -987,12 +1085,12 @@ export default function Catalog() {
                 setCurrentPage((page) => Math.max(1, page - 1))
               }
               disabled={currentPage === 1}
-              className="rounded-lg border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Previous
             </button>
 
-            <span className="min-w-24 text-center text-sm font-medium text-stone-700">
+            <span className="min-w-24 text-center text-xs font-semibold tabular-nums text-slate-600">
               Page {currentPage} of {totalPages}
             </span>
 
@@ -1004,7 +1102,7 @@ export default function Catalog() {
                 )
               }
               disabled={currentPage === totalPages}
-              className="rounded-lg border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Next
             </button>
@@ -1014,7 +1112,7 @@ export default function Catalog() {
 
       {/* CENTERED MODAL */}
       {formOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-stone-950/50 p-3 backdrop-blur-[2px] sm:p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-stone-950/50 p-3 backdrop-blur-[2px] sm:p-6">
           <div className="my-auto flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="flex items-start justify-between border-b border-stone-100 px-5 py-4 sm:px-6">
               <div>
@@ -1047,7 +1145,7 @@ export default function Catalog() {
               onSubmit={saveCatalog}
               className="flex min-h-0 flex-1 flex-col"
             >
-              <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-6">
+              <div className="flex-1 space-y-6 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-5 py-5 sm:px-6">
                 {/* DEVICE DETAILS */}
                 <section>
                   <h3 className="mb-4 flex items-center gap-2 font-bold text-stone-900">
@@ -1123,25 +1221,39 @@ export default function Catalog() {
 
                     <label className={labelClass}>
                       Storage
-                      <div className="relative">
+                      <div className="mt-1.5 flex gap-2">
                         <input
                           type="text"
-                          inputMode="numeric"
+                          inputMode="decimal"
                           value={storage}
                           onChange={(event) =>
                             setStorage(event.target.value)
                           }
-                          placeholder="e.g. 128"
-                          aria-invalid={storage.trim() !== "" && !/^\d+$/.test(storage.trim())}
-                          className={`${inputClass} pr-12`}
+                          placeholder={storageUnit === "TB" ? "e.g. 1" : "e.g. 128"}
+                          aria-invalid={storage.trim() !== "" && !/^\d+(?:\.\d+)?$/.test(storage.trim())}
+                          className={`${inputClass} mt-0 min-w-0 flex-1`}
                         />
-                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-stone-400">
-                          GB
-                        </span>
+                        <div className="relative mt-1.5 w-[88px] shrink-0">
+                          <select
+                            value={storageUnit}
+                            onChange={(event) =>
+                              setStorageUnit(event.target.value as "GB" | "TB")
+                            }
+                            aria-label="Storage unit"
+                            className="h-[42px] w-full appearance-none rounded-xl border border-stone-200 bg-white pl-3 pr-9 text-sm font-semibold text-stone-700 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-50"
+                          >
+                            <option value="GB">GB</option>
+                            <option value="TB">TB</option>
+                          </select>
+                          <ChevronDown
+                            size={15}
+                            className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-stone-500"
+                          />
+                        </div>
                       </div>
-                      {storage.trim() !== "" && !/^\d+$/.test(storage.trim()) && (
+                      {storage.trim() !== "" && !/^\d+(?:\.\d+)?$/.test(storage.trim()) && (
                         <span className="mt-1 block text-xs text-red-600">
-                          Add numbers only; GB is added automatically.
+                          Enter a valid numeric capacity.
                         </span>
                       )}
                     </label>
@@ -1234,66 +1346,97 @@ export default function Catalog() {
                   </div>
 
                   <div className="space-y-3">
-                    {rules.map((section) => {
+                    {visibleRules.length === 0 && (
+                      <p className="rounded-lg border border-dashed border-stone-200 px-3 py-4 text-sm text-stone-500">
+                        Select a brand to view its applicable evaluation options.
+                      </p>
+                    )}
+                    {visibleRules.map((section) => {
                       const expanded =
                         expandedRule === section.key;
-
-                      const configured = section.options.filter(
-                        (option) =>
-                          option.active && option.amount > 0
-                      ).length;
 
                       return (
                         <div
                           key={section.key}
                           className="overflow-hidden rounded-xl border border-stone-200"
                         >
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExpandedRule(
-                                expanded ? null : section.key
-                              )
-                            }
-                            className="flex w-full items-center justify-between gap-3 bg-stone-50 px-4 py-3 text-left hover:bg-orange-50/50"
+                          <div
+                            className={`flex flex-col gap-3 px-4 py-3 transition-colors sm:flex-row sm:items-center sm:justify-between ${
+                              section.enabled === false
+                                ? "bg-stone-100/80"
+                                : "bg-stone-50"
+                            }`}
                           >
-                            <span>
-                              <span className="block text-sm font-bold text-stone-800">
-                                {section.title}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedRule(
+                                  expanded ? null : section.key
+                                )
+                              }
+                              aria-expanded={expanded}
+                              className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-orange-500/30"
+                            >
+                              <span className="min-w-0">
+                                <span
+                                  className={`block text-sm font-bold ${
+                                    section.enabled === false
+                                      ? "text-stone-500"
+                                      : "text-stone-800"
+                                  }`}
+                                >
+                                  {section.title}
+                                </span>
+
+                                <span className="mt-0.5 block text-xs text-stone-500">
+                                  {section.options.length} options
+                                </span>
                               </span>
 
-                              <span className="mt-0.5 block text-xs text-stone-500">
-                                {configured} option(s) with deductions
-                              </span>
-                            </span>
+                              {expanded ? (
+                                <ChevronUp size={17} className="shrink-0 text-stone-500" />
+                              ) : (
+                                <ChevronDown size={17} className="shrink-0 text-stone-500" />
+                              )}
+                            </button>
 
-                            {expanded ? (
-                              <ChevronUp size={17} />
-                            ) : (
-                              <ChevronDown size={17} />
-                            )}
-                          </button>
+
+                          </div>
 
                           {expanded && (
-                            <div className="divide-y divide-stone-100">
+                            <div className="divide-y divide-slate-100">
                               {section.options.map((option) => (
                                 <div
                                   key={option.option}
-                                  className="grid grid-cols-1 items-center gap-3 px-4 py-3 sm:grid-cols-[1fr_125px_105px]"
+                                  className={`grid grid-cols-1 items-center gap-2 px-4 py-2.5 transition-colors duration-200 sm:grid-cols-[minmax(0,1fr)_116px_104px] ${
+                                    option.active
+                                      ? "bg-white"
+                                      : "bg-stone-50/80"
+                                  }`}
                                 >
-                                  <span className="text-sm text-stone-700">
-                                    {section.key === "accessories"
-                                      ? `Missing: ${option.option}`
-                                      : option.option}
-                                  </span>
+                                  <div className="min-w-0">
+                                    <span
+                                      className={`block text-sm font-medium transition-colors ${
+                                        option.active
+                                          ? "text-stone-800"
+                                          : "text-stone-400"
+                                      }`}
+                                    >
+                                      {section.key === "accessories"
+                                        ? `Missing: ${option.option}`
+                                        : option.option}
+                                    </span>
+                                  </div>
 
-                                  <label>
+                                  <label className="block">
                                     <span className="sr-only">
                                       Deduction for {option.option}
                                     </span>
 
                                     <div className="relative">
-                                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-stone-400">
+                                      <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs ${
+                                        option.active ? "text-stone-400" : "text-stone-300"
+                                      }`}>
                                         ₹
                                       </span>
 
@@ -1315,29 +1458,42 @@ export default function Catalog() {
                                             }
                                           );
                                         }}
-                                        className="w-full appearance-none [appearance:textfield] rounded-lg border border-stone-200 py-2 pl-7 pr-2 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                        className={`w-full appearance-none rounded-lg border py-2 pl-7 pr-2 text-sm outline-none transition [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                                          option.active
+                                            ? "border-stone-200 bg-white text-stone-800 placeholder:text-stone-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                                            : "border-stone-200 bg-stone-100/80 text-stone-400 placeholder:text-stone-300 focus:border-stone-300 focus:ring-2 focus:ring-stone-100"
+                                        }`}
                                       />
                                     </div>
                                   </label>
 
-                                  <label className="flex items-center gap-2 text-xs font-medium text-stone-600">
-                                    <input
-                                      type="checkbox"
-                                      checked={option.active}
-                                      onChange={(event) =>
+                                  <div className="flex items-center justify-end">
+                                    <button
+                                      type="button"
+                                      role="switch"
+                                      aria-checked={option.active}
+                                      aria-label={`${option.active ? "Disable" : "Enable"} ${option.option} deduction`}
+                                      title={`${option.active ? "Disable" : "Enable"} ${option.option}`}
+                                      onClick={() =>
                                         updateRule(
                                           section.key,
                                           option.option,
-                                          {
-                                            active:
-                                              event.target.checked,
-                                          }
+                                          { active: !option.active }
                                         )
                                       }
-                                      className="h-4 w-4 rounded accent-orange-500"
-                                    />
-                                    Enabled
-                                  </label>
+                                      className={`relative inline-flex h-[18px] w-[30px] shrink-0 items-center rounded-full border transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/20 ${
+                                        option.active
+                                          ? "border-orange-500 bg-orange-500"
+                                          : "border-stone-300 bg-stone-200"
+                                      }`}
+                                    >
+                                      <span
+                                        className={`pointer-events-none inline-block h-[12px] w-[12px] transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                                          option.active ? "translate-x-[15px]" : "translate-x-[2px]"
+                                        }`}
+                                      />
+                                    </button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
