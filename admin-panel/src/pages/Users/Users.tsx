@@ -166,7 +166,7 @@ const statusClass = (status?: UserStatus) => {
   }
 
   if (status === "deleted") {
-    return "bg-stone-100 text-stone-500";
+    return "bg-slate-50 text-stone-500";
   }
 
   return "bg-emerald-50 text-emerald-700";
@@ -186,21 +186,21 @@ function SummaryCard({
   iconClass: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-lg border border-stone-200 bg-white px-3.5 py-3.5">
+    <div className="group flex min-w-0 items-center gap-4 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-[0_4px_18px_rgba(15,23,42,0.035)] transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_12px_28px_rgba(15,23,42,0.07)]">
       <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${iconClass}`}
+        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${iconClass} shadow-sm ring-1 ring-inset ring-black/[0.03]`}
       >
         <Icon size={19} strokeWidth={1.8} />
       </div>
 
       <div className="min-w-0">
-        <p className="text-[14px] font-medium leading-5 text-[#514b46]">
+        <p className="text-[13px] font-semibold leading-5 tracking-[0.01em] text-slate-600">
           {title}
         </p>
-        <p className="text-[25px] font-semibold leading-7 tracking-tight text-[#292524]">
+        <p className="text-[28px] font-bold leading-8 tracking-[-0.04em] text-slate-950">
           {value}
         </p>
-        <p className="mt-0.5 truncate text-[12px] leading-4 text-stone-400">
+        <p className="mt-1 truncate text-[12px] leading-4 text-slate-400">
           {subtitle}
         </p>
       </div>
@@ -461,7 +461,7 @@ export default function Users() {
 
   if (selectedUser) {
     return (
-      <div className="min-w-0 space-y-5 pb-6">
+      <div className="excart-admin-page min-w-0 space-y-5 pb-6 [&_h1]:text-[22px] [&_h1]:leading-7 [&_h1]:font-semibold [&_h2]:text-base [&_h2]:leading-6 [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:leading-5 [&_h3]:font-semibold">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <button
@@ -489,7 +489,7 @@ export default function Users() {
           </div>
         </div>
 
-        <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-[0_8px_28px_rgba(28,25,23,0.07)]">
+        <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_32px_rgba(15,23,42,0.06)]">
           <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
             <div className="flex min-w-0 items-center gap-4">
               {selectedUser.profileImage ? (
@@ -499,7 +499,7 @@ export default function Users() {
               )}
               <div className="min-w-0">
                 <h2 title={displayName(selectedUser)} className="max-w-full truncate text-lg font-semibold tracking-tight text-stone-900 sm:max-w-[440px] sm:text-xl">{displayName(selectedUser)}</h2>
-                <p title={displayEmail(selectedUser)} className="mt-1 max-w-full truncate text-sm text-stone-500 sm:max-w-[440px]">{displayEmail(selectedUser)}</p>
+                <p title={displayEmail(selectedUser)} className="mt-1 max-w-full truncate text-[13px] text-slate-500 sm:max-w-[440px]">{displayEmail(selectedUser)}</p>
                 <p title={displayPhone(selectedUser)} className="mt-1 inline-flex items-center gap-1.5 text-sm text-stone-600"><Phone size={13} className="shrink-0" />{displayPhone(selectedUser)}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-500">
                   <span className="font-mono">ID: <span className="text-orange-600">{selectedUser._id}</span></span>
@@ -526,16 +526,16 @@ export default function Users() {
         {detailError && !isLoadingDetails && <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle size={17} className="mt-0.5 shrink-0" />{detailError}</div>}
 
         {isLoadingDetails && !userDetails ? (
-          <div className="flex min-h-44 items-center justify-center gap-3 rounded-2xl border border-stone-200 bg-white text-sm text-stone-500 shadow-sm">
+          <div className="flex min-h-44 items-center justify-center gap-3 rounded-2xl border border-stone-200 bg-white text-[13px] text-slate-500 shadow-sm">
             <LoaderCircle size={20} className="animate-spin text-orange-500" /> Loading user details…
           </div>
         ) : (
           <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(340px,0.75fr)]">
             <div className="min-w-0 space-y-5">
-              <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+              <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_6px_24px_rgba(15,23,42,0.04)]">
                 <div className="flex items-center justify-between gap-3 border-b border-stone-100 px-5 py-4">
                   <div><h3 className="text-sm font-semibold text-stone-900">Personal information</h3><p className="mt-1 text-xs text-stone-500">Contact details and account activity</p></div>
-                  <span className="rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-medium text-stone-500">User profile</span>
+                  <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-stone-500">User profile</span>
                 </div>
                 <div className="grid grid-cols-1 gap-x-8 px-5 sm:grid-cols-2">
                   {[["Full name", displayName(selectedUser)], ["Email address", displayEmail(selectedUser)], ["Phone number", displayPhone(selectedUser)], ["Phone verification", selectedUser.isPhoneVerified ? "Verified" : "Not verified"], ["Account status", statusLabel(selectedUser.status)], ["Member since", formatDate(selectedUser.createdAt)], ["Last updated", formatDate(selectedUser.updatedAt)], ["User ID", selectedUser._id]].map(([label, value]) => (
@@ -546,7 +546,7 @@ export default function Users() {
                 </div>
               </section>
 
-              <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+              <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_6px_24px_rgba(15,23,42,0.04)]">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 px-5 py-4">
                   <div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><ListOrdered size={18} /></div><div><h3 className="text-sm font-semibold text-stone-900">Orders & payments</h3><p className="mt-1 text-xs text-stone-500">Order overview without a long scrolling list</p></div></div>
                   <button type="button" onClick={() => setShowOrdersModal(true)} disabled={!userDetails?.orders?.length} className="inline-flex items-center gap-2 rounded-lg bg-stone-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40"><Eye size={14} /> View all orders <span className="rounded-md bg-white/15 px-1.5 py-0.5">{userDetails?.orders?.length ?? 0}</span></button>
@@ -608,11 +608,11 @@ export default function Users() {
             </div>
 
             <div className="min-w-0 space-y-5">
-            <section className="min-w-0 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+            <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_6px_24px_rgba(15,23,42,0.04)]">
               <div className="flex items-center gap-3 border-b border-stone-100 px-5 py-4"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><Wallet size={18} /></div><div><h3 className="text-sm font-semibold text-stone-900">Payout account</h3><p className="mt-1 text-xs text-stone-500">Bank or UPI details and verification</p></div></div>
               <div className="p-5">
                 {!userDetails?.payoutAccount ? (
-                  <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50/70 px-4 py-8 text-center"><Wallet size={24} className="mx-auto text-stone-300" /><p className="mt-2 text-sm font-semibold text-stone-800">No payout account added</p><p className="mt-1 text-xs leading-5 text-stone-500">This user has not added bank or UPI details.</p><span className="mt-3 inline-flex rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-600">Not available</span></div>
+                  <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50/70 px-4 py-8 text-center"><Wallet size={24} className="mx-auto text-stone-300" /><p className="mt-2 text-sm font-semibold text-stone-800">No payout account added</p><p className="mt-1 text-xs leading-5 text-stone-500">This user has not added bank or UPI details.</p><span className="mt-3 inline-flex rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-stone-600">Not available</span></div>
                 ) : (() => {
                   const account = userDetails.payoutAccount;
                   const verified = account.isVerified === true;
@@ -633,7 +633,7 @@ export default function Users() {
               </div>
             </section>
 
-            <section className="min-w-0 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+            <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_6px_24px_rgba(15,23,42,0.04)]">
               <div className="flex items-center gap-3 border-b border-stone-100 px-5 py-4">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><FileText size={18} /></div>
                 <div><h3 className="text-sm font-semibold text-stone-900">User documents</h3><p className="mt-1 text-xs text-stone-500">Photo and Aadhaar documents from orders</p></div>
@@ -652,7 +652,7 @@ export default function Users() {
                     return <div key={document.label} className="flex items-center gap-3 rounded-xl border border-stone-100 p-3.5">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-50 text-stone-500"><DocumentIcon size={18} /></div>
                       <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-stone-800">{document.label}</p><p className="mt-0.5 truncate text-xs text-stone-500">{document.url ? document.description : "Not uploaded"}</p>{document.url && document.orderNumber && <p className="mt-1 truncate text-[11px] text-stone-400">Order {document.orderNumber}</p>}</div>
-                      {document.url ? <a href={document.url} target="_blank" rel="noreferrer" download className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700"><Download size={14} /><span className="hidden sm:inline">Download</span></a> : <span className="shrink-0 rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-semibold text-stone-500">Not uploaded</span>}
+                      {document.url ? <a href={document.url} target="_blank" rel="noreferrer" download className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700"><Download size={14} /><span className="hidden sm:inline">Download</span></a> : <span className="shrink-0 rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-stone-500">Not uploaded</span>}
                     </div>;
                   });
                 })()}
@@ -666,13 +666,13 @@ export default function Users() {
         {showOrdersModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-950/50 p-3 backdrop-blur-[3px] sm:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowOrdersModal(false); }}>
             <section role="dialog" aria-modal="true" aria-labelledby="orders-modal-title" className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/60 bg-white shadow-2xl">
-              <div className="flex items-start justify-between gap-4 border-b border-stone-100 bg-white px-5 py-4 sm:px-6"><div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><ListOrdered size={20} /></div><div className="min-w-0"><h2 id="orders-modal-title" className="text-base font-semibold text-stone-900 sm:text-lg">All orders & payments</h2><p className="mt-1 text-xs text-stone-500">{displayName(selectedUser)} · {userDetails?.orders?.length ?? 0} records · auto-refreshes every 30 seconds</p></div></div><div className="flex shrink-0 items-center gap-2"><button type="button" onClick={() => void refreshUserDetails(selectedUser, { silent: true })} disabled={isRefreshingDetails} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-50 disabled:opacity-50">{isRefreshingDetails ? <LoaderCircle size={14} className="animate-spin" /> : <RefreshCw size={14} />}<span className="hidden sm:inline">Refresh</span></button><button type="button" onClick={() => setShowOrdersModal(false)} aria-label="Close orders" className="flex h-9 w-9 items-center justify-center rounded-lg text-stone-500 transition hover:bg-stone-100 hover:text-stone-900"><X size={19} /></button></div></div>
+              <div className="flex items-start justify-between gap-4 border-b border-stone-100 bg-white px-5 py-4 sm:px-6"><div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><ListOrdered size={20} /></div><div className="min-w-0"><h2 id="orders-modal-title" className="text-base font-semibold text-stone-900 sm:text-lg">All orders & payments</h2><p className="mt-1 text-xs text-stone-500">{displayName(selectedUser)} · {userDetails?.orders?.length ?? 0} records · auto-refreshes every 30 seconds</p></div></div><div className="flex shrink-0 items-center gap-2"><button type="button" onClick={() => void refreshUserDetails(selectedUser, { silent: true })} disabled={isRefreshingDetails} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-50 disabled:opacity-50">{isRefreshingDetails ? <LoaderCircle size={14} className="animate-spin" /> : <RefreshCw size={14} />}<span className="hidden sm:inline">Refresh</span></button><button type="button" onClick={() => setShowOrdersModal(false)} aria-label="Close orders" className="flex h-9 w-9 items-center justify-center rounded-lg text-stone-500 transition hover:bg-slate-50 hover:text-stone-900"><X size={19} /></button></div></div>
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-stone-50/70 p-4 sm:p-6">
                 {!userDetails?.orders?.length ? <div className="rounded-xl border border-dashed border-stone-200 bg-white px-5 py-12 text-center"><CreditCard size={26} className="mx-auto text-stone-300" /><p className="mt-3 text-sm font-semibold text-stone-800">No orders found</p></div> : userDetails.orders.map((order, index) => {
                   const deviceName = [order.device?.brand, order.device?.model, order.device?.variant || order.device?.storage, order.device?.color].filter(Boolean).join(" · ") || "Device details unavailable";
                   const paymentStatus = order.payment?.status || "pending";
                   const status = (order.status || "unknown").replace(/_/g, " ");
-                  return <article key={order._id || order.orderNumber || index} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><p className="break-all text-xs font-semibold text-orange-600">{order.orderNumber || order._id || `Order ${index + 1}`}</p><h3 className="mt-1.5 text-sm font-semibold text-stone-900">{deviceName}</h3><p className="mt-1 text-xs text-stone-500">Created {formatDate(order.createdAt)}</p></div><span className="w-fit rounded-full bg-stone-100 px-3 py-1.5 text-xs font-semibold capitalize text-stone-700">{status}</span></div><div className="mt-4 grid grid-cols-2 gap-3 border-t border-stone-100 pt-4 sm:grid-cols-4"><div><p className="text-[11px] uppercase tracking-wide text-stone-400">Estimated</p><p className="mt-1 text-sm font-semibold text-stone-800">{formatCurrency(order.payment?.estimatedAmount)}</p></div><div><p className="text-[11px] uppercase tracking-wide text-stone-400">Final amount</p><p className="mt-1 text-sm font-semibold text-stone-800">{formatCurrency(order.payment?.finalAmount)}</p></div><div><p className="text-[11px] uppercase tracking-wide text-stone-400">Payment status</p><p className={`mt-1 text-sm font-semibold capitalize ${paymentStatus === "completed" ? "text-emerald-700" : "text-amber-700"}`}>{paymentStatus.replace(/_/g, " ")}</p></div><div><p className="text-[11px] uppercase tracking-wide text-stone-400">Payout transfer</p><p className="mt-1 text-sm font-semibold capitalize text-stone-700">{(order.payment?.payout?.status || "not_started").replace(/_/g, " ")}</p></div></div>{order.payment?.transactionId && <div className="mt-3 border-t border-stone-100 pt-3"><p className="text-[11px] uppercase tracking-wide text-stone-400">Transaction ID</p><p className="mt-1 break-all font-mono text-xs text-stone-700">{order.payment.transactionId}</p></div>}</article>;
+                  return <article key={order._id || order.orderNumber || index} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><p className="break-all text-xs font-semibold text-orange-600">{order.orderNumber || order._id || `Order ${index + 1}`}</p><h3 className="mt-1.5 text-sm font-semibold text-stone-900">{deviceName}</h3><p className="mt-1 text-xs text-stone-500">Created {formatDate(order.createdAt)}</p></div><span className="w-fit rounded-full bg-slate-50 px-3 py-1.5 text-xs font-semibold capitalize text-stone-700">{status}</span></div><div className="mt-4 grid grid-cols-2 gap-3 border-t border-stone-100 pt-4 sm:grid-cols-4"><div><p className="text-[11px] uppercase tracking-wide text-stone-400">Estimated</p><p className="mt-1 text-sm font-semibold text-stone-800">{formatCurrency(order.payment?.estimatedAmount)}</p></div><div><p className="text-[11px] uppercase tracking-wide text-stone-400">Final amount</p><p className="mt-1 text-sm font-semibold text-stone-800">{formatCurrency(order.payment?.finalAmount)}</p></div><div><p className="text-[11px] uppercase tracking-wide text-stone-400">Payment status</p><p className={`mt-1 text-sm font-semibold capitalize ${paymentStatus === "completed" ? "text-emerald-700" : "text-amber-700"}`}>{paymentStatus.replace(/_/g, " ")}</p></div><div><p className="text-[11px] uppercase tracking-wide text-stone-400">Payout transfer</p><p className="mt-1 text-sm font-semibold capitalize text-stone-700">{(order.payment?.payout?.status || "not_started").replace(/_/g, " ")}</p></div></div>{order.payment?.transactionId && <div className="mt-3 border-t border-stone-100 pt-3"><p className="text-[11px] uppercase tracking-wide text-stone-400">Transaction ID</p><p className="mt-1 break-all font-mono text-xs text-stone-700">{order.payment.transactionId}</p></div>}</article>;
                 })}
               </div>
               <div className="flex items-center justify-between gap-3 border-t border-stone-100 bg-white px-5 py-3.5"><p className="text-xs text-stone-500">Latest data is fetched automatically while this profile is open.</p><button type="button" onClick={() => setShowOrdersModal(false)} className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-700">Done</button></div>
@@ -684,46 +684,46 @@ export default function Users() {
   }
 
   return (
-    <div className="min-w-0 space-y-2">
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="excart-admin-page min-w-0 space-y-4 pb-6 [&_h1]:text-[22px] [&_h1]:leading-7 [&_h1]:font-semibold [&_h2]:text-base [&_h2]:leading-6 [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:leading-5 [&_h3]:font-semibold">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           title="Total Users"
           value={summary.total}
           subtitle="All registered users"
           icon={UsersIcon}
-          iconClass="bg-purple-50 text-purple-500"
+          iconClass="bg-orange-50 text-orange-600"
         />
         <SummaryCard
           title="Active Users"
           value={summary.active}
           subtitle="Currently active accounts"
           icon={UserRoundCheck}
-          iconClass="bg-emerald-50 text-emerald-500"
+          iconClass="bg-emerald-50 text-emerald-600"
         />
         <SummaryCard
           title="New Users This Month"
           value={summary.newThisMonth}
           subtitle="Based on registration date"
           icon={UserPlus}
-          iconClass="bg-amber-50 text-amber-500"
+          iconClass="bg-amber-50 text-amber-600"
         />
         <SummaryCard
           title="Blocked Users"
           value={summary.blocked}
           subtitle="Accounts currently blocked"
           icon={UserRoundX}
-          iconClass="bg-rose-50 text-rose-500"
+          iconClass="bg-rose-50 text-rose-600"
         />
       </div>
 
-      <section className="overflow-visible rounded-lg border border-stone-200 bg-white">
-        <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-[18px] font-semibold tracking-tight text-[#211f1d]">
+      <section className="overflow-visible rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.045)]">
+        <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <h2 className="text-[17px] font-bold tracking-[-0.025em] text-slate-900">
             All Users
           </h2>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-0 flex-1 sm:w-44 sm:flex-none">
+            <div className="relative w-full min-w-0 shrink-0 sm:w-52">
               <Search
                 size={16}
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
@@ -737,15 +737,15 @@ export default function Users() {
                 }}
                 placeholder="Search users..."
                 aria-label="Search users"
-                className="h-[38px] w-full rounded-lg border border-stone-200 bg-white pl-9 pr-3 text-[14px] text-stone-700 outline-none placeholder:text-stone-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 sm:w-44"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-10 pr-3 text-[13px] font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
               />
             </div>
 
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => setShowFilter((current) => !current)}
-                className="inline-flex h-[38px] min-w-[126px] items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white px-3 text-[14px] text-stone-700 shadow-sm transition hover:bg-stone-50"
+                className="inline-flex h-11 w-[132px] items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-[13px] font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
                 aria-expanded={showFilter}
               >
                 <span className="inline-flex items-center gap-2">
@@ -756,7 +756,7 @@ export default function Users() {
               </button>
 
               {showFilter && (
-                <div className="absolute right-0 top-[44px] z-30 w-44 rounded-lg border border-stone-200 bg-white p-1.5 shadow-lg">
+                <div className="absolute right-0 top-[50px] z-30 w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_16px_40px_rgba(15,23,42,0.14)]">
                   {[
                     { label: "All users", value: "all" },
                     { label: "Active", value: "active" },
@@ -766,7 +766,7 @@ export default function Users() {
                       type="button"
                       key={option.value}
                       onClick={() => changeStatusFilter(option.value)}
-                      className={`w-full rounded-md px-3 py-2 text-left text-[14px] transition hover:bg-stone-50 ${
+                      className={`w-full rounded-md px-3 py-2 text-left text-sm transition hover:bg-stone-50 ${
                         statusFilter === option.value
                           ? "bg-orange-50 font-medium text-orange-600"
                           : "text-stone-700"
@@ -783,7 +783,7 @@ export default function Users() {
               type="button"
               onClick={exportUsers}
               disabled={filteredUsers.length === 0}
-              className="inline-flex h-[38px] items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3.5 text-[14px] text-stone-700 shadow-sm transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 shadow-sm transition hover:border-orange-200 hover:bg-orange-50/50 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download size={15} />
               Export
@@ -793,7 +793,7 @@ export default function Users() {
 
 
         {loadError && (
-          <div className="mx-2 mb-2 flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-[14px] text-red-700 sm:mx-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mx-2 mb-2 flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700 sm:mx-3 sm:flex-row sm:items-center sm:justify-between">
             <span className="flex items-start gap-2">
               <AlertCircle size={16} className="mt-0.5 shrink-0" />
               <span>{loadError}</span>
@@ -808,29 +808,29 @@ export default function Users() {
           </div>
         )}
 
-        <div className="overflow-x-auto px-2 pb-0 sm:px-2">
+        <div className="overflow-x-auto px-3 pb-3 sm:px-4">
           <table className="w-full min-w-[1020px] border-separate border-spacing-0 text-left">
             <thead>
-              <tr className="bg-stone-100">
-                <th className="rounded-tl-md px-4 py-3 text-[12px] font-semibold uppercase tracking-wide text-[#514b46]">
+              <tr className="bg-slate-50/90">
+                <th className="rounded-l-xl px-4 py-4 text-[11px] font-bold uppercase tracking-[0.09em] text-slate-500">
                   User ID
                 </th>
-                <th className="px-4 py-3 text-[12px] font-semibold uppercase tracking-wide text-[#514b46]">
+                <th className="px-4 py-4 text-[11px] font-bold uppercase tracking-[0.09em] text-slate-500">
                   User
                 </th>
-                <th className="px-4 py-3 text-[12px] font-semibold uppercase tracking-wide text-[#514b46]">
+                <th className="px-4 py-4 text-[11px] font-bold uppercase tracking-[0.09em] text-slate-500">
                   Status
                 </th>
-                <th className="px-4 py-3 text-[12px] font-semibold uppercase tracking-wide text-[#514b46]">
+                <th className="px-4 py-4 text-[11px] font-bold uppercase tracking-[0.09em] text-slate-500">
                   Phone
                 </th>
-                <th className="px-4 py-3 text-[12px] font-semibold uppercase tracking-wide text-[#514b46]">
+                <th className="px-4 py-4 text-[11px] font-bold uppercase tracking-[0.09em] text-slate-500">
                   Joined On
                 </th>
-                <th className="px-4 py-3 text-[12px] font-semibold uppercase tracking-wide text-[#514b46]">
+                <th className="px-4 py-4 text-[11px] font-bold uppercase tracking-[0.09em] text-slate-500">
                   Phone Verification
                 </th>
-                <th className="rounded-tr-md px-4 py-3 text-center text-[12px] font-semibold uppercase tracking-wide text-[#514b46]">
+                <th className="rounded-r-xl px-4 py-4 text-center text-[11px] font-bold uppercase tracking-[0.09em] text-slate-500">
                   Action
                 </th>
               </tr>
@@ -840,7 +840,7 @@ export default function Users() {
               {isLoading ? (
                 <tr>
                   <td colSpan={7} className="h-64 text-center">
-                    <div className="inline-flex items-center gap-2 text-[14px] text-stone-500">
+                    <div className="inline-flex items-center gap-2 text-[13px] text-slate-500">
                       <LoaderCircle
                         size={18}
                         className="animate-spin text-orange-500"
@@ -853,7 +853,7 @@ export default function Users() {
                 <tr>
                   <td colSpan={7} className="h-64 text-center">
                     <div className="mx-auto flex max-w-sm flex-col items-center px-5">
-                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-stone-100 text-stone-400">
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50 text-stone-400">
                         <UsersIcon size={22} />
                       </div>
                       <p className="text-[15px] font-semibold text-[#292524]">
@@ -861,7 +861,7 @@ export default function Users() {
                           ? "No matching users"
                           : "No users yet"}
                       </p>
-                      <p className="mt-1 text-[14px] text-stone-500">
+                      <p className="mt-1 text-[13px] text-slate-500">
                         {search || statusFilter !== "all"
                           ? "Try changing your search or filter."
                           : "Registered customer accounts will appear here."}
@@ -873,14 +873,14 @@ export default function Users() {
                 visibleUsers.map((user) => (
                   <tr
                     key={user._id}
-                    className="group transition-colors hover:bg-orange-50/40"
+                    className="group transition-colors duration-150 hover:bg-orange-50/35"
                   >
-                    <td className="border-b border-stone-100 px-4 py-3">
-                      <span className="font-mono text-[13px] font-medium text-orange-600" title={user._id}>
+                    <td className="border-b border-slate-100 px-4 py-4">
+                      <span className="font-mono text-[12px] font-semibold text-orange-700" title={user._id}>
                         {user._id}
                       </span>
                     </td>
-                    <td className="border-b border-stone-100 px-4 py-3">
+                    <td className="border-b border-slate-100 px-4 py-4">
                       <div className="flex min-w-0 items-center gap-3">
                         {user.profileImage ? (
                           <img
@@ -898,17 +898,17 @@ export default function Users() {
                         )}
 
                         <div className="min-w-0">
-                          <p className="truncate text-[14px] font-semibold text-[#292524]">
+                          <p className="truncate text-[13px] font-semibold text-slate-900">
                             {displayName(user)}
                           </p>
-                          <p className="mt-0.5 truncate text-[12px] text-stone-500">
+                          <p className="mt-1 truncate text-[12px] text-slate-500">
                             {displayEmail(user)}
                           </p>
                         </div>
                       </div>
                     </td>
 
-                    <td className="border-b border-stone-100 px-4 py-3">
+                    <td className="border-b border-slate-100 px-4 py-4">
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-medium ${statusClass(user.status)}`}
                       >
@@ -925,8 +925,8 @@ export default function Users() {
                       </span>
                     </td>
 
-                    <td className="border-b border-stone-100 px-4 py-3">
-                      <span className="inline-flex items-center gap-2 whitespace-nowrap text-[14px] text-stone-600">
+                    <td className="border-b border-slate-100 px-4 py-4">
+                      <span className="inline-flex items-center gap-2 whitespace-nowrap text-sm text-stone-600">
                         {user.phone ? (
                           <>
                             <Phone
@@ -941,8 +941,8 @@ export default function Users() {
                       </span>
                     </td>
 
-                    <td className="border-b border-stone-100 px-4 py-3">
-                      <span className="inline-flex items-center gap-2 whitespace-nowrap text-[14px] text-stone-600">
+                    <td className="border-b border-slate-100 px-4 py-4">
+                      <span className="inline-flex items-center gap-2 whitespace-nowrap text-sm text-stone-600">
                         <CalendarDays
                           size={13}
                           className="shrink-0 text-stone-400"
@@ -951,20 +951,20 @@ export default function Users() {
                       </span>
                     </td>
 
-                    <td className="border-b border-stone-100 px-4 py-3">
+                    <td className="border-b border-slate-100 px-4 py-4">
                       {user.isPhoneVerified ? (
-                        <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-emerald-700">
+                        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700">
                           <CheckCircle2 size={14} />
                           Verified
                         </span>
                       ) : (
-                        <span className="text-[13px] text-stone-500">
+                        <span className="text-[13px] text-slate-500">
                           Not verified
                         </span>
                       )}
                     </td>
 
-                    <td className="border-b border-stone-100 px-4 py-3 text-center">
+                    <td className="border-b border-slate-100 px-4 py-4 text-center">
                       <button
                         type="button"
                         onClick={() => void openUserDetails(user)}
@@ -982,8 +982,8 @@ export default function Users() {
           </table>
         </div>
 
-        <div className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[14px] text-stone-500">
+        <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p className="text-[13px] text-slate-500">
             {isLoading
               ? "Loading user records..."
               : filteredUsers.length === 0
@@ -1000,7 +1000,7 @@ export default function Users() {
               disabled={safePage <= 1 || isLoading}
               onClick={() => setPage((current) => Math.max(1, current - 1))}
               aria-label="Previous page"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-stone-200 text-stone-500 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChevronLeft size={15} />
             </button>
@@ -1025,10 +1025,10 @@ export default function Users() {
                     type="button"
                     onClick={() => setPage(number)}
                     aria-current={safePage === number ? "page" : undefined}
-                    className={`inline-flex h-7 min-w-7 items-center justify-center rounded-md border px-2 text-[14px] transition ${
+                    className={`inline-flex h-8 min-w-8 items-center justify-center rounded-lg border px-2.5 text-[13px] font-semibold transition ${
                       safePage === number
-                        ? "border-orange-500 bg-orange-500 text-white"
-                        : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
+                        ? "border-orange-500 bg-orange-500 text-white shadow-sm shadow-orange-500/20"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-orange-200 hover:bg-orange-50/50"
                     }`}
                   >
                     {number}
@@ -1043,7 +1043,7 @@ export default function Users() {
                 setPage((current) => Math.min(totalPages, current + 1))
               }
               aria-label="Next page"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-stone-200 text-stone-500 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChevronRight size={15} />
             </button>
@@ -1051,7 +1051,7 @@ export default function Users() {
             <span className="ml-1 whitespace-nowrap text-[12px] text-stone-500">
               Rows per page
             </span>
-            <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-stone-200 px-2 text-[14px] text-stone-600">
+            <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-slate-200 px-2.5 text-[13px] font-semibold text-slate-600">
               {PAGE_SIZE}
             </span>
           </div>

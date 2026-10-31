@@ -46,6 +46,7 @@ const evaluationConfigSchema = z
         options: z
           .array(z.string().trim().min(1))
           .optional(),
+        supportedBrands: z.array(z.string().trim().min(1)).optional(),
       })
       .optional(),
 
@@ -86,6 +87,11 @@ const evaluationConfigSchema = z
 // CONDITION DEDUCTIONS
 
 const conditionDeductionSchema = z.object({
+  conditionType: z
+  .string()
+  .trim()
+  .min(1, "Condition type is required."),
+
   name: z
     .string()
     .trim()

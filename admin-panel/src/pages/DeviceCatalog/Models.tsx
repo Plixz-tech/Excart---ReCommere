@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Plus,
   Search,
   Pencil,
   Ban,
@@ -40,6 +39,8 @@ type ApiResponse<T> = {
 };
 
 type Notice = { type: "success" | "error"; text: string };
+
+const ITEMS_PER_PAGE = 8;
 
 const getErrorMessage = (error: unknown) => {
   const e = error as {
@@ -105,6 +106,7 @@ export default function Models() {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "active" | "inactive"
   >("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<Model | null>(null);
@@ -179,6 +181,20 @@ export default function Models() {
       return matchesSearch && matchesBrand && matchesStatus;
     });
   }, [models, search, brandFilter, statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, brandFilter, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredModels.length / ITEMS_PER_PAGE));
+  const paginatedModels = useMemo(
+    () => filteredModels.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+    [filteredModels, currentPage]
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   const resetForm = () => {
     setEditingModel(null);
@@ -353,7 +369,7 @@ export default function Models() {
     "flex h-8 w-8 items-center justify-center rounded-lg transition disabled:cursor-not-allowed disabled:opacity-40";
 
   return (
-    <div className="space-y-5 text-stone-800">
+    <div className="space-y-5 pb-2 text-slate-800">
       {/* Page header */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
@@ -376,14 +392,14 @@ export default function Models() {
           disabled={!brands.some((brand) => brand.active)}
           className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
         >
-          <Plus size={17} />
+          <Smartphone size={17} strokeWidth={1.9} />
           Add Model
         </button>
       </div>
 
       {/* Compact summary cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/90 bg-white px-4 py-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)] transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_8px_22px_rgba(15,23,42,0.07)]">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
             <Smartphone size={19} strokeWidth={1.8} />
           </div>
@@ -393,7 +409,7 @@ export default function Models() {
             <p className="mt-1 text-[11px] text-stone-400">All configured models</p>
           </div>
         </div>
-        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/90 bg-white px-4 py-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)] transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_8px_22px_rgba(15,23,42,0.07)]">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
             <CheckCircle2 size={19} strokeWidth={1.8} />
           </div>
@@ -403,7 +419,7 @@ export default function Models() {
             <p className="mt-1 text-[11px] text-stone-400">Available for catalog setup</p>
           </div>
         </div>
-        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/90 bg-white px-4 py-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)] transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_8px_22px_rgba(15,23,42,0.07)]">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
             <Ban size={19} strokeWidth={1.8} />
           </div>
@@ -444,8 +460,8 @@ export default function Models() {
       )}
 
       {/* Models list */}
-      <section className="min-w-0 overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-[0_3px_14px_rgba(28,25,23,0.035)]">
-        <div className="flex flex-col gap-3 border-b border-stone-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_4px_20px_rgba(15,23,42,0.045)]">
+        <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
             <h2 className="text-sm font-semibold text-stone-900">
               All models
@@ -467,7 +483,7 @@ export default function Models() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search models or brands..."
-                className="h-10 w-full rounded-xl border border-stone-200 bg-white pl-9 pr-3 text-sm outline-none transition focus:border-orange-400 focus:ring-3 focus:ring-orange-500/10 sm:w-56"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-9 pr-3 text-sm outline-none transition focus:border-orange-400 focus:ring-3 focus:ring-orange-500/10 sm:w-56"
               />
             </label>
 
@@ -476,7 +492,7 @@ export default function Models() {
                 value={brandFilter}
                 onChange={(event) => setBrandFilter(event.target.value)}
                 aria-label="Filter by brand"
-                className="h-10 w-full appearance-none rounded-xl border border-stone-200 bg-white pl-3 pr-9 text-sm outline-none focus:border-orange-400 focus:ring-3 focus:ring-orange-500/10"
+                className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/70 pl-3 pr-9 text-sm outline-none focus:border-orange-400 focus:ring-3 focus:ring-orange-500/10"
               >
                 <option value="all">All brands</option>
                 {brands.map((brand) => (
@@ -498,7 +514,7 @@ export default function Models() {
                   setStatusFilter(event.target.value as typeof statusFilter)
                 }
                 aria-label="Filter by status"
-                className="h-10 w-full appearance-none rounded-xl border border-stone-200 bg-white pl-3 pr-9 text-sm outline-none focus:border-orange-400 focus:ring-3 focus:ring-orange-500/10"
+                className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/70 pl-3 pr-9 text-sm outline-none focus:border-orange-400 focus:ring-3 focus:ring-orange-500/10"
               >
                 <option value="all">All statuses</option>
                 <option value="active">Active</option>
@@ -540,7 +556,7 @@ export default function Models() {
               </p>
             </div>
           ) : (
-            filteredModels.map((model) => (
+            paginatedModels.map((model) => (
               <article
                 key={model._id}
                 className="rounded-xl border border-stone-200 p-3.5"
@@ -626,7 +642,7 @@ export default function Models() {
         <div className="hidden overflow-x-auto sm:block">
           <table className="w-full min-w-[800px] border-collapse text-left text-sm">
             <thead>
-              <tr className="bg-stone-50/90 text-xs font-semibold uppercase tracking-[0.06em] text-stone-500">
+              <tr className="bg-slate-50 text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500">
                 <th className="w-12 px-5 py-3 sm:px-6">#</th>
                 <th className="px-5 py-3 sm:px-6">Model</th>
                 <th className="px-5 py-3 sm:px-6">Brand</th>
@@ -636,7 +652,7 @@ export default function Models() {
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-stone-100">
+            <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
                   <td
@@ -665,10 +681,10 @@ export default function Models() {
                   </td>
                 </tr>
               ) : (
-                filteredModels.map((model, index) => (
+                paginatedModels.map((model, index) => (
                   <tr
                     key={model._id}
-                    className="transition-colors hover:bg-orange-50/30"
+                    className="transition-colors hover:bg-orange-50/35"
                   >
                     <td className="px-5 py-3.5 text-xs text-stone-400 sm:px-6">
                       {index + 1}
@@ -762,11 +778,16 @@ export default function Models() {
           </table>
         </div>
 
-        <div className="flex flex-col gap-1 border-t border-stone-100 bg-stone-50/50 px-5 py-3 text-xs text-stone-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <span>
-            Showing {filteredModels.length} of {models.length} models
-          </span>
-          <span>{brands.length} brands available</span>
+        <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p className="text-xs font-medium text-slate-500">
+            Showing {filteredModels.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredModels.length)} of {filteredModels.length} models
+            <span className="ml-2 text-slate-400">· {brands.length} brands available</span>
+          </p>
+          <div className="flex items-center justify-between gap-2 sm:justify-end">
+            <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1} className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+            <span className="min-w-[92px] text-center text-xs font-semibold tabular-nums text-slate-600">Page {currentPage} of {totalPages}</span>
+            <button type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages} className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+          </div>
         </div>
       </section>
 
@@ -787,7 +808,7 @@ export default function Models() {
             aria-labelledby="model-form-title"
             className="my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-stone-200 bg-white shadow-[0_24px_80px_rgba(28,25,23,0.24)]"
           >
-            <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-4">
               <div>
                 <h2
                   id="model-form-title"

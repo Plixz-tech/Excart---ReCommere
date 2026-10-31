@@ -24,6 +24,8 @@ import serviceAreaRoutes from "./modules/serviceArea/serviceArea.routes.js";
 
 import orderRoutes from "./modules/order/order.routes.js";
 
+import orderEvaluationRoutes from "./modules/orderEvaluation/orderEvaluation.routes.js";
+
 import adminOrderRoutes from "./modules/order/adminOrder.routes.js";
 
 import agentOrderRoutes from "./modules/order/agentOrder.routes.js";
@@ -116,6 +118,8 @@ app.use("/api/v1/addresses", addressRoutes);
 app.use("/api/v1/service-areas", serviceAreaRoutes);
 
 app.use("/api/v1/orders", orderRoutes);
+
+app.use("/api/v1/order-evaluations", orderEvaluationRoutes);
 
 app.use("/api/v1/admin/orders", adminOrderRoutes);
 

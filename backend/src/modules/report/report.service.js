@@ -18,6 +18,7 @@ class ReportService {
  
 async getDashboard() {
   const now = new Date();
+  const trendStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
   // Current month
   const currentStart = new Date(
@@ -66,6 +67,8 @@ async getDashboard() {
     inspectionSummary,
     pickupManagement,
     comparisons,
+    inventoryBrandSummary,
+    orderTrend,
   ] = await Promise.all([
     reportRepository.getTotalOrders(),
 
@@ -110,6 +113,9 @@ async getDashboard() {
       tomorrowStart: endOfDay,
       yesterdayStart,
     }),
+
+    reportRepository.getInventoryBrandSummary(),
+    reportRepository.getOrderTrend(trendStart),
   ]);
 
   const calculateChange = (current, previous) => {
@@ -174,8 +180,33 @@ async getDashboard() {
     agentPerformance,
     inspectionSummary,
     pickupManagement,
+    inventoryBrands: inventoryBrandSummary.map((item) => ({
+      brand: item._id || "Unknown",
+      count: item.count || 0,
+    })),
+    orderTrend: this.formatOrderTrend(orderTrend, trendStart, now),
   };
 }
+
+  formatOrderTrend(summary, startDate, endDate) {
+    const counts = new Map(summary.map((item) => [`${item._id.year}-${item._id.month}`, item.count || 0]));
+    const result = [];
+    const cursor = new Date(startDate);
+
+    while (cursor <= endDate) {
+      const year = cursor.getFullYear();
+      const month = cursor.getMonth() + 1;
+      result.push({
+        year,
+        month,
+        label: cursor.toLocaleString("en-IN", { month: "short" }),
+        count: counts.get(`${year}-${month}`) || 0,
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    return result;
+  }
 
 
   formatPaymentSummary(summary) {

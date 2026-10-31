@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 
 const deviceCatalogSchema = new mongoose.Schema(
@@ -154,6 +153,10 @@ const deviceCatalogSchema = new mongoose.Schema(
             "84–80%",
             "Below 80%",
           ],
+        },
+        supportedBrands: {
+          type: [String],
+          default: ["Apple"],
         },
       },
 

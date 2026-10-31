@@ -1221,7 +1221,7 @@ const enabledDeductionTotal = visibleRules.reduce(
 
                     <label className={labelClass}>
                       Storage
-                      <div className="mt-1.5 flex gap-2">
+                      <div className="mt-1.5 flex items-center gap-2">
                         <input
                           type="text"
                           inputMode="decimal"
@@ -1233,7 +1233,7 @@ const enabledDeductionTotal = visibleRules.reduce(
                           aria-invalid={storage.trim() !== "" && !/^\d+(?:\.\d+)?$/.test(storage.trim())}
                           className={`${inputClass} mt-0 min-w-0 flex-1`}
                         />
-                        <div className="relative mt-1.5 w-[88px] shrink-0">
+                        <div className="relative w-[88px] shrink-0">
                           <select
                             value={storageUnit}
                             onChange={(event) =>

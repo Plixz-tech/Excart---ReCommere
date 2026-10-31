@@ -1,762 +1,520 @@
 import { useMemo, useState } from "react";
+import type { ElementType } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getAdminDashboard } from "../../api/dashboard.api";
-
+import { Link } from "react-router-dom";
 import {
- Activity,
- ArrowDownRight,
- ArrowRight,
- ArrowUpRight,
- Box,
- CalendarDays,
- CheckCircle2,
- ChevronDown,
- ChevronUp,
- Clock3,
- FileText,
- MapPin,
- Search,
- ShieldCheck,
- ShoppingBag,
- Truck,
- Users,
- Wallet,
- X,
+  Activity,
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  Bell,
+  Package,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Smartphone,
+  Truck,
+  Users,
+  X,
 } from "lucide-react";
+import {
+  getAdminDashboard,
+  type DashboardData,
+} from "../../api/dashboard.api";
 
-type Order = {
- id: string;
- customer: string;
- phone: string;
- storage: string;
- status: string;
- agent: string;
- date: string;
- transitStatus: string;
- amount: string;
+type DashboardInventoryBrand = { brand?: string; count?: number };
+type DashboardInventoryBucket = {
+  count?: number;
+  purchaseAmount?: number;
+  listedAmount?: number;
+  soldAmount?: number;
+};
+type DashboardViewData = Omit<DashboardData, "inventory"> & {
+  inventory?: {
+    in_inventory?: DashboardInventoryBucket;
+    listed?: DashboardInventoryBucket;
+    sold?: DashboardInventoryBucket;
+    removed?: DashboardInventoryBucket;
+  };
+  inventoryBrands?: DashboardInventoryBrand[];
+  orderTrend?: { year?: number; month?: number; label?: string; count?: number }[];
 };
 
-const payments = [
- { id: "PAY-2026-010", orderId: "PICK-2026-010", phone: "iPhone 15 Pro (256 GB)", amount: "58,500", status: "Pending approval", time: "40 min ago" },
- { id: "PAY-2026-009", orderId: "PICK-2026-009", phone: "iPhone 14 (128 GB)", amount: "45,200", status: "Pending approval", time: "30 min ago" },
- { id: "PAY-2026-008", orderId: "PICK-2026-007", phone: "Samsung S24 Ultra", amount: "35,100", status: "Pending approval", time: "20 min ago" },
- { id: "PAY-2026-006", orderId: "PICK-2026-002", phone: "Google Pixel 9 Pro", amount: "25,200", status: "Pending approval", time: "18 min ago" },
-];
+const number = (value: unknown) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? value.toLocaleString("en-IN")
+    : "—";
 
-const stats = [
- { label: "Total Orders", value: "2,845", change: "+12.5%", description: "from last month", icon: ShoppingBag, color: "bg-purple-50 text-purple-600", positive: true },
- { label: "Active Agents", value: "24", change: "+9.1%", description: "from last month", icon: Users, color: "bg-rose-50 text-rose-600", positive: true },
- { label: "Pending Inspections", value: "54", change: "+12.4%", description: "from last month", icon: ShieldCheck, color: "bg-amber-50 text-amber-600", positive: true },
- { label: "Inventory (devices)", value: "328", change: "-6.3%", description: "vs last week", icon: Box, color: "bg-green-50 text-green-600", positive: false },
- { label: "Today's Pickups", value: "11", change: "+11.7%", description: "vs yesterday", icon: Truck, color: "bg-sky-50 text-sky-600", positive: true },
-];
+const money = (value: unknown) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
+    : "—";
 
-const pipeline = [
- { label: "New Orders", value: 124, change: "+10 today", color: "text-purple-600", icon: FileText },
- { label: "Scheduled", value: 89, change: "+8 today", color: "text-orange-500", icon: CalendarDays },
- { label: "Picked Up", value: 76, change: "+15 today", color: "text-blue-600", icon: Truck },
- { label: "In Transit", value: 10, change: "+2 today", color: "text-teal-600", icon: Truck },
- { label: "Inspected", value: 54, change: "+13 today", color: "text-amber-600", icon: Search },
- { label: "Ready Stock", value: 43, change: "+20 today", color: "text-green-600", icon: CheckCircle2 },
-];
+const titleCase = (value: unknown) =>
+  String(value ?? "Not available")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-function SectionTitle({
- title,
- action,
- onAction,
+const dateLabel = (value?: string | Date) => {
+  if (!value) return "Not scheduled";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Not scheduled"
+    : date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+};
+
+const timeAgo = (value?: string | Date) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`;
+  return `${Math.floor(minutes / 1440)}d ago`;
+};
+
+const statusTone = (status: string) => {
+  const value = status.toLowerCase();
+  if (value.includes("complete") || value.includes("ready") || value.includes("approved")) return "bg-emerald-50 text-emerald-700";
+  if (value.includes("transit") || value.includes("picked")) return "bg-sky-50 text-sky-700";
+  if (value.includes("reject") || value.includes("cancel") || value.includes("fail")) return "bg-rose-50 text-rose-700";
+  if (value.includes("pending") || value.includes("scheduled") || value.includes("inspection")) return "bg-amber-50 text-amber-700";
+  return "bg-slate-100 text-slate-600";
+};
+
+function Panel({
+  title,
+  subtitle,
+  action,
+  children,
+  className = "",
 }: {
- title: string;
- action?: string;
- onAction?: () => void;
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
 }) {
- return (
- <div className="mb-4 flex items-center justify-between gap-3">
- <h2 className="text-lg font-bold text-stone-800">{title}</h2>
- {action && (
- <button
- type="button"
- onClick={onAction}
- className="text-sm font-semibold text-orange-600 hover:text-orange-700"
- >
- {action}
- </button>
- )}
- </div>
- );
+  return (
+    <section className={`rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.025)] ${className}`}>
+      <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+        <div className="min-w-0">
+          <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-slate-800">{title}</h2>
+          {subtitle && <p className="mt-1 text-[12px] leading-4 text-slate-400">{subtitle}</p>}
+        </div>
+        {action}
+      </div>
+      <div className="p-5">{children}</div>
+    </section>
+  );
 }
 
-function StatusBadge({ status }: { status: string }) {
- const normalized = status.toLowerCase();
-
- const color = normalized.includes("transit")
- ? "bg-blue-50 text-blue-700"
- : normalized.includes("delivered") || normalized.includes("ready")
- ? "bg-green-50 text-green-700"
- : normalized.includes("inspection")
- ? "bg-orange-50 text-orange-700"
- : normalized.includes("pending") || normalized.includes("scheduled")
- ? "bg-amber-50 text-amber-700"
- : "bg-stone-100 text-stone-600";
-
- return (
- <span className={`inline-flex whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium ${color}`}>
- {status}
- </span>
- );
+function DonutChart({
+  items,
+  total,
+  centerLabel,
+  centerValue,
+  size = 174,
+}: {
+  items: { label: string; value: number; color: string }[];
+  total: number;
+  centerLabel: string;
+  centerValue?: string;
+  size?: number;
+}) {
+  const radius = 62;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+  const valid = items.filter((item) => item.value > 0 && Number.isFinite(item.value));
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg viewBox="0 0 160 160" className="h-full w-full -rotate-90" role="img" aria-label={`${centerLabel} distribution`}>
+          <circle cx="80" cy="80" r={radius} fill="none" stroke="#eef2f7" strokeWidth="18" />
+          {total > 0 && valid.map((item) => {
+            const length = (item.value / total) * circumference;
+            const currentOffset = offset;
+            offset += length;
+            return (
+              <circle
+                key={item.label}
+                cx="80"
+                cy="80"
+                r={radius}
+                fill="none"
+                stroke={item.color}
+                strokeWidth="18"
+                strokeDasharray={`${Math.max(length - 2, 0)} ${circumference}`}
+                strokeDashoffset={-currentOffset}
+                strokeLinecap="round"
+              />
+            );
+          })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-[26px] font-semibold tracking-tight text-slate-900">{centerValue ?? number(total)}</span>
+          <span className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">{centerLabel}</span>
+        </div>
+      </div>
+      <div className="mt-4 grid w-full grid-cols-2 gap-x-3 gap-y-2">
+        {items.map((item) => (
+          <div key={item.label} className="flex min-w-0 items-center gap-2 text-[12px]">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+            <span className="min-w-0 flex-1 truncate text-slate-500">{item.label}</span>
+            <span className="font-semibold tabular-nums text-slate-700">{number(item.value)}</span>
+          </div>
+        ))}
+        {items.length === 0 && <p className="col-span-2 text-center text-[13px] text-slate-400">No data available</p>}
+      </div>
+    </div>
+  );
 }
 
-function MiniBar({ value }: { value: number }) {
- return (
- <div className="h-2 w-14 overflow-hidden rounded-full bg-stone-100">
- <div
- className="h-full rounded-full bg-green-500"
- style={{ width: `${value}%` }}
- />
- </div>
- );
+function Metric({
+  label,
+  value,
+  icon: Icon,
+  accent,
+  comparison,
+  helper,
+}: {
+  label: string;
+  value: string;
+  icon: ElementType;
+  accent: string;
+  comparison?: number | null;
+  helper?: string;
+}) {
+  const positive = comparison != null && comparison >= 0;
+  return (
+    <div className="group rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.025)] transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[12px] font-semibold uppercase tracking-[0.09em] text-slate-400">{label}</p>
+        <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${accent}`}><Icon size={17} strokeWidth={1.8} /></span>
+      </div>
+      <p className="mt-3 text-[28px] font-semibold leading-none tracking-[-0.04em] text-slate-900">{value}</p>
+      <div className="mt-3 flex min-h-4 items-center gap-1.5 text-[11px]">
+        {comparison != null ? (
+          <>
+            {positive ? <ArrowUpRight size={13} className="text-emerald-600" /> : <ArrowDownRight size={13} className="text-rose-600" />}
+            <span className={positive ? "font-semibold text-emerald-700" : "font-semibold text-rose-700"}>{comparison > 0 ? "+" : ""}{comparison.toFixed(1)}%</span>
+            <span className="text-slate-400">vs previous period</span>
+          </>
+        ) : <span className="text-slate-400">{helper ?? "Current total"}</span>}
+      </div>
+    </div>
+  );
 }
 
-function MetricCard({
- label,
- value,
- change,
- description,
- icon: Icon,
- color,
- positive,
-}: (typeof stats)[number]) {
- return (
- <section className="rounded-xl border border-stone-200 bg-white p-5 transition hover:shadow-md sm:p-6">
- <div className="flex items-center gap-3">
- <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl ${color}`}>
- <Icon size={29} strokeWidth={1.8} />
- </div>
- <div className="min-w-0">
- <p className="text-base font-medium text-stone-500">{label}</p>
- <p className="mt-1 text-3xl font-bold tracking-tight text-stone-900">{value}</p>
- </div>
- </div>
- <p className="mt-3 flex flex-wrap items-center gap-1 text-sm">
- {positive ? (
- <ArrowUpRight size={17} className="text-green-600" />
- ) : (
- <ArrowDownRight size={17} className="text-red-500" />
- )}
- <span className={positive ? "font-semibold text-green-600" : "font-semibold text-red-500"}>
- {change}
- </span>
- <span className="text-stone-400">{description}</span>
- </p>
- </section>
- );
+function HorizontalBars({ items }: { items: { label: string; value: number; color?: string }[] }) {
+  const max = Math.max(...items.map((item) => item.value), 1);
+  if (!items.length) return <p className="py-8 text-center text-[13px] text-slate-400">No performance data available</p>;
+  return (
+    <div className="space-y-2.5">
+      {items.map((item) => (
+        <div key={item.label}>
+          <div className="mb-1 flex items-center justify-between gap-3 text-[12px]">
+            <span className="truncate font-medium text-slate-600">{item.label}</span>
+            <span className="font-semibold tabular-nums text-slate-800">{number(item.value)}</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <div className={`h-full rounded-full ${item.color ?? "bg-orange-500"} transition-all duration-500`} style={{ width: `${Math.max((item.value / max) * 100, item.value > 0 ? 2 : 0)}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
-function InspectionSummary() {
- const items = [
- { label: "Pending", value: 10, icon: CalendarDays, color: "text-amber-600 bg-amber-50" },
- { label: "Passed", value: 18, icon: CheckCircle2, color: "text-green-600 bg-green-50" },
- { label: "Failed", value: 3, icon: X, color: "text-red-600 bg-red-50" },
- { label: "In progress", value: 5, icon: Activity, color: "text-blue-600 bg-blue-50" },
- ];
-
- return (
- <section className="rounded-2xl border border-stone-200/80 bg-white p-6">
- <SectionTitle title="Inspection Summary" />
- <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 2xl:grid-cols-2">
- {items.map(({ label, value, icon: Icon, color }) => (
- <div key={label} className="rounded-lg bg-stone-50/70 p-3 text-center">
- <div className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl ${color}`}>
- <Icon size={24} />
- </div>
- <p className="text-2xl font-bold">{value}</p>
- <p className="mt-1 text-sm text-stone-500">{label}</p>
- </div>
- ))}
- </div>
- </section>
- );
-}
+type OrderRow = {
+  id: string;
+  customer: string;
+  device: string;
+  status: string;
+  agent: string;
+  pickupDate: string;
+  amount: string;
+  createdAt?: string;
+};
 
 export default function Dashboard() {
+  const [search, setSearch] = useState("");
+  const [paymentsOpen, setPaymentsOpen] = useState(false);
 
- const dashboardQuery = useQuery({
- queryKey: ["admin-dashboard"],
- queryFn: getAdminDashboard,
- staleTime: 30_000,
- refetchOnWindowFocus: true,
- });
+  const query = useQuery({
+    queryKey: ["admin-dashboard"],
+    queryFn: getAdminDashboard,
+    staleTime: 20_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+  });
 
- const dashboardData = dashboardQuery.data;
- const dashboardLoading = dashboardQuery.isLoading;
- const dashboardError = dashboardQuery.isError;
+  const data = query.data as DashboardViewData | undefined;
+  const loading = query.isLoading;
+  const failed = query.isError;
 
- const orders: Order[] = dashboardData?.recentOrders?.length
- ? dashboardData.recentOrders.map((order: any) => ({
- id: String(order.orderNumber ?? ""),
- customer: String(order.customer?.fullName ?? "Unknown"),
- phone: [
- order.device?.brand,
- order.device?.model,
- ]
- .filter(Boolean)
- .join(" ") || "Unknown device",
- storage: String(order.device?.storage ?? ""),
- status: String(
- order.status ?? order.inspection?.status ?? "Pending",
- ),
- agent: String(order.agent?.fullName ?? "Unassigned"),
- date: order.pickup?.scheduledDate
- ? new Date(order.pickup.scheduledDate).toLocaleDateString("en-IN")
- : "Not scheduled",
- transitStatus: String(
- order.status === "in_transit"
- ? "In Transit"
- : order.pickup?.status ?? "Not scheduled",
- ),
- amount: String(
- order.payment?.finalAmount ??
- order.payment?.estimatedAmount ??
- 0,
- ),
- }))
- : [];
- const [search, setSearch] = useState("");
- const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
- const [showAllTransit, setShowAllTransit] = useState(false);
- const [showAllAgents, setShowAllAgents] = useState(false);
- const [agentPerformancePeriod, setAgentPerformancePeriod] =
- useState<"week" | "month" | "year" | "all">("week");
+  const orders: OrderRow[] = useMemo(() => (data?.recentOrders ?? []).map((order: any) => ({
+    id: String(order.orderNumber ?? order._id ?? order.id ?? "—"),
+    customer: String(order.customer?.fullName ?? order.customer?.name ?? "Customer unavailable"),
+    device: [order.device?.brand, order.device?.model, order.device?.storage].filter(Boolean).join(" ") || "Device unavailable",
+    status: titleCase(order.status ?? "pending"),
+    agent: String(order.agent?.fullName ?? order.agent?.name ?? "Unassigned"),
+    pickupDate: dateLabel(order.pickup?.scheduledDate),
+    amount: money(order.payment?.finalAmount ?? order.payment?.estimatedAmount),
+    createdAt: order.createdAt,
+  })), [data?.recentOrders]);
 
- const filteredOrders = useMemo(
- () =>
- orders.filter((order) =>
- `${order.id} ${order.customer} ${order.phone} ${order.agent}`
- .toLowerCase()
- .includes(search.toLowerCase()),
- ),
- [orders, search],
- );
+  const filteredOrders = useMemo(() => orders.filter((order) =>
+    `${order.id} ${order.customer} ${order.device} ${order.agent}`.toLowerCase().includes(search.toLowerCase())
+  ), [orders, search]);
 
- const transitOrders = orders.filter(
- (order) => order.transitStatus === "In Transit",
- );
+  const pipeline = [
+    { label: "New", value: data?.orderPipeline?.newOrders ?? 0, color: "#f97316" },
+    { label: "Scheduled", value: data?.orderPipeline?.scheduled ?? 0, color: "#8b5cf6" },
+    { label: "Picked up", value: data?.orderPipeline?.pickedUp ?? 0, color: "#0ea5e9" },
+    { label: "In transit", value: data?.orderPipeline?.inTransit ?? 0, color: "#14b8a6" },
+    { label: "Inspected", value: data?.orderPipeline?.inspected ?? 0, color: "#eab308" },
+    { label: "Ready stock", value: data?.orderPipeline?.readyStock ?? 0, color: "#22c55e" },
+  ];
+  const pipelineTotal = pipeline.reduce((sum, item) => sum + item.value, 0);
 
- const openOrder = (orderId: string) => {
- const order = orders.find((item) => item.id === orderId);
- if (order) setSelectedOrder(order);
- };
+  const inventory = data?.inventory;
+  const inventoryStatuses = [
+    { label: "In stock", value: inventory?.in_inventory?.count ?? 0, color: "#f97316" },
+    { label: "Listed", value: inventory?.listed?.count ?? 0, color: "#3b82f6" },
+    { label: "Sold", value: inventory?.sold?.count ?? 0, color: "#10b981" },
+    { label: "Removed", value: inventory?.removed?.count ?? 0, color: "#a78bfa" },
+  ];
+  const inventoryStatusTotal = inventoryStatuses.reduce((sum, item) => sum + item.value, 0);
 
- return (
- <div className="space-y-5 text-stone-800">
- {showAllTransit ? (
- <section className="rounded-xl border border-stone-200 bg-white p-5">
- <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
- <div>
- <h2 className="text-lg font-bold">Orders in Transit</h2>
- <p className="mt-1 text-sm text-stone-500">
- Review pickup and delivery progress for each order.
- </p>
- </div>
- <button
- type="button"
- onClick={() => setShowAllTransit(false)}
- className="rounded-lg border border-stone-200 px-4 py-2 text-sm hover:bg-stone-50"
- >
- Back to Dashboard
- </button>
- </div>
+  const brandItems = (data?.inventoryBrands ?? []).map((brand: DashboardInventoryBrand, index: number) => ({
+    label: brand.brand || "Unknown brand",
+    value: Number(brand.count) || 0,
+    color: ["#f97316", "#3b82f6", "#10b981", "#8b5cf6", "#eab308", "#ec4899", "#06b6d4", "#64748b"][index % 8],
+  }));
+  const brandTotal = brandItems.reduce((sum, item) => sum + item.value, 0);
 
- <div className="space-y-3">
- {transitOrders.map((order) => (
- <button
- type="button"
- key={order.id}
- onClick={() => openOrder(order.id)}
- className="flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-100 p-4 text-left transition hover:border-orange-200 hover:bg-orange-50/30"
- >
- <div className="flex items-center gap-3">
- <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
- <Truck size={26} />
- </div>
- <div>
- <p className="text-sm font-bold">{order.id}</p>
- <p className="mt-1 text-sm text-stone-500">
- {order.customer} · {order.phone}
- </p>
- </div>
- </div>
- <div className="flex items-center gap-3">
- <div className="text-right">
- <p className="text-sm text-stone-400">Assigned agent</p>
- <p className="mt-1 text-base font-semibold">{order.agent}</p>
- </div>
- <StatusBadge status={order.transitStatus} />
- <ArrowRight size={18} className="text-stone-400" />
- </div>
- </button>
- ))}
- </div>
- </section>
- ) : (
- <>
- <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-5">
- {stats.map((stat) => {
- const apiValues: Record<string, number | undefined> = {
- "Total Orders": dashboardData?.overview.totalOrders,
- "Active Agents": dashboardData?.overview.activeAgents,
- "Pending Inspections": dashboardData?.overview.pendingInspections,
- "Inventory (devices)": dashboardData?.overview.inventoryDevices,
- "Today's Pickups": dashboardData?.overview.todayPickups,
- };
+  const payments = data?.payments;
+  const pendingCount =
+    typeof payments?.pendingPayments === "number" &&
+    Number.isFinite(payments.pendingPayments)
+      ? payments.pendingPayments
+      : null;
+  const pendingAmount = payments?.pendingPaymentAmount;
+  const paymentRows = Array.isArray(data?.pendingPayments)
+    ? data.pendingPayments
+    : [];
 
- const apiValue = apiValues[stat.label];
+  const inspection = data?.inspectionSummary;
+  const inspectionItems = [
+    { label: "Passed", value: inspection?.passed ?? 0, color: "#10b981" },
+    { label: "Failed", value: inspection?.failed ?? 0, color: "#f43f5e" },
+    { label: "Pending", value: inspection?.pending ?? 0, color: "#f59e0b" },
+    { label: "In progress", value: inspection?.inProgress ?? 0, color: "#3b82f6" },
+  ];
+  const inspectionTotal = inspectionItems.reduce((sum, item) => sum + item.value, 0);
 
- return (
- <MetricCard
- key={stat.label}
- {...stat}
- value={
- dashboardLoading
- ? "..."
- : dashboardError
- ? "—"
- : apiValue !== undefined
- ? apiValue.toLocaleString("en-IN")
- : "0"
- }
- />
- );
- })}
- </section>
+  const pickup = data?.pickupManagement;
+  const pickupItems = [
+    { label: "Completed", value: pickup?.completed ?? 0, color: "bg-emerald-500" },
+    { label: "In progress", value: pickup?.inProgress ?? 0, color: "bg-sky-500" },
+    { label: "Pending", value: pickup?.pending ?? 0, color: "bg-amber-400" },
+  ];
 
- <section className="rounded-2xl border border-stone-200/80 bg-white p-6">
- <SectionTitle
- title="Order Pipeline"
- action="View Transit Orders"
- onAction={() => setShowAllTransit(true)}
- />
- <div className="grid grid-cols-2 gap-y-7 sm:grid-cols-3 lg:grid-cols-6">
- {pipeline.map((item) => {
- const apiValues: Record<string, number | undefined> = {
- "New Orders": dashboardData?.orderPipeline.newOrders,
- Scheduled: dashboardData?.orderPipeline.scheduled,
- "Picked Up": dashboardData?.orderPipeline.pickedUp,
- Inspected: dashboardData?.orderPipeline.inspected,
- "In Transit": dashboardData?.orderPipeline.inTransit,
- "Ready Stock": dashboardData?.orderPipeline.readyStock,
- };
+  const agents = (data?.agentPerformance ?? [])
+    .map((agent) => ({
+      label: String(agent.fullName ?? agent.name ?? "Agent"),
+      value: Number(agent.completedOrders ?? 0),
+    }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 10);
 
- const { label, change, color, icon: Icon } = item;
- const apiValue = apiValues[label];
- const value =
- dashboardLoading
- ? "..."
- : dashboardError
- ? "—"
- : apiValue !== undefined
- ? apiValue
- : 0;
+  const refresh = () => void query.refetch();
 
- return (
- <button
- type="button"
- key={label}
- onClick={() => {
- if (label === "In Transit") setShowAllTransit(true);
- else setSearch("");
- }}
- className="group flex flex-col items-center rounded-lg p-3 text-center transition hover:bg-stone-50"
- >
- <div
- className={`flex h-16 w-16 items-center justify-center rounded-full bg-stone-50 transition group-hover:bg-orange-50 ${color}`}
- >
- <Icon size={32} strokeWidth={1.8} />
- </div>
- <p className="mt-3 text-sm text-stone-500">{label}</p>
- <p className="mt-1 text-3xl font-bold">{value}</p>
- <p className="mt-1.5 text-sm font-semibold text-green-600">
- {change}
- </p>
- </button>
- );
- })}
- </div>
- </section>
+  return (
+    <div className="min-h-full space-y-4 bg-transparent pb-2 text-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-100 text-orange-600"><Activity size={17} /></span>
+            <h1 className="text-[23px] font-semibold tracking-[-0.035em] text-slate-900">Business overview</h1>
+          </div>
+          <p className="mt-1 pl-10 text-[13px] text-slate-400">A live view of orders, inventory and operations</p>
+        </div>
+        <button type="button" onClick={refresh} disabled={query.isFetching} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-600 shadow-sm transition hover:border-orange-200 hover:text-orange-600 disabled:opacity-60">
+          <RefreshCw size={14} className={query.isFetching ? "animate-spin" : ""} />
+          {query.isFetching ? "Refreshing" : "Refresh"}
+        </button>
+      </div>
 
- <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(360px,1fr)]">
- {/* LEFT COLUMN */}
- <div className="space-y-5">
- <section className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white p-6">
- <SectionTitle
- title="Recent Orders"
- action="View All"
- onAction={() => setSearch("")}
- />
+      {failed && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[13px] text-rose-700">
+          <span>Dashboard information couldn't be loaded.</span>
+          <button type="button" onClick={refresh} className="font-semibold underline underline-offset-2">Try again</button>
+        </div>
+      )}
 
- <label className="mb-4 flex items-center gap-3 rounded-lg border border-stone-200 px-3 py-3">
- <Search size={20} className="text-stone-400" />
- <input
- value={search}
- onChange={(event) => setSearch(event.target.value)}
- placeholder="Search orders, customers or agents..."
- className="w-full bg-transparent text-base outline-none"
- />
- {search && (
- <button type="button" onClick={() => setSearch("")} aria-label="Clear search">
- <X size={17} />
- </button>
- )}
- </label>
+      <button
+        type="button"
+        onClick={() => setPaymentsOpen((open) => !open)}
+        className="group flex w-full flex-wrap items-center justify-between gap-4 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 via-white to-amber-50 px-4 py-4 text-left shadow-[0_4px_18px_rgba(249,115,22,0.06)] transition hover:border-orange-300 sm:px-5"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm shadow-orange-200">
+            <Bell size={19} />
+            {pendingCount !== null && pendingCount > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-white bg-rose-500 px-1 text-[10px] font-bold text-white">{pendingCount !== null && pendingCount > 99 ? "99+" : pendingCount}</span>}
+          </span>
+          <span className="min-w-0">
+            <span className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-slate-900">
+              Payment approvals
+              {pendingCount !== null && pendingCount > 0 && <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange-700">Action required</span>}
+            </span>
+            <span className="mt-1 block text-[12px] text-slate-500">
+              {loading
+                ? "Checking payment queue…"
+                : pendingCount === null
+                  ? "Payment queue information is unavailable"
+                  : pendingCount > 0
+                    ? `${number(pendingCount)} payments are awaiting processing`
+                    : "No payments are awaiting processing"}
+            </span>
+          </span>
+        </div>
+        <span className="ml-auto flex items-center gap-4">
+          <span className="text-right">
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Pending amount</span>
+            <span className="mt-0.5 block text-[20px] font-semibold tracking-tight text-slate-900">{loading ? "—" : money(pendingAmount)}</span>
+          </span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-orange-600 shadow-sm transition group-hover:translate-x-0.5"><ArrowRight size={16} /></span>
+        </span>
+      </button>
 
- <div className="overflow-x-auto">
- <table className="w-full min-w-[680px] text-left">
- <thead>
- <tr className="border-b border-stone-100 text-xs uppercase tracking-wide text-stone-400">
- <th className="pb-3 pr-4">Order ID</th>
- <th className="pb-3 pr-4">Customer</th>
- <th className="pb-3 pr-4">Phone Model</th>
- <th className="pb-3 pr-4">Status</th>
- <th className="pb-3 pr-4">Agent</th>
- <th className="pb-3">Pickup Date</th>
- </tr>
- </thead>
- <tbody>
- {filteredOrders.slice(0, 4).map((order) => (
- <tr
- key={order.id}
- onClick={() => openOrder(order.id)}
- className="cursor-pointer border-b border-stone-50 transition hover:bg-orange-50/40"
- >
- <td className="py-4 pr-4 text-sm font-semibold text-orange-600">{order.id}</td>
- <td className="py-4 pr-4 text-base font-medium">{order.customer}</td>
- <td className="py-3 pr-4">
- <p className="whitespace-nowrap text-base font-medium">{order.phone}</p>
- <p className="mt-1 text-sm text-stone-400">{order.storage}</p>
- </td>
- <td className="py-3 pr-4"><StatusBadge status={order.status} /></td>
- <td className="py-4 pr-4 text-sm font-semibold text-stone-500">{order.agent}</td>
- <td className="whitespace-nowrap py-4 text-sm text-stone-500">{order.date}</td>
- </tr>
- ))}
- {filteredOrders.length === 0 && (
- <tr>
- <td colSpan={6} className="py-8 text-center text-base text-stone-400">
- No matching orders found.
- </td>
- </tr>
- )}
- </tbody>
- </table>
- </div>
- <p className="mt-3 text-sm text-stone-400"> Select a row to view details.</p>
- </section>
+      {paymentsOpen && (
+        <Panel title="Payments awaiting approval" subtitle={`${number(pendingCount)} pending payment(s) · ${money(pendingAmount)} total`}>
+          {paymentRows.length ? (
+            <div className="divide-y divide-slate-100">
+              {paymentRows.map((payment: any, index: number) => (
+                <div key={String(payment._id ?? payment.id ?? index)} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-slate-800">{payment.order?.orderNumber ?? payment.orderNumber ?? payment.orderId ?? `Payment ${index + 1}`}</p>
+                    <p className="mt-1 truncate text-[12px] text-slate-500">{[payment.customer?.fullName, payment.device?.brand, payment.device?.model].filter(Boolean).join(" · ") || "Payment details"}</p>
+                    <p className="mt-1 text-[11px] text-slate-400">{timeAgo(payment.createdAt ?? payment.updatedAt)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[15px] font-semibold text-slate-900">{money(payment.amount ?? payment.finalAmount ?? payment.payment?.finalAmount ?? payment.payment?.estimatedAmount)}</p>
+                    <span className={`mt-1 inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ${statusTone(titleCase(payment.status ?? payment.paymentStatus ?? payment.payment?.status))}`}>{titleCase(payment.status ?? payment.paymentStatus ?? payment.payment?.status)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : <p className="py-5 text-center text-[13px] text-slate-400">There are no payment records to display.</p>}
+          <p className="mt-4 border-t border-slate-100 pt-3 text-[11px] text-slate-400">Showing the latest payment records returned by the dashboard.</p>
+        </Panel>
+      )}
 
- <section className="rounded-2xl border border-stone-200/80 bg-white p-6">
- <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
- <h2 className="text-lg font-bold text-stone-800">Agent Performance</h2>
- <div className="flex flex-wrap items-center gap-2">
- <div className="relative">
- <select
- value={agentPerformancePeriod}
- onChange={(e) => setAgentPerformancePeriod(e.target.value as "week" | "month" | "year" | "all")}
- className="appearance-none rounded-lg border border-stone-200 bg-stone-50 py-2 pl-3 pr-9 text-sm font-medium text-stone-700 outline-none transition hover:border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
- >
- <option value="week">This week</option>
- <option value="month">This month</option>
- <option value="year">This year</option>
- <option value="all">All time</option>
- </select>
- <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-stone-500" />
- </div>
- <button type="button" onClick={() => setShowAllAgents((prev) => !prev)} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-orange-600 transition hover:bg-orange-50 hover:text-orange-700">
- {showAllAgents ? "Show Less" : "View All"}
- {showAllAgents ? <ChevronUp size={16} /> : <ArrowRight size={16} />}
- </button>
- </div>
- </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <Metric label="Total orders" value={loading ? "…" : number(data?.overview?.totalOrders)} icon={Smartphone} accent="bg-orange-50 text-orange-600" comparison={data?.comparisons?.totalOrders?.percentageChange} />
+        <Metric label="Active agents" value={loading ? "…" : number(data?.overview?.activeAgents)} icon={Users} accent="bg-violet-50 text-violet-600" helper="Currently active" />
+        <Metric label="In stock devices" value={loading ? "…" : number(data?.overview?.inventoryDevices)} icon={Package} accent="bg-sky-50 text-sky-600" helper="Inventory + listed" />
+        <Metric label="Pending inspections" value={loading ? "…" : number(data?.overview?.pendingInspections)} icon={ShieldCheck} accent="bg-amber-50 text-amber-600" helper="Awaiting inspection" />
+        <Metric label="Today's pickups" value={loading ? "…" : number(data?.overview?.todayPickups)} icon={Truck} accent="bg-emerald-50 text-emerald-600" comparison={data?.comparisons?.todayPickups?.percentageChange} />
+      </div>
 
- <div className="overflow-x-auto">
- <table className="w-full min-w-[420px] text-left">
- <thead>
- <tr className="text-xs uppercase text-stone-400">
- <th className="pb-3">Agent</th>
- <th className="pb-3">Assigned</th>
- <th className="pb-3">Completed</th>
- <th className="pb-3">Pending</th>
- <th className="pb-3">Success Rate</th>
- </tr>
- </thead>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_1fr_1fr]">
+        <Panel title="Order pipeline" subtitle="Orders grouped by their current stage">
+          <DonutChart
+            items={pipeline.map((item) => ({ label: item.label, value: item.value, color: item.color }))}
+            total={pipelineTotal}
+            centerLabel="Orders"
+            centerValue={loading ? "…" : number(pipelineTotal)}
+          />
+        </Panel>
+        <Panel title="Inventory by brand" subtitle="Device counts from active inventory records">
+          <DonutChart
+            items={brandItems}
+            total={brandTotal}
+            centerLabel="Devices"
+            centerValue={loading ? "…" : number(brandTotal)}
+          />
+          {brandItems.length > 0 && <p className="mt-3 text-center text-[11px] text-slate-400">{number(brandItems.length)} brands represented</p>}
+        </Panel>
+        <Panel title="Inventory status" subtitle="Where each inventory device currently stands">
+          <DonutChart
+            items={inventoryStatuses.map((item) => ({ ...item, color: item.color }))}
+            total={inventoryStatusTotal}
+            centerLabel="Units"
+            centerValue={loading ? "…" : number(inventoryStatusTotal)}
+          />
+          <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2.5">
+            <div className="flex items-center justify-between text-[11px] text-slate-500">
+              <span>Inventory purchase value</span>
+              <span className="font-semibold text-slate-800">{money((inventory?.in_inventory?.purchaseAmount ?? 0) + (inventory?.listed?.purchaseAmount ?? 0))}</span>
+            </div>
+          </div>
+        </Panel>
+      </div>
 
- <tbody className="text-sm">
- {(dashboardData?.agentPerformance ?? [])
- .slice(0, showAllAgents ? undefined : 5)
- .map((agent) => {
- const assigned = agent.assignedOrders ?? 0;
- const completed = agent.completedOrders ?? 0;
- const pending = Math.max(assigned - completed, 0);
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.45fr_1fr]">
+        <Panel title="Recent orders" subtitle="The latest customer orders across ExCart" className="h-full" action={<Link to="/orders" className="text-[12px] font-semibold text-orange-600 hover:text-orange-700">View all</Link>}>
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2">
+            <Search size={14} className="text-slate-400" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search order, customer or device…" className="w-full bg-transparent text-[13px] text-slate-700 outline-none placeholder:text-slate-400" />
+            {search && <button type="button" onClick={() => setSearch("")} aria-label="Clear search"><X size={13} className="text-slate-400" /></button>}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[620px] text-left">
+              <thead><tr className="border-b border-slate-100 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400"><th className="pb-3 pr-3">Order</th><th className="pb-3 pr-3">Customer / Device</th><th className="pb-3 pr-3">Status</th><th className="pb-3 pr-3">Agent</th><th className="pb-3">Pickup</th></tr></thead>
+              <tbody>
+                {filteredOrders.slice(0, 5).map((order) => (
+                  <tr key={order.id} className="border-b border-slate-50 last:border-0">
+                    <td className="py-3 pr-3 text-[12px] font-semibold text-orange-600">{order.id}</td>
+                    <td className="py-3 pr-3"><p className="text-[12px] font-semibold text-slate-700">{order.customer}</p><p className="mt-0.5 text-[11px] text-slate-400">{order.device}</p></td>
+                    <td className="py-3 pr-3"><span className={`inline-flex whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-medium ${statusTone(order.status)}`}>{order.status}</span></td>
+                    <td className="py-3 pr-3 text-[11px] text-slate-500">{order.agent}</td>
+                    <td className="whitespace-nowrap py-3 text-[11px] text-slate-500">{order.pickupDate}</td>
+                  </tr>
+                ))}
+                {!filteredOrders.length && <tr><td colSpan={5} className="py-8 text-center text-[13px] text-slate-400">{loading ? "Loading orders…" : search ? "No matching orders found." : "No recent orders available."}</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
 
- const rate =
- assigned > 0
- ? Math.round((completed / assigned) * 100)
- : 0;
+        <Panel title="Agent performance" subtitle="Top 10 agents by completed orders" className="h-full">
+          <HorizontalBars items={agents.map((agent, index) => ({ ...agent, color: ["bg-orange-500", "bg-violet-500", "bg-sky-500", "bg-emerald-500", "bg-amber-500", "bg-cyan-500"][index] }))} />
+          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-[11px] text-slate-400">
+            <span>Top agents by completed orders</span>
+            <span>{number(data?.agentPerformance?.length ?? 0)} agents</span>
+          </div>
+        </Panel>
+      </div>
 
- return (
- <tr
- key={agent.agentId}
- className="border-t border-stone-100"
- >
- <td className="py-3 font-medium">
- {String(agent.fullName ?? agent.name ?? "Agent")}
- </td>
+      <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-3">
+        <Panel title="Inspection outcomes" subtitle="Quality checks across received devices" className="h-full">
+          <DonutChart items={inspectionItems} total={inspectionTotal} centerLabel="Checks" centerValue={loading ? "…" : number(inspectionTotal)} size={150} />
+        </Panel>
+        <Panel title="Today's pickup progress" subtitle="Scheduled collections and completion" className="h-full">
+          <div className="flex items-end justify-between gap-3">
+            <div><p className="text-[31px] font-semibold tracking-tight text-slate-900">{loading ? "…" : number(pickup?.total ?? 0)}</p><p className="text-[11px] text-slate-400">Total scheduled pickups</p></div>
+            <span className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700">{pickup?.total ? `${Math.round(((pickup.completed ?? 0) / pickup.total) * 100)}% completed` : "—"}</span>
+          </div>
+          <div className="mt-5 flex h-2.5 overflow-hidden rounded-full bg-slate-100">
+            {pickupItems.map((item) => <div key={item.label} className={item.color} style={{ width: pickup?.total ? `${(item.value / pickup.total) * 100}%` : "0%" }} />)}
+          </div>
+          <div className="mt-5 space-y-3">
+            {pickupItems.map((item) => <div key={item.label} className="flex items-center justify-between text-[12px]"><span className="flex items-center gap-2 text-slate-500"><span className={`h-2 w-2 rounded-full ${item.color}`} />{item.label}</span><span className="font-semibold tabular-nums text-slate-800">{number(item.value)}</span></div>)}
+          </div>
+        </Panel>
+        <Panel title="Payment summary" subtitle="Payment values recorded by the backend" className="h-full">
+          <div className="space-y-4">
+            <div className="rounded-xl bg-emerald-50/80 p-3.5"><p className="text-[11px] font-medium text-emerald-700">Completed payment value</p><p className="mt-1 text-[23px] font-semibold tracking-tight text-emerald-900">{loading ? "…" : money(payments?.completedPaymentAmount)}</p><p className="mt-1 text-[11px] text-emerald-700/70">{number(payments?.completedPayments)} completed payments</p></div>
+            <div className="rounded-xl bg-orange-50/80 p-3.5"><p className="text-[11px] font-medium text-orange-700">Pending payment value</p><p className="mt-1 text-[23px] font-semibold tracking-tight text-orange-900">{loading ? "…" : money(payments?.pendingPaymentAmount)}</p><p className="mt-1 text-[11px] text-orange-700/70">{number(payments?.pendingPayments)} awaiting processing</p></div>
+          </div>
+        </Panel>
+      </div>
 
- <td className="py-3">{assigned}</td>
- <td className="py-3">{completed}</td>
- <td className="py-3">{pending}</td>
-
- <td className="py-3">
- <div className="flex items-center gap-2">
- <span>{rate}%</span>
- <MiniBar value={rate} />
- </div>
- </td>
- </tr>
- );
- })}
- </tbody>
- </table>
- </div>
- </section>
-
- {/* Moved here to use the previously empty left-side space */}
- <InspectionSummary />
- </div>
-
- {/* RIGHT COLUMN */}
- <div className="space-y-5">
- <section className="rounded-2xl border border-stone-200/80 bg-white p-6">
- <SectionTitle
- title="Pending Payments"
- action="View All"
- onAction={() => openOrder(payments[0].orderId)}
- />
- <div className="space-y-3">
- {payments.map((payment) => (
- <button
- type="button"
- key={payment.id}
- onClick={() => openOrder(payment.orderId)}
- className="flex w-full items-start justify-between gap-3 rounded-lg border-b border-stone-100 pb-3 text-left last:border-0 last:pb-0 hover:bg-orange-50/40"
- >
- <div className="min-w-0">
- <p className="text-xs font-semibold text-orange-600">{payment.orderId}</p>
- <p className="mt-1 truncate text-sm font-medium">{payment.phone}</p>
- <p className="mt-1 text-sm text-stone-400">
- <Clock3 size={14} className="mr-1 inline" />
- {payment.time}
- </p>
- <p className="mt-1 text-xs text-amber-600">{payment.status}</p>
- </div>
- <div className="shrink-0 text-right">
- <p className="text-sm text-stone-400">Amount</p>
- <p className="mt-1 text-sm font-bold">{payment.amount}</p>
- <ArrowRight size={17} className="ml-auto mt-2 text-stone-400" />
- </div>
- </button>
- ))}
- </div>
- <button
- type="button"
- onClick={() => openOrder(payments[0].orderId)}
- className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-orange-200 bg-orange-50/50 py-3 text-sm font-semibold text-orange-600 transition hover:bg-orange-50"
- >
- <Wallet size={18} />
- View Payment Notifications
- </button>
- </section>
-
- <section className="rounded-2xl border border-stone-200/80 bg-white p-6">
- <SectionTitle
- title="Transit Status"
- action="View All"
- onAction={() => setShowAllTransit(true)}
- />
- {transitOrders.length > 0 ? (
- transitOrders.map((order) => (
- <button
- type="button"
- key={order.id}
- onClick={() => openOrder(order.id)}
- className="mb-3 flex w-full items-start gap-3 rounded-lg border border-stone-100 p-3 text-left transition hover:border-blue-200 hover:bg-blue-50/40"
- >
- <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
- <Truck size={25} />
- </div>
- <div className="min-w-0 flex-1">
- <p className="text-sm font-bold">{order.id}</p>
- <p className="mt-1 text-sm text-stone-500">{order.customer} · {order.agent}</p>
- <div className="mt-2"><StatusBadge status={order.transitStatus} /></div>
- </div>
- <ArrowRight size={18} className="mt-1 text-stone-400" />
- </button>
- ))
- ) : (
- <p className="text-base text-stone-500">No orders currently in transit.</p>
- )}
- <p className="mt-3 text-sm text-stone-400">Transit status is based on the latest order pickup data.</p>
- </section>
-
- <section className="rounded-2xl border border-stone-200/80 bg-white p-6">
- <SectionTitle title="Pickup Management (Today)" />
- <div className="flex flex-wrap items-center gap-5">
- <div
- className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full"
- style={{
- background: "conic-gradient(#58b368 0% 48%, #7796ff 48% 80%, #fbbf24 80% 100%)",
- }}
- >
- <div className="flex h-[82px] w-[82px] flex-col items-center justify-center rounded-full bg-white">
- <span className="text-3xl font-bold">25</span>
- <span className="text-sm text-stone-400">Total</span>
- </div>
- </div>
- <div className="min-w-0 flex-1 space-y-3 text-sm">
- <p className="flex items-center gap-2">
- <span className="h-3 w-3 rounded-sm bg-green-500" />
- Completed <span className="ml-auto font-semibold">12 (48%)</span>
- </p>
- <p className="flex items-center gap-2">
- <span className="h-3 w-3 rounded-sm bg-blue-500" />
- In progress <span className="ml-auto font-semibold">8 (32%)</span>
- </p>
- <p className="flex items-center gap-2">
- <span className="h-3 w-3 rounded-sm bg-amber-400" />
- Pending <span className="ml-auto font-semibold">5 (20%)</span>
- </p>
- </div>
- </div>
- </section>
-
- <section className="rounded-2xl border border-stone-200/80 bg-white p-6">
- <SectionTitle title="Inventory Overview" />
- <div className="flex flex-wrap items-center gap-5">
- <div
- className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full"
- style={{
- background: "conic-gradient(#51bb7b 0% 35%, #45a2f5 35% 60%, #a68af7 60% 78%, #ffad68 78% 100%)",
- }}
- >
- <div className="flex h-[86px] w-[86px] flex-col items-center justify-center rounded-full bg-white">
- <span className="text-2xl font-bold">328</span>
- <span className="text-sm text-stone-400">Devices</span>
- </div>
- </div>
- <div className="min-w-0 flex-1 space-y-3 text-sm">
- {[
- ["iPhone", "112 (34%)", "bg-green-500"],
- ["Samsung", "98 (30%)", "bg-blue-500"],
- ["OnePlus", "54 (16%)", "bg-purple-500"],
- ["Google Pixel", "21 (6%)", "bg-orange-400"],
- ["Other", "43 (14%)", "bg-pink-400"],
- ].map(([name, value, color]) => (
- <div key={name} className="flex items-center gap-2">
- <span className={`h-3 w-3 shrink-0 rounded-sm ${color}`} />
- <span className="min-w-0 flex-1 truncate text-stone-600">{name}</span>
- <span className="shrink-0 text-xs text-stone-500">{value}</span>
- </div>
- ))}
- </div>
- </div>
- </section>
- </div>
- </div>
- </>
- )}
-
- {selectedOrder && (
- <div
- className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
- onClick={() => setSelectedOrder(null)}
- >
- <section
- role="dialog"
- aria-modal="true"
- aria-labelledby="order-detail-title"
- className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
- onClick={(event) => event.stopPropagation()}
- >
- <div className="mb-5 flex items-start justify-between gap-3">
- <div>
- <p className="text-sm font-medium text-orange-600">Order Details</p>
- <h2 id="order-detail-title" className="mt-1 text-xl font-bold">{selectedOrder.id}</h2>
- </div>
- <button
- type="button"
- onClick={() => setSelectedOrder(null)}
- aria-label="Close order details"
- className="rounded-lg p-2 text-stone-500 hover:bg-stone-100"
- >
- <X size={20} />
- </button>
- </div>
-
- <div className="mb-5 rounded-xl border border-stone-100 bg-stone-50 p-4">
- <div className="flex items-center justify-between gap-3">
- <span className="text-sm text-stone-500">Current order status</span>
- <StatusBadge status={selectedOrder.status} />
- </div>
- <div className="mt-3 flex items-center justify-between gap-3">
- <span className="text-sm text-stone-500">Transit status</span>
- <StatusBadge status={selectedOrder.transitStatus} />
- </div>
- </div>
-
- <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
- <div>
- <p className="text-sm text-stone-400">Customer</p>
- <p className="mt-1 text-base font-semibold">{selectedOrder.customer}</p>
- </div>
- <div>
- <p className="text-sm text-stone-400">Device</p>
- <p className="mt-1 text-base font-semibold">{selectedOrder.phone}</p>
- <p className="text-sm text-stone-500">{selectedOrder.storage}</p>
- </div>
- <div>
- <p className="text-sm text-stone-400">Assigned Agent</p>
- <p className="mt-1 text-base font-semibold">{selectedOrder.agent}</p>
- </div>
- <div>
- <p className="text-sm text-stone-400">Pickup Date</p>
- <p className="mt-1 text-base font-semibold">{selectedOrder.date}</p>
- </div>
- <div>
- <p className="text-sm text-stone-400">Order Amount</p>
- <p className="mt-1 text-base font-bold">{selectedOrder.amount}</p>
- </div>
- </div>
-
- <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
- <div className="flex items-start gap-3">
- <MapPin size={22} className="mt-0.5 shrink-0 text-blue-600" />
- <div>
- <p className="text-sm font-semibold text-blue-900">Pickup and Transit</p>
- <p className="mt-1 text-sm leading-5 text-blue-800">{selectedOrder.transitStatus}</p>
- <p className="mt-1 text-xs text-blue-700">
- Live location and timestamp updates require backend integration.
- </p>
- </div>
- </div>
- </div>
-
- <button
- type="button"
- onClick={() => setSelectedOrder(null)}
- className="mt-6 w-full rounded-xl bg-orange-500 px-4 py-3 text-base font-semibold text-white transition hover:bg-orange-600"
- >
- Close Details
- </button>
- </section>
- </div>
- )}
- </div>
- );
+    </div>
+  );
 }

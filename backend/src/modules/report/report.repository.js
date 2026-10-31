@@ -380,12 +380,14 @@ async getPickupManagement(startOfDay, endOfDay) {
             $sum: {
               $cond: [
                 {
-                  $in: [
-                    "$payment.status",
-                    [
-                      "pending",
-                      "processing",
-                    ],
+                  $and: [
+                    {
+                      $in: [
+                        "$payment.status",
+                        ["pending", "processing"],
+                      ],
+                    },
+                    { $eq: ["$status", "payment_pending"] },
                   ],
                 },
                 {
@@ -403,12 +405,14 @@ async getPickupManagement(startOfDay, endOfDay) {
             $sum: {
               $cond: [
                 {
-                  $in: [
-                    "$payment.status",
-                    [
-                      "pending",
-                      "processing",
-                    ],
+                  $and: [
+                    {
+                      $in: [
+                        "$payment.status",
+                        ["pending", "processing"],
+                      ],
+                    },
+                    { $eq: ["$status", "payment_pending"] },
                   ],
                 },
                 1,
@@ -477,6 +481,26 @@ async getPickupManagement(startOfDay, endOfDay) {
 
     return result;
   }
+// INVENTORY BRAND BREAKDOWN (based on devices actually in inventory)
+  async getInventoryBrandSummary() {
+    return Inventory.aggregate([
+      { $match: { status: { $in: ["in_inventory", "listed"] } } },
+      { $lookup: { from: "devices", localField: "device", foreignField: "_id", as: "deviceDetails" } },
+      { $unwind: { path: "$deviceDetails", preserveNullAndEmptyArrays: false } },
+      { $group: { _id: { $ifNull: ["$deviceDetails.brand", "Unknown"] }, count: { $sum: 1 } } },
+      { $sort: { count: -1, _id: 1 } },
+    ]);
+  }
+
+  // MONTHLY ORDER TREND (last six calendar months, including current month)
+  async getOrderTrend(startDate) {
+    return Order.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { $group: { _id: { year: { $year: "$createdAt" }, month: { $month: "$createdAt" } }, count: { $sum: 1 } } },
+      { $sort: { "_id.year": 1, "_id.month": 1 } },
+    ]);
+  }
+
 // AGENT PERFORMANCE
 
 async getAgentPerformance() {

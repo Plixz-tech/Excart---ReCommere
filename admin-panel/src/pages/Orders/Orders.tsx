@@ -55,6 +55,8 @@ deviceBackendId: string;
 rawStatus: string;
 id: string;
 customer: string;
+customerId: string;
+customerImage: string;
 phone: string;
 device: string;
 storage: string;
@@ -135,16 +137,16 @@ const tabs = [
 { label: "Inventory & Sales", icon: ShoppingBag },
 ];
 const statusStyles: Record<OrderStatus, string> = {
-New: "bg-blue-50 text-blue-700 ring-blue-200",
-Scheduled: "bg-violet-50 text-violet-700 ring-violet-200",
-"Agent Assigned": "bg-orange-50 text-orange-700 ring-orange-200",
-"Picked Up": "bg-cyan-50 text-cyan-700 ring-cyan-200",
-"In Transit": "bg-blue-50 text-blue-700 ring-blue-200",
-Inspection: "bg-amber-50 text-amber-700 ring-amber-200",
-"Payment Pending": "bg-orange-50 text-orange-700 ring-orange-200",
-Completed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-"Ready Stock": "bg-emerald-50 text-emerald-700 ring-emerald-200",
-Cancelled: "bg-red-50 text-red-700 ring-red-200",
+New: "text-blue-700",
+Scheduled: "text-violet-700",
+"Agent Assigned": "text-orange-700",
+"Picked Up": "text-cyan-700",
+"In Transit": "text-blue-700",
+Inspection: "text-amber-700",
+"Payment Pending": "text-orange-700",
+Completed: "text-emerald-700",
+"Ready Stock": "text-emerald-700",
+Cancelled: "text-red-700",
 };
 const formatDate = (value?: string | Date | null) => {
 if (!value) return "—";
@@ -370,6 +372,13 @@ deviceBackendId: String(device._id ?? device.id ?? ""),
 rawStatus,
 id: asText(source.orderNumber, String(source._id ?? "Order")),
 customer: asText(customer.fullName),
+customerId: String(customer._id ?? customer.id ?? source.customerId ?? ""),
+customerImage: asText(
+  customer.profileImage ?? customer.profileImageUrl ?? customer.avatarUrl ??
+  customer.avatar ?? customer.profilePicture ?? customer.photoUrl ??
+  customer.photo ?? customer.imageUrl ?? customer.image ?? customer.profile?.imageUrl,
+  "",
+),
 phone: asText(customer.phone),
 device: asText(brandModel),
 storage: asText(device.storage),
@@ -484,7 +493,7 @@ maximumFractionDigits: 0,
 function StatusBadge({ status }: { status: OrderStatus }) {
 return (
 <span
-className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusStyles[status]}`}
+className={`whitespace-nowrap text-xs font-semibold ${statusStyles[status]}`}
 >
 <span className="mr-1.5"></span>
 {status}
@@ -513,8 +522,8 @@ return (
 function DetailRow({ label, value }: { label: string; value: string }) {
 return (
 <div className="group flex flex-col gap-1.5 border-b border-stone-100/90 py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-<span className="text-[13px] font-medium text-stone-500 transition-colors group-hover:text-stone-700">{label}</span>
-<span className="break-words text-[13px] font-semibold leading-5 text-stone-800 sm:text-right">{value || "—"}</span>
+<span className="text-sm font-medium text-stone-500 transition-colors group-hover:text-stone-700">{label}</span>
+<span className="break-words text-sm font-semibold leading-5 text-stone-800 sm:text-right">{value || "—"}</span>
 </div>
 );
 }
@@ -656,7 +665,40 @@ if (Array.isArray(pageResponse.data?.data)) {
 allApiOrders.push(...pageResponse.data.data);
 }
 }
-setOrders(allApiOrders.map(mapApiOrder));
+const mappedOrders = allApiOrders.map(mapApiOrder);
+
+// Some order responses omit profileImage from the populated customer.
+// Resolve it from the same users dataset used by the admin Users page.
+try {
+  const usersResponse = await api.get("/admin/users", { params: { page: 1, limit: 100 } });
+  const usersPayload = usersResponse.data?.data;
+  const userList = Array.isArray(usersPayload)
+    ? usersPayload
+    : Array.isArray(usersPayload?.users)
+      ? usersPayload.users
+      : Array.isArray(usersResponse.data?.users)
+        ? usersResponse.data.users
+        : [];
+  const usersById = new Map<string, any>();
+  const usersByName = new Map<string, any>();
+  userList.forEach((user: any) => {
+    const userId = String(user?._id ?? user?.id ?? "");
+    const userName = String(user?.fullName ?? user?.name ?? "").trim().toLowerCase();
+    if (userId) usersById.set(userId, user);
+    if (userName) usersByName.set(userName, user);
+  });
+  setOrders(mappedOrders.map((order) => {
+    const matchedUser =
+      (order.customerId ? usersById.get(order.customerId) : undefined) ??
+      usersByName.get(order.customer.trim().toLowerCase());
+    const profileImage = order.customerImage ||
+      String(matchedUser?.profileImage ?? matchedUser?.profileImageUrl ?? matchedUser?.avatar ?? "");
+    return { ...order, customerImage: profileImage };
+  }));
+} catch {
+  // Keep Orders working if the users endpoint is unavailable.
+  setOrders(mappedOrders);
+}
 try {
 const agentsResponse = await api.get("/admin/agents", { params: { page: 1, limit: 100 } });
 const agentPayload = agentsResponse.data?.data;
@@ -1772,7 +1814,7 @@ className={`text-xs leading-5 ${active ? "font-semibold" : "font-normal"
 <section className="min-w-0 rounded-[10px] border border-stone-200 bg-white p-3.5">
 {inspectionStep === "Functional Check" ? (
 <>
-<h3 className="text-[14px] font-semibold text-stone-900">
+<h3 className="text-sm font-semibold text-stone-900">
 Functional Checks
 </h3>
 <p className="mt-1 text-[10px] leading-[14px] text-stone-500">
@@ -1818,7 +1860,7 @@ e.target.value === ""
 },
 }))
 }
-className={`h-full w-full appearance-none cursor-pointer rounded-md border pl-3 pr-8 text-[13px] font-medium leading-none outline-none transition ${value === true
+className={`h-full w-full appearance-none cursor-pointer rounded-md border pl-3 pr-8 text-sm font-medium leading-none outline-none transition ${value === true
 ? "border-emerald-200 bg-emerald-50 text-emerald-700 focus:ring-2 focus:ring-emerald-100"
 : value === false
 ? "border-red-200 bg-red-50 text-red-700 focus:ring-2 focus:ring-red-100"
@@ -2293,7 +2335,7 @@ return null;
 };
 if (selectedOrder) {
 return (
-<div className="space-y-3 pb-10">
+<div className="excart-admin-page space-y-5 pb-24 text-[13px] text-slate-700 [&_h1]:text-2xl [&_h1]:leading-8 [&_h1]:font-bold [&_h1]:tracking-[-0.035em] [&_h2]:text-base [&_h2]:leading-6 [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:leading-5 [&_h3]:font-semibold">
 {/* Keep the order controls, summary and tabs together while scrolling */}
 <div className="top-0 z-40 space-y-2 bg-stone-50 pb-1">
 <div>
@@ -2305,16 +2347,16 @@ setActiveTab("Overview");
 setSuccessMessage("");
 setLoadError("");
 }}
-className="inline-flex items-center gap-2 rounded-md py-1 text-sm font-semibold text-stone-600 transition hover:text-orange-600"
+className="inline-flex items-center gap-2 text-sm font-medium text-stone-500 transition-colors hover:text-orange-600"
 >
 <ArrowLeft size={16} />
 Back to Orders
 </button>
 </div>
-<div className="flex min-h-[76px] flex-col justify-between gap-3 border-b border-stone-200 bg-white px-5 py-3 sm:flex-row sm:items-center">
+<div className="flex min-h-[88px] flex-col justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white px-6 py-4 shadow-[0_8px_30px_rgba(15,23,42,0.045)] sm:flex-row sm:items-center">
 <div className="min-w-0">
 <div className="flex flex-wrap items-center gap-2.5">
-<h1 className="text-xl font-bold tracking-tight text-stone-700 sm:text-2xl">{selectedOrder.id}</h1>
+<h1 className="text-xl font-semibold tracking-tight text-stone-700 sm:text-2xl">{selectedOrder.id}</h1>
 <button type="button" onClick={() => navigator.clipboard?.writeText(selectedOrder.id)} aria-label="Copy order ID" title="Copy order ID" className="rounded p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700"><FileText size={15} /></button>
 <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium ${["paid", "completed", "success", "succeeded"].includes(selectedOrder.paymentStatus.toLowerCase())
 ? "bg-emerald-100 text-emerald-700"
@@ -2353,7 +2395,7 @@ Back to Orders
 <button type="button" onClick={() => void downloadInvoice()} className="inline-flex h-9 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 text-sm font-medium text-stone-600 hover:border-orange-300 hover:bg-orange-50"><Download size={15} /> Download Invoice</button>
 </div>
 </div>
-<section className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+<section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.045)]">
 <div className="grid grid-cols-1 divide-y divide-stone-200 md:grid-cols-2 md:divide-y-0 xl:grid-cols-[1.55fr_0.9fr_0.9fr_1fr] xl:divide-x">
 <div className="flex min-w-0 items-center gap-4 p-4">
 <div className="flex h-[88px] w-[68px] shrink-0 items-center justify-center rounded-md border border-stone-200 bg-stone-50 text-stone-500"><Smartphone size={36} strokeWidth={1.5} /></div>
@@ -2366,7 +2408,7 @@ Back to Orders
 <div className="flex min-w-0 items-center gap-3 p-4">
 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone-100 text-xs font-bold text-stone-600">{selectedOrder.customer.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</div>
 <div className="min-w-0">
-<p className="text-sm text-stone-500">User</p><p className="mt-1 truncate text-sm font-bold text-stone-700">{selectedOrder.customer}</p><p className="mt-1 text-sm text-stone-600">{selectedOrder.phone}</p>
+<p className="text-[12px] font-medium text-slate-500">User</p><p className="mt-1 truncate text-sm font-bold text-stone-700">{selectedOrder.customer}</p><p className="mt-1 text-sm text-stone-600">{selectedOrder.phone}</p>
 <button type="button" className="mt-2 cursor-default text-xs font-semibold text-blue-600">View User</button>
 </div>
 </div>
@@ -2383,10 +2425,10 @@ Back to Orders
 </div>
 </div>
 </section>
-<nav className="overflow-x-auto rounded-t-xl border border-stone-200 bg-white">
+<nav className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white px-2 shadow-[0_6px_24px_rgba(15,23,42,0.035)]">
 <div className="flex min-w-[1100px] items-center justify-between px-3">
 {tabs.map(({ label, icon: Icon }) => (
-<button type="button" key={label} onClick={() => setActiveTab(label)} className={`inline-flex min-h-[52px] items-center justify-center gap-2 border-b-[3px] px-4 text-sm font-semibold transition sm:px-5 ${activeTab === label ? "border-orange-500 text-orange-600" : "border-transparent text-stone-600 hover:bg-stone-50 hover:text-orange-600"}`}>
+<button type="button" key={label} onClick={() => setActiveTab(label)} className={`inline-flex min-h-[58px] items-center justify-center gap-2 border-b-2 px-4 text-[13px] font-semibold transition-all sm:px-5 ${activeTab === label ? "border-orange-500 text-orange-600" : "border-transparent text-slate-500 hover:border-orange-200 hover:bg-orange-50/50 hover:text-orange-700"}`}>
 <Icon size={17} strokeWidth={1.7} />{label}
 </button>
 ))}
@@ -2432,7 +2474,7 @@ className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white h
 );
 }
 return (
-<div className="space-y-2">
+<div className="excart-admin-page space-y-6 pb-8 text-[13px] text-slate-700 [&_h1]:text-[30px] [&_h1]:leading-9 [&_h1]:font-bold [&_h1]:tracking-[-0.045em] [&_h2]:text-base [&_h2]:leading-6 [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:leading-5 [&_h3]:font-semibold">
 {loadError && (
 <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
 <span>{loadError}</span>
@@ -2443,7 +2485,7 @@ return (
 <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{successMessage}</div>
 )}
 {/* Summary cards */}
-<div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
 {[
 { label: "Total Orders", value: orders.length.toLocaleString("en-IN"), note: "all orders", icon: PackageCheck, box: "bg-purple-50 text-purple-500", trend: getCardTrend(orders, undefined, "month") },
 { label: "Pending", value: orders.filter((item) => ["pending", "pickup_scheduled", "assigned"].includes(String(item.rawStatus).toLowerCase())).length.toLocaleString("en-IN"), note: "pending orders", icon: Clock3, box: "bg-red-50 text-red-400", trend: getCardTrend(orders, ["pending", "pickup_scheduled", "assigned"], "month") },
@@ -2451,12 +2493,12 @@ return (
 { label: "Cancelled", value: orders.filter((item) => ["cancelled", "rejected"].includes(item.rawStatus)).length.toLocaleString("en-IN"), note: "cancelled orders", icon: XCircle, box: "bg-red-50 text-red-500", trend: getCardTrend(orders, ["cancelled", "rejected"], "month") },
 { label: "Inspection Pending", value: orders.filter((item) => ["inspection_pending", "inspection_in_progress", "under_inspection"].includes(String(item.rawStatus).toLowerCase())).length.toLocaleString("en-IN"), note: "awaiting inspection", icon: ClipboardCheck, box: "bg-amber-50 text-amber-500", trend: getCardTrend(orders, ["inspection_pending", "inspection_in_progress", "under_inspection"], "week") },
  ].map(({ label, value, note, icon: Icon, box, trend }) => (
-<div key={label} className="flex h-[91px] min-w-0 items-center gap-3 rounded-lg border border-stone-200 bg-white px-3.5">
-<div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${box}`}><Icon size={22} strokeWidth={1.7} /></div>
+<div key={label} className="group relative flex min-h-[112px] min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-[0_5px_20px_rgba(15,23,42,0.035)] transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_12px_28px_rgba(15,23,42,0.075)] before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:bg-gradient-to-r before:from-orange-500 before:via-orange-300 before:to-transparent before:opacity-0 before:transition-opacity group-hover:before:opacity-100">
+<div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ring-1 ring-black/[0.03] ${box}`}><Icon size={22} strokeWidth={1.8} /></div>
 <div className="min-w-0">
-<p className="text-xs font-medium leading-4 text-stone-600">{label}</p>
-<p className="text-2xl font-semibold leading-7 text-stone-700">{value}</p>
-<div className="mt-0.5 flex min-w-0 items-center gap-1 whitespace-nowrap text-[10px] leading-3">
+<p className="text-[11px] font-bold uppercase leading-4 tracking-[0.11em] text-slate-500">{label}</p>
+<p className="mt-1 text-[29px] font-bold leading-8 tracking-[-0.04em] text-slate-900">{value}</p>
+<div className="mt-0.5 flex min-w-0 items-center gap-1 whitespace-nowrap text-[11px] leading-4">
 <span className={trend?.direction === "down" ? "font-semibold text-red-500" : trend?.direction === "up" ? "font-semibold text-emerald-600" : "font-medium text-stone-500"}>
 {trend?.direction === "down" ? "↘" : trend?.direction === "up" ? "↗" : "→"} {trend?.text}
 </span>
@@ -2467,22 +2509,20 @@ return (
 ))}
 </div>
 {/* Orders table */}
-<section className="overflow-hidden rounded-lg border border-stone-200 bg-white">
-<div className="flex min-h-[52px] items-center justify-between gap-4 px-5 py-3">
-<h2 className="text-lg font-medium text-stone-900">
-All Orders
-</h2>
-<div className="flex items-center gap-3">
+<section className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_10px_35px_rgba(15,23,42,0.045)]">
+<div className="flex min-h-[82px] flex-col items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-center">
+<div><div className="flex items-center gap-2"><span className="h-5 w-1 rounded-full bg-orange-500"/><h2 className="text-[17px] font-bold tracking-tight text-slate-900">All Orders</h2></div><p className="mt-1.5 pl-3 text-xs text-slate-500">A live view of customer orders and fulfilment status</p></div>
+<div className="flex w-full flex-wrap items-center gap-2.5 lg:w-auto">
 <input
 type="search"
 value={search}
 onChange={(event) => { setSearch(event.target.value); setPage(1); }}
 placeholder="Search orders..."
 aria-label="Search orders"
-className="h-[38px] w-44 rounded-lg border border-stone-200 bg-white px-3 text-sm text-stone-700 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 text-[13px] text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-500/10 sm:w-56"
 />
 {/* Premium Filter */}
-<label className="flex h-[38px] cursor-pointer items-center gap-2 rounded-lg border border-stone-200 bg-white px-3.5 text-stone-600 shadow-sm transition-all duration-200 hover:border-orange-300 hover:bg-orange-50/50 hover:text-orange-600 focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-100">
+<label className="flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-slate-600 transition-all duration-200 hover:border-orange-300 hover:bg-orange-50/60 hover:text-orange-700 focus-within:border-orange-400 focus-within:ring-4 focus-within:ring-orange-500/10">
 <SlidersHorizontal
 size={16}
 strokeWidth={1.8}
@@ -2492,7 +2532,7 @@ className="shrink-0"
 value={statusFilter}
 onChange={(event) => selectFilter(event.target.value)}
 aria-label="Filter orders"
-className="cursor-pointer bg-transparent text-sm font-medium outline-none"
+className="cursor-pointer bg-transparent text-[13px] font-semibold outline-none"
 >
 <option value="All">Filter</option>
 {[
@@ -2539,7 +2579,7 @@ link.download = "excart-orders.csv";
 link.click();
 URL.revokeObjectURL(url);
 }}
-className="group flex h-[38px] items-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-medium text-stone-700 shadow-sm transition-all duration-200 hover:border-orange-300 hover:bg-orange-500 hover:text-white hover:shadow-md active:scale-[0.98]"
+className="group flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 transition-all duration-200 hover:border-orange-500 hover:bg-orange-500 hover:text-white hover:shadow-[0_6px_16px_rgba(249,115,22,0.22)] active:scale-[0.98]"
 >
 <FileText
 size={16}
@@ -2549,7 +2589,7 @@ Export
 </button>
 </div>
 </div>
-<div className="mx-2 overflow-x-auto rounded-lg border border-stone-200">
+<div className="mx-4 mt-3 mb-3 overflow-x-auto rounded-2xl border border-slate-200/80">
 <table className="w-full min-w-[1100px] table-fixed border-collapse text-left">
 <colgroup>
 <col style={{ width: "14%" }} />
@@ -2562,11 +2602,11 @@ Export
 <col style={{ width: "7%" }} />
 </colgroup>
 <thead>
-<tr className="h-[40px] bg-stone-100">
+<tr className="h-[48px] bg-[#f7f8fa]">
 {["ORDER ID", "USER NAME", "AGENT", "PHONE MODEL", "STATUS", "PRICE", "DATE", "ACTION"].map((heading) => (
 <th
 key={heading}
-className={`whitespace-nowrap px-4 text-xs font-bold tracking-wide text-stone-600 ${heading === "PRICE" || heading === "ACTION" ? "text-center" : ""
+className={`whitespace-nowrap px-4 text-xs tracking-wide ${heading === "ORDER ID" ? "font-medium text-stone-500" : "font-bold text-stone-600"} ${heading === "PRICE" || heading === "ACTION" ? "text-center" : ""
 }`}
 >
 {heading}
@@ -2593,33 +2633,45 @@ order.status === "Scheduled" ? "Pickup Scheduled" :
 order.status === "Inspection" ? "Under Inspection" :
 order.status;
 const badgeColor =
-order.status === "In Transit" ? "bg-blue-50 text-blue-600" :
-order.status === "Ready Stock" || order.status === "Completed" ? "bg-emerald-50 text-emerald-600" :
-order.status === "Scheduled" ? "bg-blue-50 text-blue-600" :
-order.status === "Inspection" ? "bg-orange-50 text-orange-600" :
-order.status === "Cancelled" ? "bg-red-50 text-red-600" :
-order.status === "Picked Up" ? "bg-cyan-50 text-cyan-600" :
-"bg-orange-50 text-orange-600";
+  order.status === "In Transit" ? "text-blue-700" :
+  order.status === "Ready Stock" || order.status === "Completed" ? "text-emerald-700" :
+  order.status === "Scheduled" ? "text-violet-700" :
+  order.status === "Inspection" ? "text-amber-700" :
+  order.status === "Cancelled" ? "text-rose-700" :
+  order.status === "Picked Up" ? "text-cyan-700" :
+  order.status === "New" ? "text-blue-700" :
+  "text-orange-700";
 return (
-<tr key={order.id} className="h-[58px] transition-colors hover:bg-orange-50/30">
+<tr key={order.id} className="h-[72px] transition-colors hover:bg-orange-50/45 [&>td]:border-b [&>td]:border-slate-100 last:[&>td]:border-b-0">
 <td className="px-4 py-2">
 <button type="button" onClick={() => openOrder(order)} className="text-left">
-<span className="block whitespace-nowrap text-sm font-semibold text-orange-600">
+<span className="block whitespace-nowrap text-[13px] font-bold tracking-tight text-orange-600 transition hover:text-orange-700 hover:underline">
 {order.id}
 </span>
 </button>
 </td>
 <td className="px-4 py-2">
 <div className="flex min-w-0 items-center gap-2">
-<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-semibold text-stone-600">
-{initials}
-</span>
-<span className="truncate text-sm font-semibold text-stone-700">
+{order.customerImage ? (
+  <img
+    src={order.customerImage}
+    alt={order.customer === "—" ? "Customer profile" : order.customer}
+    className="h-7 w-7 shrink-0 rounded-full object-cover"
+    onError={(event) => {
+      event.currentTarget.style.display = "none";
+    }}
+  />
+) : (
+  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-semibold text-stone-600">
+    {initials}
+  </span>
+)}
+<span className="truncate text-[12px] font-bold tracking-wide text-slate-800">
 {order.customer === "—" ? "—" : order.customer.toUpperCase()}
 </span>
 </div>
 </td>
-<td className="truncate px-4 py-2 text-sm font-medium text-stone-600">
+<td className="truncate px-4 py-2 text-[12px] font-semibold tracking-wide text-slate-600">
 {order.agent === "—" ? "—" : order.agent.toUpperCase()}
 </td>
 <td className="px-4 py-2">
@@ -2628,29 +2680,29 @@ return (
 <Smartphone size={20} strokeWidth={1.5} />
 </span>
 <div className="min-w-0">
-<p className="truncate text-sm font-semibold text-stone-700">
+<p className="truncate text-[13px] font-semibold text-slate-800">
 {order.device}
 </p>
-<p className="mt-1 text-xs text-orange-600">
+<p className="mt-1 text-[11px] font-semibold text-orange-600">
 {order.variant === "—" ? "—" : order.variant.split(" · ")[0]}
 </p>
 </div>
 </div>
 </td>
 <td className="px-4 py-2">
-<span className={`inline-flex whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium ${badgeColor}`}>
+<span className={`inline-flex whitespace-nowrap items-center rounded-full border border-current/10 bg-current/[0.06] px-2.5 py-1 text-[11px] font-bold ${badgeColor}`}>
 {displayStatus}
 </span>
 </td>
 <td className="px-4 py-2 text-center">
-<p className="whitespace-nowrap text-sm font-semibold text-stone-700">
+<p className="whitespace-nowrap text-[13px] font-bold text-slate-800">
 {formatAmount(order.amount)}
 </p>
-<p className={`mt-1 text-xs ${order.paymentStatus === "Paid" ? "text-emerald-600" : "text-orange-600"}`}>
+<p className={`mt-1 text-[10px] font-semibold uppercase tracking-wide ${order.paymentStatus === "Paid" ? "text-emerald-600" : "text-orange-600"}`}>
 {order.paymentStatus}
 </p>
 </td>
-<td className="whitespace-nowrap px-3 py-2 text-sm text-stone-600">
+<td className="whitespace-nowrap px-3 py-2 text-[12px] font-medium text-slate-500">
 {order.date}
 </td>
 <td className="px-3 py-2">
@@ -2671,11 +2723,11 @@ className="mx-auto flex items-center justify-center gap-1 rounded-md p-2 text-st
 </tbody>
 </table>
 </div>
-<div className="flex min-h-[37px] flex-wrap items-center justify-between gap-2 px-3 py-2">
+<div className="flex min-h-[64px] flex-wrap items-center justify-between gap-3 px-5 py-3">
 <p className="text-sm text-stone-500">Showing {filteredOrders.length === 0 ? 0 : (safePage - 1) * pageSize + 1} to {Math.min(safePage * pageSize, filteredOrders.length)} of {filteredOrders.length} orders</p>
 <div className="flex items-center gap-1.5">
 <button type="button" disabled={safePage === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded border border-stone-200 p-1 text-stone-500 disabled:opacity-40" aria-label="Previous page"><ChevronLeft size={13} /></button>
-{Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => <button key={pageNumber} type="button" onClick={() => setPage(pageNumber)} className={`h-7 min-w-7 rounded px-2 text-sm ${safePage === pageNumber ? "bg-orange-500 font-semibold text-white" : "border border-stone-200 text-stone-600 hover:bg-stone-50"}`}>{pageNumber}</button>)}
+{Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => <button key={pageNumber} type="button" onClick={() => setPage(pageNumber)} className={`h-8 min-w-8 rounded-lg px-2 text-[12px] font-semibold transition ${safePage === pageNumber ? "bg-[#202124] text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"}`}>{pageNumber}</button>)}
 <button type="button" disabled={safePage >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="rounded border border-stone-200 p-1 text-stone-500 disabled:opacity-40" aria-label="Next page"><ChevronRight size={13} /></button>
 <span className="ml-2 whitespace-nowrap text-xs text-stone-500">Rows per page</span><span className="rounded border border-stone-200 px-2 py-1 text-sm text-stone-600">{pageSize}</span>
 </div>

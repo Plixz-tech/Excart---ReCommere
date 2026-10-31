@@ -287,6 +287,12 @@ export const calculatePrice = async ({
     basePrice: numericBasePrice,
     evaluation,
     conditionDeductions: catalogDevice.conditionDeductions,
+    brand: catalogDevice.brand,
+    evaluationConfig:
+      catalogDevice.evaluationConfig?.toObject?.() ??
+      catalogDevice.evaluationConfig?.toJSON?.() ??
+      catalogDevice.evaluationConfig ??
+      {},
   });
 
   return {

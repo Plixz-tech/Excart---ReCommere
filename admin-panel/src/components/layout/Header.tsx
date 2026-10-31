@@ -3,9 +3,7 @@ import { useState } from "react";
 import {
   Bell,
   ChevronDown,
-  FileText,
   Menu,
-  Search,
   X,
 } from "lucide-react";
 
@@ -30,7 +28,6 @@ const paymentNotifications = [
 ];
 
 export default function Header({ title, onMenuClick }: HeaderProps) {
-  const [search, setSearch] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
@@ -46,40 +43,12 @@ export default function Header({ title, onMenuClick }: HeaderProps) {
           <Menu size={22} />
         </button>
 
-        <h1 className="truncate text-lg font-bold text-stone-900 sm:text-xl">
+        <h1 className="truncate text-lg font-semibold tracking-tight text-stone-900 sm:text-xl">
           {title}
         </h1>
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
-        <label className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-stone-50/60 px-3 py-2.5 focus-within:border-orange-400 sm:flex">
-          <Search size={18} className="shrink-0 text-stone-400" />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search..."
-            className="w-28 bg-transparent text-sm outline-none placeholder:text-stone-400 md:w-40 xl:w-52"
-          />
-          {search && (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => setSearch("")}
-              className="text-stone-400 hover:text-stone-700"
-            >
-              <X size={15} />
-            </button>
-          )}
-        </label>
-
-        <button
-          type="button"
-          aria-label="Messages"
-          className="hidden rounded-xl p-2.5 text-stone-500 transition hover:bg-stone-100 sm:block"
-        >
-          <FileText size={20} />
-        </button>
-
         <div className="relative">
           <button
             type="button"

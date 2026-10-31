@@ -27,10 +27,19 @@ class OrderRepository {
       );
   }
 
-  // CREATE ORDER
-  async create(orderData) {
-    return Order.create(orderData);
+// CREATE ORDER
+async create(orderData, session = null) {
+  if (session) {
+    const [order] = await Order.create(
+      [orderData],
+      { session }
+    );
+
+    return order;
   }
+
+  return Order.create(orderData);
+}
 
   // FIND ORDER BY ID
   async findById(orderId) {

@@ -16,6 +16,10 @@ import {
   Tags,
   Layers3,
   List,
+  CreditCard,
+  Headset,
+  MapPinned,
+  Wallet,
 } from "lucide-react";
 
 const navigation = [
@@ -26,6 +30,10 @@ const navigation = [
   { label: "Pickup Management", path: "/pickups", icon: Truck },
   { label: "Inspections", path: "/inspections", icon: ClipboardCheck },
   { label: "Inventory Management", path: "/inventory", icon: Package },
+  { label: "Support Tickets", path: "/tickets", icon: Headset },
+  { label: "Agent Earnings & Payouts", path: "/commissions", icon: Wallet },
+  { label: "Payments & Transactions", path: "/payments", icon: CreditCard },
+  { label: "Service Areas", path: "/service-areas", icon: MapPinned },
   { label: "Reports & Analytics", path: "/reports", icon: ChartNoAxesCombined },
   { label: "Settings", path: "/settings", icon: Settings },
 ];
@@ -59,12 +67,12 @@ export default function Sidebar() {
 
   const linkClass = (isActive: boolean) =>
     [
-      "group relative flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3.5 py-2.5",
-      "text-left text-[13.5px] font-medium tracking-[0.01em]",
+      "group relative flex min-h-[43px] w-full items-center gap-3 rounded-xl px-3.5 py-2.5",
+      "text-left text-[13.5px] font-medium tracking-[-0.01em]",
       "transition-[background-color,color,box-shadow,transform] duration-200 ease-out",
       isActive
-        ? "bg-orange-500 text-white shadow-[0_5px_14px_rgba(249,115,22,0.20)]"
-        : "text-white hover:bg-white/[0.07] active:scale-[0.99]",
+        ? "bg-orange-500 text-white shadow-[0_5px_14px_rgba(249,115,22,0.20)] before:absolute before:bottom-2.5 before:left-0 before:top-2.5 before:w-[3px] before:rounded-r-full before:bg-white"
+        : "text-white/75 hover:bg-white/[0.07] hover:text-white active:scale-[0.99]",
     ].join(" ");
 
   return (
@@ -95,7 +103,13 @@ export default function Sidebar() {
               to={path}
               className={({ isActive }) => linkClass(isActive)}
             >
-              <Icon size={19} strokeWidth={1.85} className="shrink-0 opacity-95" />
+              <Icon
+                size={18}
+                strokeWidth={1.85}
+                className={`shrink-0 transition-colors ${
+                  location.pathname === path ? "text-white" : "text-white/55 group-hover:text-white/90"
+                }`}
+              />
               <span className="min-w-0 flex-1">{label}</span>
             </NavLink>
           ))}
@@ -111,12 +125,18 @@ export default function Sidebar() {
             aria-controls="device-catalog-submenu"
             className={linkClass(isCatalogRoute)}
           >
-            <Smartphone size={19} strokeWidth={1.85} className="shrink-0" />
-            <span className="min-w-0 flex-1 text-[13.5px] font-medium tracking-[0.01em]">Device Catalog</span>
+            <Smartphone
+              size={18}
+              strokeWidth={1.85}
+              className={`shrink-0 ${isCatalogRoute ? "text-white" : "text-white/55"}`}
+            />
+            <span className="min-w-0 flex-1 text-[13.5px] font-medium tracking-[-0.01em]">
+              Device Catalog
+            </span>
             <ChevronDown
-              size={16}
+              size={15}
               strokeWidth={2}
-              className={`shrink-0 text-white/75 transition-transform duration-200 ease-out ${
+              className={`shrink-0 text-white/65 transition-transform duration-200 ease-out ${
                 catalogOpen ? "rotate-180" : ""
               }`}
             />
@@ -133,7 +153,7 @@ export default function Sidebar() {
             aria-hidden={!catalogOpen}
           >
             <div className="min-h-0 overflow-hidden">
-              <div className="ml-[18px] space-y-1 border-l border-white/[0.12] py-1 pl-3">
+              <div className="ml-[19px] space-y-1 border-l border-white/[0.14] py-1 pl-3">
                 {catalogLinks.map(({ label, path, icon: Icon }) => (
                   <NavLink
                     key={path}
@@ -142,15 +162,15 @@ export default function Sidebar() {
                     tabIndex={catalogOpen ? 0 : -1}
                     className={({ isActive }) =>
                       [
-                        "group flex min-h-[39px] items-center gap-2.5 rounded-lg px-3",
-                        "text-[13px] font-medium transition-[background-color,color,box-shadow] duration-200 ease-out",
+                        "group flex min-h-[37px] items-center gap-2.5 rounded-lg px-3",
+                        "text-[12.5px] font-medium transition-[background-color,color] duration-200 ease-out",
                         isActive
                           ? "bg-orange-500 text-white shadow-[0_4px_12px_rgba(249,115,22,0.18)]"
-                          : "text-white/75 hover:bg-white/[0.07] hover:text-white",
+                          : "text-white/65 hover:bg-white/[0.07] hover:text-white",
                       ].join(" ")
                     }
                   >
-                    <Icon size={15.5} strokeWidth={1.9} className="shrink-0 opacity-90" />
+                    <Icon size={15} strokeWidth={1.9} className="shrink-0 opacity-85" />
                     <span>{label}</span>
                   </NavLink>
                 ))}
@@ -164,7 +184,13 @@ export default function Sidebar() {
               to={path}
               className={({ isActive }) => linkClass(isActive)}
             >
-              <Icon size={19} strokeWidth={1.85} className="shrink-0 opacity-95" />
+              <Icon
+                size={18}
+                strokeWidth={1.85}
+                className={`shrink-0 transition-colors ${
+                  location.pathname === path ? "text-white" : "text-white/55 group-hover:text-white/90"
+                }`}
+              />
               <span className="min-w-0 flex-1">{label}</span>
             </NavLink>
           ))}
@@ -173,7 +199,7 @@ export default function Sidebar() {
 
       {/* Fixed footer: never scrolls with navigation */}
       <div className="shrink-0 border-t border-white/[0.08] bg-[#202020] p-3">
-        <div className="mb-3 flex items-center gap-3 rounded-xl border border-white/[0.04] bg-white/[0.055] p-3">
+        <div className="mb-3 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.055] p-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-500 text-[13px] font-bold text-white shadow-sm">
             SA
           </div>
@@ -186,9 +212,12 @@ export default function Sidebar() {
         <button
           type="button"
           onClick={handleLogout}
-          className="group flex w-full items-center justify-center gap-2 rounded-xl border border-orange-500/50 px-3 py-3 text-[13px] font-semibold text-orange-400 transition-all duration-200 hover:border-orange-500 hover:bg-orange-500 hover:text-white active:scale-[0.99]"
+          className="group flex w-full items-center justify-center gap-2 rounded-xl border border-orange-500/50 px-3 py-2.5 text-[13px] font-semibold text-orange-400 transition-all duration-200 hover:border-orange-500 hover:bg-orange-500 hover:text-white active:scale-[0.99]"
         >
-          <LogOut size={17} className="transition-transform duration-200 group-hover:-translate-x-0.5" />
+          <LogOut
+            size={16}
+            className="transition-transform duration-200 group-hover:-translate-x-0.5"
+          />
           Logout
         </button>
       </div>

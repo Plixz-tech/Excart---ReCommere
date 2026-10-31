@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Plus,
   Search,
   Pencil,
   Trash2,
@@ -29,6 +28,8 @@ type ApiResponse<T> = {
   data?: T;
 };
 
+const ITEMS_PER_PAGE = 8;
+
 const formatDate = (value?: string) => {
   if (!value) return "—";
   const date = new Date(value);
@@ -54,6 +55,7 @@ export default function Brands() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [currentPage, setCurrentPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
   const [name, setName] = useState("");
@@ -107,6 +109,20 @@ export default function Brands() {
       return matchesSearch && matchesStatus;
     });
   }, [brands, search, statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredBrands.length / ITEMS_PER_PAGE));
+  const paginatedBrands = useMemo(
+    () => filteredBrands.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+    [filteredBrands, currentPage]
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   const resetForm = () => {
     setEditingBrand(null);
@@ -232,7 +248,7 @@ export default function Brands() {
   };
 
   return (
-    <div className="space-y-5 text-stone-800">
+    <div className="space-y-5 pb-2 text-slate-800">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <div className="flex items-center gap-2">
@@ -250,13 +266,13 @@ export default function Brands() {
           onClick={openCreate}
           className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 sm:w-auto text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 active:scale-[0.98]"
         >
-          <Plus size={17} />
+          <Tags size={17} strokeWidth={1.9} />
           Add Brand
         </button>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/90 bg-white px-4 py-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)] transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_8px_22px_rgba(15,23,42,0.07)]">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
             <Tags size={19} strokeWidth={1.8} />
           </div>
@@ -266,7 +282,7 @@ export default function Brands() {
             <p className="mt-1 text-[11px] text-stone-400">All configured brands</p>
           </div>
         </div>
-        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/90 bg-white px-4 py-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)] transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_8px_22px_rgba(15,23,42,0.07)]">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
             <CheckCircle2 size={19} strokeWidth={1.8} />
           </div>
@@ -276,7 +292,7 @@ export default function Brands() {
             <p className="mt-1 text-[11px] text-stone-400">Available in the catalog</p>
           </div>
         </div>
-        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(28,25,23,0.04)] transition-shadow hover:shadow-sm">
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/90 bg-white px-4 py-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)] transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_8px_22px_rgba(15,23,42,0.07)]">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
             <Ban size={19} strokeWidth={1.8} />
           </div>
@@ -306,8 +322,8 @@ export default function Brands() {
       )}
 
       <div className="grid grid-cols-1 items-start gap-5">
-        <section className="min-w-0 overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-[0_3px_14px_rgba(28,25,23,0.035)]">
-          <div className="flex flex-col gap-3 border-b border-stone-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_4px_20px_rgba(15,23,42,0.045)]">
+          <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div>
               <h2 className="text-sm font-semibold text-stone-900">All brands</h2>
               <p className="mt-0.5 text-sm text-stone-500">
@@ -321,13 +337,13 @@ export default function Brands() {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search brands..."
-                  className="h-10 w-full rounded-xl border border-stone-200 bg-white pl-9 pr-3 text-sm outline-none transition focus:border-orange-400 focus:ring-3 focus:ring-orange-500/10 sm:w-52"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-9 pr-3 text-sm outline-none transition focus:border-orange-400 focus:ring-3 focus:ring-orange-500/10 sm:w-52"
                 />
               </label>
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
-                className="h-10 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm outline-none transition focus:border-orange-400 focus:ring-3 focus:ring-orange-500/10 sm:w-auto"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-sm outline-none transition focus:border-orange-400 focus:ring-3 focus:ring-orange-500/10 sm:w-auto"
                 aria-label="Filter by status"
               >
                 <option value="all">All statuses</option>
@@ -338,7 +354,7 @@ export default function Brands() {
                 type="button"
                 onClick={() => void loadBrands()}
                 title="Refresh brands"
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-stone-200 px-3 text-sm text-stone-600 transition hover:bg-stone-50 sm:w-auto"
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition hover:border-orange-200 hover:bg-orange-50 sm:w-auto"
               >
                 <RefreshCw size={15} />
                 <span className="sm:hidden">Refresh</span>
@@ -358,7 +374,7 @@ export default function Brands() {
                 <p className="mt-3 text-sm font-semibold text-stone-800">No brands found</p>
                 <p className="mt-1 text-sm text-stone-500">Try another search or add a new brand.</p>
               </div>
-            ) : filteredBrands.map((brand) => (
+            ) : paginatedBrands.map((brand) => (
               <article key={brand._id} className="rounded-xl border border-stone-200 p-3.5">
                 <div className="flex min-w-0 items-start gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-stone-200 bg-white p-2 shadow-sm">
@@ -396,7 +412,7 @@ export default function Brands() {
           <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[620px] border-collapse text-left text-sm">
               <thead>
-                <tr className="bg-stone-50/90 text-xs font-semibold uppercase tracking-[0.06em] text-stone-500">
+                <tr className="bg-slate-50 text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500">
                   <th className="w-12 px-5 py-3 sm:px-6">#</th>
                   <th className="px-5 py-3 sm:px-6">Brand</th>
                   <th className="px-5 py-3 sm:px-6">Logo</th>
@@ -405,7 +421,7 @@ export default function Brands() {
                   <th className="px-5 py-3 text-right sm:px-6">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100">
+              <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr><td colSpan={6} className="px-4 py-14 text-center text-sm text-stone-500">
                     <span className="inline-flex items-center gap-2"><RefreshCw size={16} className="animate-spin" /> Loading brands…</span>
@@ -419,9 +435,9 @@ export default function Brands() {
                     </td>
                   </tr>
                 ) : (
-                  filteredBrands.map((brand, index) => (
-                    <tr key={brand._id} className="transition-colors hover:bg-orange-50/30">
-                      <td className="px-5 py-3.5 text-sm text-stone-500 sm:px-6">{index + 1}</td>
+                  paginatedBrands.map((brand, index) => (
+                    <tr key={brand._id} className="transition-colors hover:bg-orange-50/35">
+                      <td className="px-5 py-3.5 text-sm text-stone-500 sm:px-6">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
                       <td className="px-5 py-3.5 font-semibold text-stone-800 sm:px-6">{brand.name}</td>
                       <td className="px-5 py-3.5 sm:px-6">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-stone-200 bg-white p-2 shadow-sm">
@@ -485,8 +501,15 @@ export default function Brands() {
               </tbody>
             </table>
           </div>
-          <div className="flex flex-col gap-1 border-t border-stone-100 bg-stone-50/50 px-5 py-3 text-xs text-stone-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <span>Showing {filteredBrands.length} of {brands.length} brands</span>
+          <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <p className="text-xs font-medium text-slate-500">
+              Showing {filteredBrands.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredBrands.length)} of {filteredBrands.length} brands
+            </p>
+            <div className="flex items-center justify-between gap-2 sm:justify-end">
+              <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1} className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+              <span className="min-w-[92px] text-center text-xs font-semibold tabular-nums text-slate-600">Page {currentPage} of {totalPages}</span>
+              <button type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages} className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+            </div>
           </div>
         </section>
 
@@ -504,7 +527,7 @@ export default function Brands() {
             aria-labelledby="brand-form-title"
             className="my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-stone-200 bg-white shadow-[0_24px_80px_rgba(28,25,23,0.24)]"
           >
-            <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-4">
               <div>
                 <h2 id="brand-form-title" className="text-lg font-bold text-stone-900">{editingBrand ? "Edit Brand" : "Add Brand"}</h2>
                 <p className="mt-0.5 text-sm text-stone-500">{editingBrand ? "Update brand details." : "Add a brand to your device catalog."}</p>

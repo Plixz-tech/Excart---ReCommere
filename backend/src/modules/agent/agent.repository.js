@@ -202,13 +202,30 @@ export const getAgentById = async (agentId) => {
     );
   }
 
+  // Return the order fields used by the admin agent details screen.
+  // The previous populate only selected orderNumber/status/commission,
+  // so the UI had no customer or device data to display.
   const earnings = await AgentEarning.find({
     agent: agentId,
   })
-    .populate(
-      "order",
-      "orderNumber status agentCommission"
-    )
+    .populate({
+      path: "order",
+      select: "orderNumber status agentCommission createdAt updatedAt pickup payment customer device",
+      populate: [
+        {
+          path: "customer",
+          select: "fullName name email phone countryCode",
+        },
+        {
+          path: "device",
+          select: "brand model variant color storage ram imei1 imei2 serialNumber deviceCatalogId status",
+          populate: {
+            path: "deviceCatalogId",
+            select: "brand model name title variant color storage ram",
+          },
+        },
+      ],
+    })
     .sort({ createdAt: -1 });
 
   const commissionSummary = {
@@ -259,11 +276,11 @@ export const createAgent = async (
     password,
   } = agentData;
 
-  const existingEmail =
-    await User.findOne({
-      email: email.toLowerCase(),
-      status: { $ne: "deleted" },
-    });
+  // Match the database's unique email index. Even soft-deleted users
+  // reserve their email unless the index is explicitly made partial.
+  const existingEmail = await User.findOne({
+    email: email.toLowerCase(),
+  });
 
   if (existingEmail) {
     throw new ApiError(
@@ -272,11 +289,9 @@ export const createAgent = async (
     );
   }
 
-  const existingPhone =
-    await User.findOne({
-      phone,
-      status: { $ne: "deleted" },
-    });
+  // Match the database's unique phone index. A soft-deleted record can
+  // still reserve this value while the unique index includes that record.
+  const existingPhone = await User.findOne({ phone });
 
   if (existingPhone) {
     throw new ApiError(
@@ -311,26 +326,42 @@ export const createAgent = async (
   const hashedPassword =
     await bcrypt.hash(password, 10);
 
-  const agent = await User.create({
-    fullName,
-    email,
-    phone,
-    countryCode,
-    password: hashedPassword,
+  let agent;
+  try {
+    agent = await User.create({
+      fullName,
+      email,
+      phone,
+      countryCode,
+      password: hashedPassword,
 
-    role: "agent",
+      role: "agent",
 
-    // New agent starts inactive.
-    status: "inactive",
+      // New agent starts inactive.
+      status: "inactive",
 
-    isPhoneVerified: true,
+      isPhoneVerified: true,
 
-    createdBy: adminId,
+      createdBy: adminId,
 
-    agentProfile: {
-      agentId,
-    },
-  });
+      agentProfile: {
+        agentId,
+      },
+    });
+  } catch (error) {
+    // Keep a concurrent duplicate insert from leaking raw Mongo errors to UI.
+    if (error?.code === 11000) {
+      const key = Object.keys(error.keyPattern || {})[0] || "";
+      if (key === "phone") {
+        throw new ApiError(409, "Phone number already exists. Use a different mobile number.");
+      }
+      if (key === "email") {
+        throw new ApiError(409, "Email already exists. Use a different email address.");
+      }
+      throw new ApiError(409, "An agent with one of these details already exists. Check the mobile number and email address.");
+    }
+    throw error;
+  }
 
   return await User.findById(
     agent._id
@@ -1013,4 +1044,3 @@ export const updateAgentLocation = async (
     updatedAt: agent.agentProfile.currentLocation.updatedAt,
   };
 };
-

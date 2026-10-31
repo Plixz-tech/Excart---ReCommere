@@ -3,6 +3,10 @@ import mongoose from "mongoose";
 import ApiError from "../../utils/errors/ApiError.js";
 import * as deviceCatalogRepository from "./deviceCatalog.repository.js";
 import DeviceCatalog from "../../models/DeviceCatalog.js";
+import {
+  filterDeductionsByBrand,
+  normalizeEvaluationConfigForBrand,
+} from "./evaluationApplicability.js";
 
 // CREATE
 
@@ -51,8 +55,19 @@ export const createDeviceCatalog = async (
     );
   }
 
+  const brand = data.brand.trim();
+  const evaluationConfig = normalizeEvaluationConfigForBrand(
+    brand,
+    data.evaluationConfig ?? {},
+  );
+  const conditionDeductions = filterDeductionsByBrand(
+    brand,
+    data.conditionDeductions ?? [],
+    evaluationConfig,
+  );
+
   return deviceCatalogRepository.create({
-    brand: data.brand.trim(),
+    brand,
 
     brandImage:
       data.brandImage?.trim() || "",
@@ -78,9 +93,8 @@ export const createDeviceCatalog = async (
       Number(data.agentCommission ?? 0),
 
     // CONDITION DEDUCTIONS
-    conditionDeductions: (
-      data.conditionDeductions ?? []
-    ).map((deduction) => ({
+    conditionDeductions: conditionDeductions.map((deduction) => ({
+      conditionType: deduction.conditionType.trim(),
       name: deduction.name.trim(),
       amount: Number(deduction.amount),
       active: deduction.active ?? true,
@@ -88,33 +102,17 @@ export const createDeviceCatalog = async (
 
     // EVALUATION CONFIGURATION
     evaluationConfig: {
-      screenCondition:
-        data.evaluationConfig?.screenCondition,
-
-      displayIssues:
-        data.evaluationConfig?.displayIssues,
-
-      bodyCondition:
-        data.evaluationConfig?.bodyCondition,
-
-      batteryHealth:
-        data.evaluationConfig?.batteryHealth,
-
-      repairHistory:
-        data.evaluationConfig?.repairHistory,
-
-      accessories:
-        data.evaluationConfig?.accessories,
-
-      functionalChecks:
-        data.evaluationConfig?.functionalChecks,
-
+      screenCondition: evaluationConfig.screenCondition,
+      displayIssues: evaluationConfig.displayIssues,
+      bodyCondition: evaluationConfig.bodyCondition,
+      batteryHealth: evaluationConfig.batteryHealth,
+      repairHistory: evaluationConfig.repairHistory,
+      accessories: evaluationConfig.accessories,
+      functionalChecks: evaluationConfig.functionalChecks,
+      supportedBrands: evaluationConfig.supportedBrands,
       // BACKWARD COMPATIBILITY
-      battery:
-        data.evaluationConfig?.battery ?? "none",
-
-      biometric:
-        data.evaluationConfig?.biometric ?? "none",
+      battery: evaluationConfig.battery ?? "none",
+      biometric: evaluationConfig.biometric ?? "none",
     },
 
     active:
@@ -211,11 +209,15 @@ export const getDeviceCatalogEvaluation = async (id) => {
     throw new ApiError(404, "Device catalog not found.");
   }
 
-  const evaluationConfig =
+  const storedEvaluationConfig =
     catalog.evaluationConfig?.toObject?.() ??
     catalog.evaluationConfig?.toJSON?.() ??
     catalog.evaluationConfig ??
     {};
+  const evaluationConfig = normalizeEvaluationConfigForBrand(
+    catalog.brand,
+    storedEvaluationConfig,
+  );
 
   const sections = [
     {
@@ -267,13 +269,13 @@ export const getDeviceCatalogEvaluation = async (id) => {
       ...section,
     }));
 
-return {
-  deviceCatalogId: catalog._id,
-  brand: catalog.brand,
-  model: catalog.model,
-  variant: catalog.variant,
-  sections,
-};
+  return {
+    deviceCatalogId: catalog._id,
+    brand: catalog.brand,
+    model: catalog.model,
+    variant: catalog.variant,
+    sections,
+  };
 };
 
 
@@ -428,15 +430,16 @@ export const updateDeviceCatalog = async (
       Number(data.agentCommission);
   }
 
-  // UPDATE CONDITION DEDUCTIONS
-  if (data.conditionDeductions !== undefined) {
-    updateData.conditionDeductions =
-      data.conditionDeductions.map((deduction) => ({
-        name: deduction.name.trim(),
-        amount: Number(deduction.amount),
-        active: deduction.active ?? true,
-      }));
-  }
+// UPDATE CONDITION DEDUCTIONS
+if (data.conditionDeductions !== undefined) {
+  updateData.conditionDeductions =
+    data.conditionDeductions.map((deduction) => ({
+      conditionType: deduction.conditionType.trim(),
+      name: deduction.name.trim(),
+      amount: Number(deduction.amount),
+      active: deduction.active ?? true,
+    }));
+}
 
   // MERGE EVALUATION CONFIGURATION
   if (data.evaluationConfig !== undefined) {
@@ -487,6 +490,39 @@ export const updateDeviceCatalog = async (
 
   if (data.active !== undefined) {
     updateData.active = data.active;
+  }
+
+  const effectiveBrand = updateData.brand ?? existing.brand;
+  const currentEvaluationConfig =
+    updateData.evaluationConfig ??
+    existing.evaluationConfig?.toObject?.() ??
+    existing.evaluationConfig?.toJSON?.() ??
+    existing.evaluationConfig ??
+    {};
+  const normalizedEvaluationConfig = normalizeEvaluationConfigForBrand(
+    effectiveBrand,
+    currentEvaluationConfig,
+  );
+
+  // Persist the disabled state for sections that do not apply to this brand.
+  updateData.evaluationConfig = normalizedEvaluationConfig;
+
+  // Never retain or reactivate deductions for sections that are inapplicable
+  // to the catalog brand, including when an existing Apple catalog is changed
+  // to a non-Apple brand.
+  if (data.conditionDeductions !== undefined || data.brand !== undefined) {
+    const sourceDeductions =
+      updateData.conditionDeductions ?? existing.conditionDeductions ?? [];
+    updateData.conditionDeductions = filterDeductionsByBrand(
+      effectiveBrand,
+      sourceDeductions,
+      normalizedEvaluationConfig,
+    ).map((deduction) => ({
+      conditionType: deduction.conditionType?.trim() || undefined,
+      name: deduction.name.trim(),
+      amount: Number(deduction.amount),
+      active: deduction.active ?? true,
+    }));
   }
 
   return deviceCatalogRepository.updateById(

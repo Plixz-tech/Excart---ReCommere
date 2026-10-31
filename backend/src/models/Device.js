@@ -174,6 +174,12 @@ const deviceSchema = new mongoose.Schema(
       },
     },
 
+    // ORIGINAL CUSTOMER-SUBMITTED ANSWERS
+    customerAnswers: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+
 
     // AGENT PHYSICAL DEVICE INSPECTION
 

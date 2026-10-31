@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import ApiError from "../../utils/errors/ApiError.js";
 import orderRepository from "./order.repository.js";
 import Device from "../../models/Device.js";
 import DeviceCatalog from "../../models/DeviceCatalog.js";
@@ -12,6 +13,7 @@ import * as verificationService from "../../services/verification/verification.s
 import notificationService from "../notification/notification.service.js";
 import auditLogger from "../../utils/audit/auditLogger.js";
 import { calculatePrice } from "../pricingRule/pricingRule.service.js";
+import Counter from "../../models/Counter.js";
 
 // ExCart currently operates in India.
 // Pickup date/time received from the frontend is treated as IST.
@@ -140,8 +142,6 @@ const validateStatusTransition = (
   }
 };
 
-
-
 class OrderService {
 
 
@@ -149,7 +149,16 @@ class OrderService {
   // CUSTOMER CREATE ORDER
 
 
-  async createOrder(data, userId) {
+
+  // CUSTOMER CREATE ORDER
+
+  async createOrder(data, userId, options = {}) {
+    const {
+      session = null,
+      skipSideEffects = false,
+      pricingOverride = null,
+    } = options;
+
     const {
       deviceCatalogId,
       brand,
@@ -162,6 +171,7 @@ class OrderService {
       imei2,
       serialNumber,
       customerEvaluation,
+      customerAnswers,
       photos,
       pickup,
       estimatedAmount,
@@ -169,283 +179,201 @@ class OrderService {
     } = data;
 
     if (!pickup) {
-      const error = new Error(
-        "Pickup details are required."
-      );
-
-      error.statusCode = 400;
-
-      throw error;
+      throw new ApiError(400, "Pickup details are required.");
     }
 
     if (!pickup.scheduledDate) {
-      const error = new Error(
-        "Pickup date is required."
-      );
-
-      error.statusCode = 400;
-
-      throw error;
+      throw new ApiError(400, "Pickup date is required.");
     }
 
     if (!pickup.scheduledTime) {
-      const error = new Error(
-        "Pickup time is required."
-      );
-
-      error.statusCode = 400;
-
-      throw error;
+      throw new ApiError(400, "Pickup time is required.");
     }
 
-    const pickupDate =
-      buildPickupDateTime(
-        pickup.scheduledDate,
-        pickup.scheduledTime
-      );
+    const pickupDate = buildPickupDateTime(
+      pickup.scheduledDate,
+      pickup.scheduledTime
+    );
 
     if (pickupDate <= new Date()) {
-      const error = new Error(
+      throw new ApiError(
+        400,
         "Pickup date and time must be in the future."
       );
-
-      error.statusCode = 400;
-
-      throw error;
     }
 
-    const orderNumber =
-      await this.generateOrderNumber();
+    const orderNumber = await this.generateOrderNumber();
 
-    const existingDevice =
-      await Device.findOne({
-        $or: [
-          { imei1 },
-          ...(imei2
-            ? [{ imei2 }]
-            : []),
-        ],
-        status: {
-          $ne: "deleted",
-        },
-      });
+    let existingDeviceQuery = Device.findOne({
+      $or: [
+        { imei1 },
+        ...(imei2 ? [{ imei2 }] : []),
+      ],
+      status: { $ne: "deleted" },
+    });
+
+    if (session) {
+      existingDeviceQuery = existingDeviceQuery.session(session);
+    }
+
+    const existingDevice = await existingDeviceQuery;
 
     if (existingDevice) {
-      const error = new Error(
+      throw new ApiError(
+        409,
         "A device with this IMEI already exists."
       );
-
-      error.statusCode = 409;
-
-      throw error;
     }
 
     if (!deviceCatalogId) {
-      throw new ApiError(
-        400,
-        "Device Catalog ID is required."
-      );
+      throw new ApiError(400, "Device Catalog ID is required.");
     }
 
-    if (
-      !mongoose.Types.ObjectId.isValid(
-        deviceCatalogId
-      )
-    ) {
-      throw new ApiError(
-        400,
-        "Invalid Device Catalog ID."
-      );
+    if (!mongoose.Types.ObjectId.isValid(deviceCatalogId)) {
+      throw new ApiError(400, "Invalid Device Catalog ID.");
     }
 
-    const catalogDevice =
-      await DeviceCatalog.findOne({
-        _id: deviceCatalogId,
-        active: true,
-      });
+    let catalogQuery = DeviceCatalog.findOne({
+      _id: deviceCatalogId,
+      active: true,
+    });
+
+    if (session) {
+      catalogQuery = catalogQuery.session(session);
+    }
+
+    const catalogDevice = await catalogQuery;
 
     if (!catalogDevice) {
-      throw new ApiError(
-        404,
-        "Device catalog item not found."
-      );
+      throw new ApiError(404, "Device catalog item not found.");
     }
 
-    const agentCommission =
-      catalogDevice.agentCommission;
+    const agentCommission = catalogDevice.agentCommission;
 
-    const pricingResult =
-      await calculatePrice({
+    const pricingResult = pricingOverride
+      ? pricingOverride
+      : await calculatePrice({
         deviceCatalogId,
-        evaluation:
-          customerEvaluation || {},
+        evaluation: customerEvaluation || {},
       });
 
-    const device =
-      await Device.create({
-        brand,
-        model,
-        variant,
-        color,
-        storage,
-        ram,
-        imei1,
-        imei2,
-        serialNumber,
+    if (
+      !Number.isFinite(Number(pricingResult.finalPrice)) ||
+      Number(pricingResult.finalPrice) < 0
+    ) {
+      throw new ApiError(400, "Invalid order pricing.");
+    }
 
-        customerEvaluation:
-          customerEvaluation || {},
+    const deviceData = {
+      brand,
+      model,
+      variant,
+      color,
+      storage,
+      ram,
+      imei1,
+      imei2,
+      serialNumber,
 
-        photos:
-          photos || [],
+      // Customer-provided device condition
+      customerEvaluation: customerEvaluation || {},
+      customerAnswers: customerAnswers || {},
 
-        customer:
-          userId,
+      // Uploaded device photos
+      photos: photos || [],
 
-        pickupAgent:
-          null,
+      customer: userId,
+      pickupAgent: null,
+      inspectionAgent: null,
+      status: "pending_pickup",
+      agentCommission,
+      deviceCatalogId,
+      valuationPrice: catalogDevice.valuationPrice,
+      purchasePrice: 0,
+      expectedSellingPrice: 0,
+      createdBy: userId,
+      updatedBy: userId,
+    };
 
-        inspectionAgent:
-          null,
+    let device;
 
-        status:
-          "pending_pickup",
+    if (session) {
+      device = new Device(deviceData);
+      await device.save({ session });
+    } else {
+      device = await Device.create(deviceData);
+    }
 
-        agentCommission,
-
-        deviceCatalogId,
-
-        valuationPrice:
-          catalogDevice.valuationPrice,
-
-        purchasePrice:
-          0,
-
-        expectedSellingPrice:
-          0,
-
-        createdBy:
-          userId,
-
-        updatedBy:
-          userId,
-      });
-
-    const mapsUrl =
-      generateGoogleMapsUrl(
-        pickup.address
-      );
+    const mapsUrl = generateGoogleMapsUrl(pickup.address);
 
     const orderData = {
       orderNumber,
-
-      customer:
-        userId,
-
-      agent:
-        null,
-
-      agentCommission:
-        Number(agentCommission ?? 0),
-
-      device:
-        device._id,
-
-      status:
-        "pickup_scheduled",
-
+      customer: userId,
+      agent: null,
+      agentCommission: Number(agentCommission ?? 0),
+      device: device._id,
+      status: "pickup_scheduled",
       pickup: {
         ...pickup,
-
-        status:
-          "scheduled",
-
-        scheduledDate:
-          pickupDate,
-
-        scheduledTime:
-          pickup.scheduledTime,
-
-        assignedAgent:
-          null,
-
+        status: "scheduled",
+        scheduledDate: pickupDate,
+        scheduledTime: pickup.scheduledTime,
+        assignedAgent: null,
         mapsUrl,
-
-        pickedUpAt:
-          null,
+        pickedUpAt: null,
       },
-
       payment: {
-        estimatedAmount:
-          pricingResult.finalPrice,
-
-        finalAmount:
-          0,
-
-        status:
-          "pending",
+        estimatedAmount: pricingResult.finalPrice,
+        finalAmount: 0,
+        status: "pending",
       },
-
-      notes:
-        notes || "",
-
-      createdBy:
-        userId,
-
-      updatedBy:
-        userId,
+      notes: notes || "",
+      createdBy: userId,
+      updatedBy: userId,
     };
 
-    const order =
-      await orderRepository.create(
-        orderData
-      );
+    const order = await orderRepository.create(orderData, session);
 
-    await auditLogger({
-      actor: userId,
-      action: "ORDER_CREATED",
-      module: "order",
-      entityType: "Order",
-      entityId: order._id,
-      description:
-        `Order ${order.orderNumber} was created.`,
-      newValue: {
-        status:
-          order.status,
-
-        orderNumber:
-          order.orderNumber,
-      },
-    });
-
-    try {
-      await notificationService.createNotification({
-        recipient:
-          userId,
-
-        title:
-          "Order Confirmed",
-
-        message:
-          `Your order ${order.orderNumber} has been created successfully.`,
-
-        type:
-          "order_created",
-
-        order:
-          order._id,
+    // Side effects must run after the transaction commits.
+    if (!skipSideEffects) {
+      await auditLogger({
+        actor: userId,
+        action: "ORDER_CREATED",
+        module: "order",
+        entityType: "Order",
+        entityId: order._id,
+        description: `Order ${order.orderNumber} was created.`,
+        newValue: {
+          status: order.status,
+          orderNumber: order.orderNumber,
+        },
       });
-    } catch (error) {
-      console.error(
-        "Failed to create order notification:",
-        error
-      );
+
+      try {
+        await notificationService.createNotification({
+          recipient: userId,
+          title: "Order Confirmed",
+          message: `Your order ${order.orderNumber} has been created successfully.`,
+          type: "order_created",
+          order: order._id,
+        });
+      } catch (error) {
+        console.error(
+          "Failed to create order notification:",
+          error
+        );
+      }
     }
 
-    return orderRepository.findById(
-      order._id
-    );
+    // Return the created order directly inside a transaction.
+    // Populate after the transaction commits.
+    if (session) {
+      return order;
+    }
+
+    return orderRepository.findById(order._id);
   }
+
 
 
   // CUSTOMER UPLOAD DEVICE INVOICE
@@ -2411,21 +2339,91 @@ class OrderService {
       throw error;
     }
 
-    // Use the agent's physical evaluation
-    // for the second pricing calculation.
     const evaluation =
       device.agentEvaluation?.toObject
         ? device.agentEvaluation.toObject()
         : device.agentEvaluation || {};
 
-    const pricingResult =
-      await calculatePrice({
-        deviceCatalogId:
-          order.deviceCatalogId ||
-          order.device.deviceCatalogId,
+    const functionalIssues = Array.isArray(evaluation.functionalIssues)
+      ? evaluation.functionalIssues
+      : [];
 
-        evaluation,
+    const catalogDevice = await DeviceCatalog.findById(
+      order.deviceCatalogId || order.device.deviceCatalogId
+    ).select(
+      "evaluationConfig.functionalChecks.options evaluationConfig.batteryHealth.options"
+    );
+
+    // Match the agent's numeric battery health to the actual option configured
+    // in Device Catalog, including labels such as "99–95%" or "Below 90%".
+    const batteryHealthOptions =
+      catalogDevice?.evaluationConfig?.batteryHealth?.options || [];
+
+    if (
+      typeof evaluation.batteryHealth === "number" &&
+      Number.isFinite(evaluation.batteryHealth)
+    ) {
+      const batteryHealth = evaluation.batteryHealth;
+
+      const matchingBatteryOption = batteryHealthOptions.find((option) => {
+        if (typeof option !== "string") {
+          return false;
+        }
+
+        const normalizedOption = option
+          .replace(/[–—]/g, "-")
+          .trim()
+          .toLowerCase();
+        const numbers = normalizedOption.match(/\d+(?:\.\d+)?/g)?.map(Number) || [];
+
+        if (numbers.length >= 2 && normalizedOption.includes("-")) {
+          const lower = Math.min(numbers[0], numbers[1]);
+          const upper = Math.max(numbers[0], numbers[1]);
+          return batteryHealth >= lower && batteryHealth <= upper;
+        }
+
+        if (numbers.length === 1) {
+          const threshold = numbers[0];
+
+          if (/below|under|less than|<\s*/.test(normalizedOption)) {
+            return batteryHealth < threshold;
+          }
+
+          if (/above|over|at least|greater than|>=?|\+/.test(normalizedOption)) {
+            return batteryHealth >= threshold;
+          }
+
+          return batteryHealth === threshold;
+        }
+
+        return false;
       });
+
+      // If no configured option matches, leave the value unmatched rather
+      // than applying a potentially incorrect deduction.
+      evaluation.batteryHealth = matchingBatteryOption || `${batteryHealth}%`;
+    }
+
+    const functionalChecks = catalogDevice?.evaluationConfig?.functionalChecks?.options || [];
+
+    evaluation.functionalChecks = Object.fromEntries(
+      functionalChecks.map((check) => [
+        check,
+        !functionalIssues.some(
+          (issue) =>
+            typeof issue === "string" &&
+            issue.trim().toLowerCase() === check.trim().toLowerCase()
+        ),
+      ])
+    );
+
+    // Calculate the final agent valuation using the catalog deductions.
+    const pricingResult = await calculatePrice({
+      deviceCatalogId:
+        order.deviceCatalogId ||
+        order.device.deviceCatalogId,
+      evaluation,
+    });
 
     device.agentValuation = {
       amount:
@@ -2785,289 +2783,289 @@ class OrderService {
   // AGENT PICKUP VERIFICATION
 
 
- async verifyPickup(orderId, agentId, data) {
-  const order = await orderRepository.findById(orderId);
+  async verifyPickup(orderId, agentId, data) {
+    const order = await orderRepository.findById(orderId);
 
-  if (!order) {
-    const error = new Error("Order not found.");
-    error.statusCode = 404;
-    throw error;
-  }
-
-  // Ensure the logged-in agent is assigned to this order.
-  if (
-    !order.agent ||
-    order.agent._id.toString() !== agentId.toString()
-  ) {
-    const error = new Error(
-      "You are not authorized to verify this pickup."
-    );
-    error.statusCode = 403;
-    throw error;
-  }
-
-  // Pickup verification is allowed only before pickup completion.
-  if (!["assigned", "pickup_scheduled"].includes(order.status)) {
-    const error = new Error(
-      `Pickup verification cannot be completed when order status is "${order.status}".`
-    );
-    error.statusCode = 400;
-    throw error;
-  }
-
-  // Read documents already uploaded and saved to the order.
-  const customerPhoto =
-    order.pickup?.verification?.customerPhoto;
-
-  const aadhaarDocument =
-    order.pickup?.verification?.aadhaar?.document;
-
-  if (!customerPhoto?.url) {
-    const error = new Error(
-      "Customer photo must be uploaded before pickup verification."
-    );
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (!aadhaarDocument?.url) {
-    const error = new Error(
-      "Aadhaar document must be uploaded before pickup verification."
-    );
-    error.statusCode = 400;
-    throw error;
-  }
-
-  // Aadhaar verification must be completed first.
-  const aadhaarVerification =
-    order.pickup?.verification?.aadhaar?.verification;
-
-  if (aadhaarVerification?.status !== "verified") {
-    const error = new Error(
-      "Customer Aadhaar must be verified before pickup."
-    );
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const verifiedAt = new Date();
-
-  // Update verification status without overwriting uploaded documents.
-  const updatedOrder = await orderRepository.updateById(
-    orderId,
-    {
-      "pickup.verification.status": "verified",
-
-      "pickup.verification.verifiedBy": agentId,
-
-      "pickup.verification.verifiedAt": verifiedAt,
-
-      updatedBy: agentId,
-
-      $push: {
-        timeline: {
-          status: "pickup_verification_completed",
-          message:
-            "Customer photo, Aadhaar document, and Aadhaar verification completed.",
-          performedBy: agentId,
-        },
-      },
-    }
-  );
-
-  // Record the verification in the audit log.
-  await auditLogger({
-    actor: agentId,
-    action: "PICKUP_VERIFICATION_COMPLETED",
-    module: "order",
-    entityType: "Order",
-    entityId: order._id,
-    description:
-      `Pickup verification for order ${order.orderNumber} was completed by the assigned agent.`,
-    oldValue: {
-      verificationStatus:
-        order.pickup?.verification?.status || "pending",
-    },
-    newValue: {
-      verificationStatus: "verified",
-      verifiedBy: agentId,
-      verifiedAt,
-    },
-    metadata: {
-      customerPhotoUploaded: true,
-      aadhaarDocumentUploaded: true,
-      aadhaarVerificationStatus: "verified",
-    },
-  });
-
-  return updatedOrder;
-}
-
-  // AGENT PICKUP
-  
-
-async pickupOrder(orderId, agentId) {
-  const order = await orderRepository.findById(orderId);
-
-  if (!order) {
-    const error = new Error("Order not found.");
-    error.statusCode = 404;
-    throw error;
-  }
-
-  if (
-    !order.agent ||
-    order.agent._id.toString() !== agentId.toString()
-  ) {
-    const error = new Error(
-      "You are not authorized to pick up this order."
-    );
-    error.statusCode = 403;
-    throw error;
-  }
-
-  if (
-    !["assigned", "pickup_scheduled"].includes(order.status)
-  ) {
-    const error = new Error(
-      `Order cannot be picked up because its current status is "${order.status}".`
-    );
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const verification = order.pickup?.verification;
-
-  if (!verification?.customerPhoto?.url) {
-    const error = new Error(
-      "Customer photo is required before pickup."
-    );
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (!verification?.aadhaar?.document?.url) {
-    const error = new Error(
-      "Aadhaar document is required before pickup."
-    );
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (
-    verification?.aadhaar?.verification?.status !== "verified"
-  ) {
-    const error = new Error(
-      "Aadhaar must be verified before pickup."
-    );
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (verification?.status !== "verified") {
-    const error = new Error(
-      "Pickup verification must be completed before pickup."
-    );
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (order.pickup?.status === "completed") {
-    const error = new Error("Order has already been picked up.");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const pickedUpAt = new Date();
-
-  if (order.device) {
-    const device = await Device.findById(
-      order.device._id || order.device
-    );
-
-    if (!device) {
-      const error = new Error("Associated device not found.");
+    if (!order) {
+      const error = new Error("Order not found.");
       error.statusCode = 404;
       throw error;
     }
 
-    device.pickupAgent = agentId;
-    device.status = "picked_up";
-    device.updatedBy = agentId;
-
-    await device.save();
-  }
-
-  const updatedOrder = await orderRepository.updateById(
-    orderId,
-    {
-      // Automatically move the order to payment pending.
-      status: "payment_pending",
-
-      "pickup.status": "completed",
-      "pickup.assignedAgent": agentId,
-      "pickup.pickedUpAt": pickedUpAt,
-      "pickup.verification.verifiedBy": agentId,
-      "pickup.verification.verifiedAt": pickedUpAt,
-
-      "payment.status": "pending",
-
-      updatedBy: agentId,
-
-      $push: {
-        timeline: {
-          status: "payment_pending",
-          message:
-            "Device picked up successfully. Customer payment is pending.",
-          performedBy: agentId,
-        },
-      },
+    // Ensure the logged-in agent is assigned to this order.
+    if (
+      !order.agent ||
+      order.agent._id.toString() !== agentId.toString()
+    ) {
+      const error = new Error(
+        "You are not authorized to verify this pickup."
+      );
+      error.statusCode = 403;
+      throw error;
     }
-  );
 
-  try {
-    await notificationService.createNotification({
-      recipient: order.customer._id || order.customer,
-      title: "Device Picked Up",
-      message:
-        `Your device for order ${order.orderNumber} has been picked up successfully. Payment is pending.`,
-      type: "pickup_completed",
-      order: order._id,
-    });
-  } catch (error) {
-    console.error(
-      "Failed to create pickup notification:",
-      error
+    // Pickup verification is allowed only before pickup completion.
+    if (!["assigned", "pickup_scheduled"].includes(order.status)) {
+      const error = new Error(
+        `Pickup verification cannot be completed when order status is "${order.status}".`
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Read documents already uploaded and saved to the order.
+    const customerPhoto =
+      order.pickup?.verification?.customerPhoto;
+
+    const aadhaarDocument =
+      order.pickup?.verification?.aadhaar?.document;
+
+    if (!customerPhoto?.url) {
+      const error = new Error(
+        "Customer photo must be uploaded before pickup verification."
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!aadhaarDocument?.url) {
+      const error = new Error(
+        "Aadhaar document must be uploaded before pickup verification."
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Aadhaar verification must be completed first.
+    const aadhaarVerification =
+      order.pickup?.verification?.aadhaar?.verification;
+
+    if (aadhaarVerification?.status !== "verified") {
+      const error = new Error(
+        "Customer Aadhaar must be verified before pickup."
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const verifiedAt = new Date();
+
+    // Update verification status without overwriting uploaded documents.
+    const updatedOrder = await orderRepository.updateById(
+      orderId,
+      {
+        "pickup.verification.status": "verified",
+
+        "pickup.verification.verifiedBy": agentId,
+
+        "pickup.verification.verifiedAt": verifiedAt,
+
+        updatedBy: agentId,
+
+        $push: {
+          timeline: {
+            status: "pickup_verification_completed",
+            message:
+              "Customer photo, Aadhaar document, and Aadhaar verification completed.",
+            performedBy: agentId,
+          },
+        },
+      }
     );
+
+    // Record the verification in the audit log.
+    await auditLogger({
+      actor: agentId,
+      action: "PICKUP_VERIFICATION_COMPLETED",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description:
+        `Pickup verification for order ${order.orderNumber} was completed by the assigned agent.`,
+      oldValue: {
+        verificationStatus:
+          order.pickup?.verification?.status || "pending",
+      },
+      newValue: {
+        verificationStatus: "verified",
+        verifiedBy: agentId,
+        verifiedAt,
+      },
+      metadata: {
+        customerPhotoUploaded: true,
+        aadhaarDocumentUploaded: true,
+        aadhaarVerificationStatus: "verified",
+      },
+    });
+
+    return updatedOrder;
   }
 
-  await auditLogger({
-    actor: agentId,
-    action: "ORDER_PICKED_UP",
-    module: "order",
-    entityType: "Order",
-    entityId: order._id,
-    description:
-      `Device for order ${order.orderNumber} was picked up by the assigned agent.`,
-    oldValue: {
-      orderStatus: order.status,
-      pickupStatus: order.pickup?.status || "pending",
-      paymentStatus: order.payment?.status || "pending",
-    },
-    newValue: {
-      orderStatus: "payment_pending",
-      pickupStatus: "completed",
-      paymentStatus: "pending",
-      pickedUpAt,
-    },
-    metadata: {
-      agentId: agentId.toString(),
-      deviceId: order.device?._id || order.device || null,
-    },
-  });
+  // AGENT PICKUP
 
-  return updatedOrder;
-}
+
+  async pickupOrder(orderId, agentId) {
+    const order = await orderRepository.findById(orderId);
+
+    if (!order) {
+      const error = new Error("Order not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (
+      !order.agent ||
+      order.agent._id.toString() !== agentId.toString()
+    ) {
+      const error = new Error(
+        "You are not authorized to pick up this order."
+      );
+      error.statusCode = 403;
+      throw error;
+    }
+
+    if (
+      !["assigned", "pickup_scheduled"].includes(order.status)
+    ) {
+      const error = new Error(
+        `Order cannot be picked up because its current status is "${order.status}".`
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const verification = order.pickup?.verification;
+
+    if (!verification?.customerPhoto?.url) {
+      const error = new Error(
+        "Customer photo is required before pickup."
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!verification?.aadhaar?.document?.url) {
+      const error = new Error(
+        "Aadhaar document is required before pickup."
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (
+      verification?.aadhaar?.verification?.status !== "verified"
+    ) {
+      const error = new Error(
+        "Aadhaar must be verified before pickup."
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (verification?.status !== "verified") {
+      const error = new Error(
+        "Pickup verification must be completed before pickup."
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (order.pickup?.status === "completed") {
+      const error = new Error("Order has already been picked up.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const pickedUpAt = new Date();
+
+    if (order.device) {
+      const device = await Device.findById(
+        order.device._id || order.device
+      );
+
+      if (!device) {
+        const error = new Error("Associated device not found.");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      device.pickupAgent = agentId;
+      device.status = "picked_up";
+      device.updatedBy = agentId;
+
+      await device.save();
+    }
+
+    const updatedOrder = await orderRepository.updateById(
+      orderId,
+      {
+        // Automatically move the order to payment pending.
+        status: "payment_pending",
+
+        "pickup.status": "completed",
+        "pickup.assignedAgent": agentId,
+        "pickup.pickedUpAt": pickedUpAt,
+        "pickup.verification.verifiedBy": agentId,
+        "pickup.verification.verifiedAt": pickedUpAt,
+
+        "payment.status": "pending",
+
+        updatedBy: agentId,
+
+        $push: {
+          timeline: {
+            status: "payment_pending",
+            message:
+              "Device picked up successfully. Customer payment is pending.",
+            performedBy: agentId,
+          },
+        },
+      }
+    );
+
+    try {
+      await notificationService.createNotification({
+        recipient: order.customer._id || order.customer,
+        title: "Device Picked Up",
+        message:
+          `Your device for order ${order.orderNumber} has been picked up successfully. Payment is pending.`,
+        type: "pickup_completed",
+        order: order._id,
+      });
+    } catch (error) {
+      console.error(
+        "Failed to create pickup notification:",
+        error
+      );
+    }
+
+    await auditLogger({
+      actor: agentId,
+      action: "ORDER_PICKED_UP",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description:
+        `Device for order ${order.orderNumber} was picked up by the assigned agent.`,
+      oldValue: {
+        orderStatus: order.status,
+        pickupStatus: order.pickup?.status || "pending",
+        paymentStatus: order.payment?.status || "pending",
+      },
+      newValue: {
+        orderStatus: "payment_pending",
+        pickupStatus: "completed",
+        paymentStatus: "pending",
+        pickedUpAt,
+      },
+      metadata: {
+        agentId: agentId.toString(),
+        deviceId: order.device?._id || order.device || null,
+      },
+    });
+
+    return updatedOrder;
+  }
 
 
 
@@ -3140,24 +3138,24 @@ async pickupOrder(orderId, agentId) {
     await device.save();
 
     // Create agent earning when the device is received at the store
-if (order.agent && Number(order.agentCommission || 0) > 0) {
-  try {
-    await AgentEarning.create({
-      agent: order.agent,
-      order: order._id,
-      amount: Number(order.agentCommission || 0),
-      status: "pending",
-    });
-  } catch (error) {
-    if (error?.code === 11000) {
-      console.warn(
-        `Agent earning already exists for order ${order.orderNumber}.`
-      );
-    } else {
-      throw error;
+    if (order.agent && Number(order.agentCommission || 0) > 0) {
+      try {
+        await AgentEarning.create({
+          agent: order.agent,
+          order: order._id,
+          amount: Number(order.agentCommission || 0),
+          status: "pending",
+        });
+      } catch (error) {
+        if (error?.code === 11000) {
+          console.warn(
+            `Agent earning already exists for order ${order.orderNumber}.`
+          );
+        } else {
+          throw error;
+        }
+      }
     }
-  }
-}
 
     const updatedOrder =
       await orderRepository.updateById(
@@ -3224,190 +3222,190 @@ if (order.agent && Number(order.agentCommission || 0) > 0) {
 
   }
 
-  
+
   // ADMIN PROCESS CUSTOMER PURCHASE PAYMENT
 
-async processPayment(orderId, paymentData, adminId) {
-  const order = await orderRepository.findById(orderId);
+  async processPayment(orderId, paymentData, adminId) {
+    const order = await orderRepository.findById(orderId);
 
-  if (!order) {
-    const error = new Error("Order not found.");
-    error.statusCode = 404;
-    throw error;
-  }
+    if (!order) {
+      const error = new Error("Order not found.");
+      error.statusCode = 404;
+      throw error;
+    }
 
-  if (order.status !== "payment_pending") {
-    const error = new Error(
-      `Payment can only be processed when the order status is "payment_pending". Current status: "${order.status}".`
-    );
-    error.statusCode = 400;
-    throw error;
-  }
+    if (order.status !== "payment_pending") {
+      const error = new Error(
+        `Payment can only be processed when the order status is "payment_pending". Current status: "${order.status}".`
+      );
+      error.statusCode = 400;
+      throw error;
+    }
 
-  if (order.payment?.status === "completed") {
-    const error = new Error("Payment has already been completed.");
-    error.statusCode = 400;
-    throw error;
-  }
+    if (order.payment?.status === "completed") {
+      const error = new Error("Payment has already been completed.");
+      error.statusCode = 400;
+      throw error;
+    }
 
-  validateStatusTransition(order.status, "payment_completed");
-  validateStatusTransition("payment_completed", "in_transit");
+    validateStatusTransition(order.status, "payment_completed");
+    validateStatusTransition("payment_completed", "in_transit");
 
-  const finalAmount = Number(paymentData.finalAmount);
+    const finalAmount = Number(paymentData.finalAmount);
 
-  if (!Number.isFinite(finalAmount) || finalAmount <= 0) {
-    const error = new Error("Valid final amount is required.");
-    error.statusCode = 400;
-    throw error;
-  }
+    if (!Number.isFinite(finalAmount) || finalAmount <= 0) {
+      const error = new Error("Valid final amount is required.");
+      error.statusCode = 400;
+      throw error;
+    }
 
-  // Validate the associated device before processing payment.
-  const device = await Device.findById(order.device);
+    // Validate the associated device before processing payment.
+    const device = await Device.findById(order.device);
 
-  if (!device) {
-    const error = new Error("Associated device not found.");
-    error.statusCode = 404;
-    throw error;
-  }
+    if (!device) {
+      const error = new Error("Associated device not found.");
+      error.statusCode = 404;
+      throw error;
+    }
 
-  const paidAt = new Date();
-
-
-const invoiceNumber =
-  `PINV-${order.orderNumber}`;
+    const paidAt = new Date();
 
 
-  // Prepare completed payment data for PDF generation.
-  const paidOrder = order.toObject();
+    const invoiceNumber =
+      `PINV-${order.orderNumber}`;
 
-  paidOrder.status = "payment_completed";
-  paidOrder.invoiceNumber = invoiceNumber;
-  paidOrder.payment = {
-    ...paidOrder.payment,
-    status: "completed",
-    finalAmount,
-    paymentMethod: paymentData.paymentMethod,
-    transactionId: paymentData.transactionId || "",
-    paidAt,
-    notes: paymentData.notes || "",
-  };
 
-  // Generate purchase invoice.
-  const purchaseInvoiceBuffer =
-    await generatePurchaseInvoicePdf(paidOrder);
+    // Prepare completed payment data for PDF generation.
+    const paidOrder = order.toObject();
 
-  const purchaseInvoiceFile =
-    await uploadBufferToCloudinary(purchaseInvoiceBuffer, {
-      folder: `excart/orders/${orderId}/purchase-invoice`,
-      resource_type: "raw",
-      public_id: `Purchase-Invoice-${order.orderNumber}`,
-      format: "pdf",
-    });
-
-  // Generate payment slip.
-  const paymentSlipBuffer =
-    await generatePaymentSlipPdf(paidOrder);
-
-  const paymentSlipFile =
-    await uploadBufferToCloudinary(paymentSlipBuffer, {
-      folder: `excart/orders/${orderId}/payment-slip`,
-      resource_type: "raw",
-      public_id: `Payment-Slip-${order.orderNumber}`,
-      format: "pdf",
-    });
-
-  const documents = [
-
-{
-  type: "purchase_invoice",
-  url:
-    purchaseInvoiceFile.secure_url ||
-    purchaseInvoiceFile.url ||
-    "",
-  publicId: purchaseInvoiceFile.public_id || "",
-  fileName: `Purchase-Invoice-${order.orderNumber}.pdf`,
-  invoiceNumber: invoiceNumber,
-  uploadedBy: adminId,
-  uploadedAt: new Date(),
-},
-
-    {
-      type: "payment_slip",
-      url:
-        paymentSlipFile.secure_url ||
-        paymentSlipFile.url ||
-        "",
-      publicId: paymentSlipFile.public_id || "",
-      fileName: `Payment-Slip-${order.orderNumber}.pdf`,
-      uploadedBy: adminId,
-      uploadedAt: new Date(),
-    },
-  ];
-
-  // Complete payment and move the order to transit automatically.
-  const updatedOrder = await orderRepository.updateById(orderId, {
-    status: "in_transit",
-    "payment.status": "completed",
-    "payment.finalAmount": finalAmount,
-    "payment.paymentMethod": paymentData.paymentMethod,
-    "payment.transactionId": paymentData.transactionId || "",
-    "payment.paidAt": paidAt,
-    "payment.notes": paymentData.notes || "",
-    updatedBy: adminId,
-    $push: {
-      documents: { $each: documents },
-      timeline: {
-        status: "in_transit",
-        message:
-          "Payment completed successfully. Device is now in transit.",
-        performedBy: adminId,
-      },
-    },
-  });
-
-  // Keep the device status synchronized with the order.
-  device.status = "in_transit";
-  device.updatedBy = adminId;
-  await device.save();
-
-  await auditLogger({
-    actor: adminId,
-    action: "ORDER_PAYMENT_COMPLETED",
-    module: "order",
-    entityType: "Order",
-    entityId: order._id,
-    description:
-      `Payment completed and order ${order.orderNumber} moved to transit.`,
-    oldValue: {
-      status: order.status,
-      paymentStatus: order.payment?.status,
-    },
-    newValue: {
-      status: "in_transit",
-      paymentStatus: "completed",
+    paidOrder.status = "payment_completed";
+    paidOrder.invoiceNumber = invoiceNumber;
+    paidOrder.payment = {
+      ...paidOrder.payment,
+      status: "completed",
       finalAmount,
       paymentMethod: paymentData.paymentMethod,
-    },
-  });
+      transactionId: paymentData.transactionId || "",
+      paidAt,
+      notes: paymentData.notes || "",
+    };
 
-  try {
-    await notificationService.createNotification({
-      recipient: order.customer?._id || order.customer,
-      title: "Payment Completed",
-      message:
-        `Payment for order ${order.orderNumber} has been recorded successfully.`,
-      type: "order_status",
-      order: order._id,
+    // Generate purchase invoice.
+    const purchaseInvoiceBuffer =
+      await generatePurchaseInvoicePdf(paidOrder);
+
+    const purchaseInvoiceFile =
+      await uploadBufferToCloudinary(purchaseInvoiceBuffer, {
+        folder: `excart/orders/${orderId}/purchase-invoice`,
+        resource_type: "raw",
+        public_id: `Purchase-Invoice-${order.orderNumber}`,
+        format: "pdf",
+      });
+
+    // Generate payment slip.
+    const paymentSlipBuffer =
+      await generatePaymentSlipPdf(paidOrder);
+
+    const paymentSlipFile =
+      await uploadBufferToCloudinary(paymentSlipBuffer, {
+        folder: `excart/orders/${orderId}/payment-slip`,
+        resource_type: "raw",
+        public_id: `Payment-Slip-${order.orderNumber}`,
+        format: "pdf",
+      });
+
+    const documents = [
+
+      {
+        type: "purchase_invoice",
+        url:
+          purchaseInvoiceFile.secure_url ||
+          purchaseInvoiceFile.url ||
+          "",
+        publicId: purchaseInvoiceFile.public_id || "",
+        fileName: `Purchase-Invoice-${order.orderNumber}.pdf`,
+        invoiceNumber: invoiceNumber,
+        uploadedBy: adminId,
+        uploadedAt: new Date(),
+      },
+
+      {
+        type: "payment_slip",
+        url:
+          paymentSlipFile.secure_url ||
+          paymentSlipFile.url ||
+          "",
+        publicId: paymentSlipFile.public_id || "",
+        fileName: `Payment-Slip-${order.orderNumber}.pdf`,
+        uploadedBy: adminId,
+        uploadedAt: new Date(),
+      },
+    ];
+
+    // Complete payment and move the order to transit automatically.
+    const updatedOrder = await orderRepository.updateById(orderId, {
+      status: "in_transit",
+      "payment.status": "completed",
+      "payment.finalAmount": finalAmount,
+      "payment.paymentMethod": paymentData.paymentMethod,
+      "payment.transactionId": paymentData.transactionId || "",
+      "payment.paidAt": paidAt,
+      "payment.notes": paymentData.notes || "",
+      updatedBy: adminId,
+      $push: {
+        documents: { $each: documents },
+        timeline: {
+          status: "in_transit",
+          message:
+            "Payment completed successfully. Device is now in transit.",
+          performedBy: adminId,
+        },
+      },
     });
-  } catch (error) {
-    console.error(
-      "Failed to create payment notification:",
-      error
-    );
-  }
 
-  return orderRepository.findById(updatedOrder._id);
-}
+    // Keep the device status synchronized with the order.
+    device.status = "in_transit";
+    device.updatedBy = adminId;
+    await device.save();
+
+    await auditLogger({
+      actor: adminId,
+      action: "ORDER_PAYMENT_COMPLETED",
+      module: "order",
+      entityType: "Order",
+      entityId: order._id,
+      description:
+        `Payment completed and order ${order.orderNumber} moved to transit.`,
+      oldValue: {
+        status: order.status,
+        paymentStatus: order.payment?.status,
+      },
+      newValue: {
+        status: "in_transit",
+        paymentStatus: "completed",
+        finalAmount,
+        paymentMethod: paymentData.paymentMethod,
+      },
+    });
+
+    try {
+      await notificationService.createNotification({
+        recipient: order.customer?._id || order.customer,
+        title: "Payment Completed",
+        message:
+          `Payment for order ${order.orderNumber} has been recorded successfully.`,
+        type: "order_status",
+        order: order._id,
+      });
+    } catch (error) {
+      console.error(
+        "Failed to create payment notification:",
+        error
+      );
+    }
+
+    return orderRepository.findById(updatedOrder._id);
+  }
 
   // GET PURCHASE INVOICE
 
@@ -3560,9 +3558,43 @@ const invoiceNumber =
   // GENERATE ORDER NUMBER
 
 
+
   async generateOrderNumber() {
-    return `ORD-${Date.now()}`;
+    const year = new Date().getFullYear();
+    const counterId = `order-${year}`;
+
+    let counter;
+
+    try {
+      counter = await Counter.findOneAndUpdate(
+        { _id: counterId },
+        { $inc: { sequence: 1 } },
+        {
+          new: true,
+          upsert: true,
+          setDefaultsOnInsert: true,
+        }
+      );
+    } catch (error) {
+      // Handle a concurrent first-time counter creation.
+      if (error.code !== 11000) {
+        throw error;
+      }
+
+      counter = await Counter.findOneAndUpdate(
+        { _id: counterId },
+        { $inc: { sequence: 1 } },
+        { new: true }
+      );
+    }
+
+    if (!counter || counter.sequence > 99999) {
+      throw new Error(`Order number limit reached for ${year}.`);
+    }
+
+    return `ORD-${year}-${String(counter.sequence).padStart(5, "0")}`;
   }
+
 }
 
 
