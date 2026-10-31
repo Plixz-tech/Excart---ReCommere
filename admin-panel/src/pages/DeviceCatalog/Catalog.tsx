@@ -1592,7 +1592,7 @@ const enabledDeductionTotal = visibleRules.reduce(
                     ? "Saving..."
                     : editing
                       ? "Save changes"
-                      : "Create catalog entry"}
+                      : "Create Catalog"}
                 </button>
               </div>
             </form>

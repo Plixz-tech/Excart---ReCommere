@@ -63,7 +63,18 @@ const errorMessage = (error: any, fallback: string) => {
 };
 
 function SummaryCard({ title, value, subtitle, icon: Icon, iconClass }: { title: string; value: number | string; subtitle: string; icon: typeof Users; iconClass: string }) {
-  return <div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(28,25,23,0.02)]"><div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClass}`}><Icon size={19} strokeWidth={1.8} /></div><div className="min-w-0"><p className="text-sm font-medium leading-5 text-stone-600">{title}</p><p className="text-2xl font-semibold leading-7 tracking-tight text-stone-900">{value}</p><p className="mt-0.5 truncate text-xs text-stone-400">{subtitle}</p></div></div>;
+  return (
+    <div className="group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-stone-200 bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(28,25,23,0.02)] transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_10px_24px_rgba(15,23,42,0.07)] before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:bg-gradient-to-r before:from-orange-500 before:via-orange-300 before:to-transparent before:opacity-0 before:transition-opacity group-hover:before:opacity-100">
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors duration-200 ${iconClass}`}>
+        <Icon size={19} strokeWidth={1.8} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-medium leading-5 text-stone-600 transition-colors duration-200 group-hover:text-stone-800">{title}</p>
+        <p className="text-2xl font-semibold leading-7 tracking-tight text-stone-900">{value}</p>
+        <p className="mt-0.5 truncate text-xs text-stone-400">{subtitle}</p>
+      </div>
+    </div>
+  );
 }
 function Field({ label, children, required }: { label: string; children: ReactNode; required?: boolean }) {
   return <label className="block min-w-0"><span className="mb-1.5 block text-xs font-semibold text-stone-600">{label}{required && <span className="ml-1 text-orange-600">*</span>}</span>{children}</label>;
