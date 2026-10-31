@@ -72,8 +72,6 @@ const inputClass = "h-10 w-full rounded-lg border border-stone-200 bg-white px-3
 const localDateISO = () => { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; };
 const displayDate = (value: string) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value; const [year, month, day] = value.split("-"); return `${day}/${month}/${year}`; };
 const parseDisplayDate = (value: string) => { const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if (!match) return ""; const day = Number(match[1]); const month = Number(match[2]); const year = Number(match[3]); const date = new Date(year, month - 1, day); return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` : ""; };
-const timeTo12Hour = (value: string) => { if (!value) return ""; const [hour, minute] = value.split(":").map(Number); return `${String(hour % 12 || 12).padStart(2, "0")}:${String(minute).padStart(2, "0")}`; };
-const timePeriod = (value: string) => value && Number(value.split(":")[0]) >= 12 ? "PM" : "AM";
 const timeTo24Hour = (value: string, period: string) => { const match = value.trim().match(/^(\d{1,2}):(\d{2})$/); if (!match) return ""; let hour = Number(match[1]); const minute = Number(match[2]); if (hour < 1 || hour > 12 || minute > 59) return ""; hour = hour % 12 + (period === "PM" ? 12 : 0); return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`; };
 
 export default function AgentsPage() {
